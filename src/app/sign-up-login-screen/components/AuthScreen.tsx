@@ -28,10 +28,10 @@ export default function AuthScreen() {
   const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isSignUp, setIsSignUp] = useState(false);
-  const [theme, setTheme] = useState<'light' | 'dark'>('dark');
+  const [theme, setTheme] = useState<'light' | 'dark'>('light');
   useEffect(() => {
     const savedTheme = localStorage.getItem('nk-theme') as 'light' | 'dark' | null;
-    const t = savedTheme || 'dark';
+    const t = savedTheme || 'light';
     setTheme(t);
     applyTheme(t);
   }, []);

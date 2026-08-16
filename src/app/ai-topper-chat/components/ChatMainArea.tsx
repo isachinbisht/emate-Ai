@@ -86,11 +86,11 @@ export default function ChatMainArea({
     const inputRef = useRef<HTMLTextAreaElement>(null);
 
     // Sync theme state with localStorage
-    const [theme, setTheme] = useState<'light' | 'dark'>('dark');
+    const [theme, setTheme] = useState<'light' | 'dark'>('light');
     useEffect(() => {
         const updateTheme = () => {
             const savedTheme = localStorage.getItem('nk-theme') as 'light' | 'dark' | null;
-            const t = savedTheme || 'dark';
+            const t = savedTheme || 'light';
             setTheme(t);
             applyTheme(t);
         };

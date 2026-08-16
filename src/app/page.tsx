@@ -12,12 +12,12 @@ import { isGuestModeEnabled } from '@/lib/guest-mode';
 
 export default function LandingPage() {
   const router = useRouter();
-  const [theme, setTheme] = useState<'light' | 'dark'>('dark');
+  const [theme, setTheme] = useState<'light' | 'dark'>('light');
 
   // Load theme from localStorage on initial render & sync with body/components
   useEffect(() => {
     const savedTheme = localStorage.getItem('nk-theme') as 'light' | 'dark' | null;
-    const t = savedTheme || 'dark';
+    const t = savedTheme || 'light';
     setTheme(t);
     applyTheme(t);
   }, []);

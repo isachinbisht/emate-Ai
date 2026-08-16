@@ -9,12 +9,12 @@ interface AppLayoutProps {
 
 export default function AppLayout({ children }: AppLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [theme, setTheme] = useState<'light' | 'dark'>('dark');
+  const [theme, setTheme] = useState<'light' | 'dark'>('light');
 
   useEffect(() => {
     const updateTheme = () => {
       const savedTheme = localStorage.getItem('nk-theme') as 'light' | 'dark' | null;
-      setTheme(savedTheme || 'dark');
+      setTheme(savedTheme || 'light');
     };
     updateTheme();
     window.addEventListener('storage', updateTheme);

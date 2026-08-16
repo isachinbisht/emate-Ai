@@ -40,7 +40,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
           dangerouslySetInnerHTML={{
             __html: `
               try {
-                var savedTheme = localStorage.getItem('nk-theme') || 'dark';
+                var savedTheme = localStorage.getItem('nk-theme') || 'light';
                 document.documentElement.classList.add(savedTheme);
               } catch (_) {}
             `,

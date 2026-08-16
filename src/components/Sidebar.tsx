@@ -119,7 +119,7 @@ export default function Sidebar({ onToggle }: SidebarProps) {
   useEffect(() => {
     const updateTheme = () => {
       const saved = localStorage.getItem('nk-theme') as 'light' | 'dark' | null;
-      const t = saved || 'dark';
+      const t = saved || 'light';
       setTheme(t);
       setAppearance(t === 'light' ? 'Light' : 'Dark');
       applyTheme(t);
