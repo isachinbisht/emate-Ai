@@ -5,7 +5,6 @@
 
 # Node modules
 node_modules/
-package-lock.json
 
 # Next.js build output
 .next/

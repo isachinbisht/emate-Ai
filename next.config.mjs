@@ -17,9 +17,7 @@ const nextConfig = {
     },
     webpack(
         config,
-        {
-            dev: dev
-        }
+        { dev }
     ) {
         if (dev) {
             config.module.rules.push({
