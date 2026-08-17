@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 
 export async function POST(req: Request) {
   try {
-    const { messages, mode, subject, unit, model } = await req.json();
+    const { messages, mode, subject, unit, model, notebookContext } = await req.json();
 
     const apiKey = process.env.OPENROUTER_API_KEY;
     if (!apiKey || apiKey === 'your-openrouter-api-key-here') {
@@ -18,12 +18,31 @@ export async function POST(req: Request) {
     // Default to popular OpenRouter model if not specified
     const selectedModel = model || 'meta-llama/llama-3.3-70b-instruct';
 
-    const systemPrompt = `You are e-Mate AI, a helpful, intelligent, and versatile AI assistant.
+    // Build personalised system prompt — inject notebook context when available
+    const notebookSection = notebookContext
+      ? `\n\n## Student's Personal Notebook for ${subject} (USE THIS to personalise answers — these are the student's saved notes and key insights):\n${notebookContext}\n\nAlways reference relevant notebook entries when answering to make answers feel personalised.`
+      : '';
 
-Guidelines:
-- Answer naturally, conversationally, and directly to what the user asks.
-- Do NOT force academic/study jargon or default subject context (like DBMS/study modes) into everyday general conversations unless the user specifically asks for academic or study assistance.
-- Format responses cleanly using standard Markdown when helpful.`;
+    const modeInstruction =
+      mode === 'sprint'
+        ? '\n\nMode: SPRINT — Give concise, bullet-pointed answers optimised for last-minute revision. Prioritise key formulas, definitions and exam tips.'
+        : '\n\nMode: DEEP DIVE — Give thorough, step-by-step explanations with examples. Cover edge cases and exam pitfalls.';
+
+    const contextSection =
+      subject && unit
+        ? `\n\nCurrent study context: Subject = ${subject}, Unit = ${unit}. Tailor all answers to this scope.`
+        : '';
+
+    const systemPrompt =
+      `You are e-Mate AI, an expert AI academic tutor helping students ace their university exams.\n` +
+      `Guidelines:\n` +
+      `- Answer naturally, conversationally, and directly to what the user asks.\n` +
+      `- Use Markdown formatting (headers, bullet points, code blocks) for clarity.\n` +
+      `- If the student's notebook contains relevant notes, reference them and build upon them.\n` +
+      `- Always highlight exam-important points with a ⭐ or 📌 marker.` +
+      contextSection +
+      modeInstruction +
+      notebookSection;
 
     const formattedMessages = [
       { role: 'system', content: systemPrompt },

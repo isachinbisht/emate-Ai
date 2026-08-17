@@ -3,52 +3,9 @@
 import React, { useState, useEffect } from 'react';
 import { BookOpen, ChevronDown, Target, Zap, Clock } from 'lucide-react';
 import type { SelectedContext, ChatMessage, StudyMode } from './AITopperChatScreen';
+import { getSubjects, Subject } from '@/lib/notebook';
 
-const SUBJECTS_WITH_UNITS = [
-  {
-    id: 'subj-dbms',
-    name: 'DBMS',
-    units: [
-      { id: 'unit-dbms-1', name: 'ER Model & Relational Algebra' },
-      { id: 'unit-dbms-2', name: 'SQL Joins & Subqueries' },
-      { id: 'unit-dbms-3', name: 'Normalization (3NF/BCNF)' },
-      { id: 'unit-dbms-4', name: 'Transaction Management & ACID' },
-      { id: 'unit-dbms-5', name: 'Indexing & Query Optimization' },
-    ],
-  },
-  {
-    id: 'subj-ds',
-    name: 'Data Structures',
-    units: [
-      { id: 'unit-ds-1', name: 'Arrays & Linked Lists' },
-      { id: 'unit-ds-2', name: 'Stacks, Queues & Deques' },
-      { id: 'unit-ds-3', name: 'Binary Trees & Heaps' },
-      { id: 'unit-ds-4', name: 'Graph Traversal (DFS/BFS)' },
-      { id: 'unit-ds-5', name: 'Sorting & Searching Algorithms' },
-    ],
-  },
-  {
-    id: 'subj-os',
-    name: 'Operating Systems',
-    units: [
-      { id: 'unit-os-1', name: 'Process Scheduling' },
-      { id: 'unit-os-2', name: 'Deadlock Detection & Prevention' },
-      { id: 'unit-os-3', name: 'Memory Management & Paging' },
-      { id: 'unit-os-4', name: 'File System Implementation' },
-      { id: 'unit-os-5', name: 'Page Replacement Algorithms' },
-    ],
-  },
-  {
-    id: 'subj-web',
-    name: 'Web Technologies',
-    units: [
-      { id: 'unit-web-1', name: 'HTML5 & CSS3 Fundamentals' },
-      { id: 'unit-web-2', name: 'JavaScript & DOM Manipulation' },
-      { id: 'unit-web-3', name: 'React Hooks & State' },
-      { id: 'unit-web-4', name: 'REST API Design Patterns' },
-    ],
-  },
-];
+// Subjects are loaded dynamically from localStorage
 
 const SUGGESTED_PROMPTS = [
   { id: 'sug-001', text: 'Explain BCNF with a 2-mark exam answer', tag: 'High PYQ' },
@@ -73,7 +30,13 @@ export default function ChatContextPanel({
 }: ChatContextPanelProps) {
   const [subjectOpen, setSubjectOpen] = useState(false);
   const [unitOpen, setUnitOpen] = useState(false);
-  const [theme, setTheme] = useState<'light' | 'dark'>('light');
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    if (typeof window !== 'undefined') {
+      const savedTheme = localStorage.getItem('nk-theme');
+      if (savedTheme === 'dark' || savedTheme === 'light') return savedTheme;
+    }
+    return 'light';
+  });
 
   useEffect(() => {
     const updateTheme = () => {
@@ -85,7 +48,17 @@ export default function ChatContextPanel({
     return () => window.removeEventListener('storage', updateTheme);
   }, []);
 
-  const currentSubject = SUBJECTS_WITH_UNITS.find((s) => s.name === selectedContext.subject);
+  const [subjects, setSubjects] = useState<Subject[]>(() => getSubjects());
+
+  useEffect(() => {
+    const handleSubjectsChanged = () => {
+      setSubjects(getSubjects());
+    };
+    window.addEventListener('nk-subjects-changed', handleSubjectsChanged);
+    return () => window.removeEventListener('nk-subjects-changed', handleSubjectsChanged);
+  }, []);
+
+  const currentSubject = subjects.find((s) => s.name === selectedContext.subject);
   const sessionCount = messages.filter((m) => m.role === 'user').length;
 
   return (
@@ -135,7 +108,7 @@ export default function ChatContextPanel({
                   background: theme === 'dark' ? 'rgba(17,17,17,0.95)' : 'rgba(255,255,255,0.97)',
                 }}
               >
-                {SUBJECTS_WITH_UNITS.map((s) => (
+                {subjects.map((s) => (
                   <button
                     key={s.id}
                     onClick={() => {
@@ -224,7 +197,7 @@ export default function ChatContextPanel({
             style={{ background: theme === 'dark' ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)' }}
           >
             <span>Exam probability</span>
-            <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-[11px] font-semibold text-amber-500">High · 87%</span>
+            <span className="rounded-full px-2 py-0.5 text-[11px] font-semibold" style={{ background: theme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)', color: theme === 'dark' ? '#ffffff' : '#000000' }}>High · 87%</span>
           </div>
           <div className="flex items-center justify-between text-[13px] text-zinc-500 px-1">
             <span>Appeared in PYQs</span>
@@ -255,7 +228,8 @@ export default function ChatContextPanel({
             >
               <div className="flex items-start justify-between gap-2">
                 <span style={{ color: theme === 'dark' ? '#ffffff' : '#000000', fontWeight: '500' }}>{prompt.text}</span>
-                <span className="rounded-full bg-sky-500/10 px-2 py-0.5 text-[11px] font-semibold text-sky-500 shrink-0">
+                <span className="rounded-full px-2 py-0.5 text-[11px] font-semibold shrink-0"
+                  style={{ background: theme === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)', color: theme === 'dark' ? '#d4d4d8' : '#3f3f46' }}>
                   {prompt.tag}
                 </span>
               </div>
@@ -279,7 +253,7 @@ export default function ChatContextPanel({
           </div>
           <div className="flex items-center justify-between">
             <span>Mode</span>
-            <span className={`font-semibold ${mode === 'sprint' ? 'text-amber-500' : 'text-sky-500'}`}>
+            <span className="font-semibold" style={{ color: theme === 'dark' ? '#ffffff' : '#000000' }}>
               {mode === 'sprint' ? '⚡ Sprint' : '🔬 Deep Dive'}
             </span>
           </div>

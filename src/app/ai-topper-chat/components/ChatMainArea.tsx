@@ -10,16 +10,20 @@ import {
     Mic,
     Plus,
     ChevronDown,
+    ChevronUp,
     Brain,
     FileText,
     Lightbulb,
     Sparkles,
+    Check,
 } from 'lucide-react';
 import ChatMessageBubble from './ChatMessageBubble';
 import StreamingIndicator from './StreamingIndicator';
 import type { ChatMessage, SelectedContext, StudyMode } from './AITopperChatScreen';
 import { applyTheme } from '@/lib/theme';
 import { ModelSelector } from '@/components/ModelSelector';
+import { buildNotebookContext, appendToNotebook, getSubjects, Subject } from '@/lib/notebook';
+import { saveChatSession } from '@/lib/chatHistory';
 
 const QUICK_ACTIONS = [
     {
@@ -84,9 +88,45 @@ export default function ChatMainArea({
     const [showFeatureModal, setShowFeatureModal] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLTextAreaElement>(null);
+    // Stable session id — created once per component mount
+    const sessionIdRef = useRef<string>(`chat-${Date.now()}`);
+
+    // Dropdown state for study context
+    const [isContextDropdownOpen, setIsContextDropdownOpen] = useState(false);
+    const [subjectsList, setSubjectsList] = useState<Subject[]>([]);
+    const contextDropdownRef = useRef<HTMLDivElement>(null);
+
+    // Sync subjects list
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            setSubjectsList(getSubjects());
+        }
+        const handleSync = () => {
+            setSubjectsList(getSubjects());
+        };
+        window.addEventListener('nk-subjects-changed', handleSync);
+        return () => window.removeEventListener('nk-subjects-changed', handleSync);
+    }, []);
+
+    // Close dropdown on click outside
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (contextDropdownRef.current && !contextDropdownRef.current.contains(event.target as Node)) {
+                setIsContextDropdownOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
 
     // Sync theme state with localStorage
-    const [theme, setTheme] = useState<'light' | 'dark'>('light');
+    const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+        if (typeof window !== 'undefined') {
+            const savedTheme = localStorage.getItem('nk-theme');
+            if (savedTheme === 'dark' || savedTheme === 'light') return savedTheme;
+        }
+        return 'light';
+    });
     useEffect(() => {
         const updateTheme = () => {
             const savedTheme = localStorage.getItem('nk-theme') as 'light' | 'dark' | null;
@@ -103,6 +143,17 @@ export default function ChatMainArea({
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages, isStreaming]);
+
+    // Listen for suggested prompts fired from the sidebar Study Context panel
+    useEffect(() => {
+        const handleSendPrompt = (e: Event) => {
+            const text = (e as CustomEvent<{ text: string }>).detail?.text;
+            if (text) handleSend(text);
+        };
+        window.addEventListener('nk-send-prompt', handleSendPrompt);
+        return () => window.removeEventListener('nk-send-prompt', handleSendPrompt);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     const handleSend = async (text?: string) => {
         const content = (text ?? inputValue).trim();
@@ -131,7 +182,18 @@ export default function ChatMainArea({
         setInputValue('');
         setIsStreaming(true);
 
+        // Persist to recent chats (real-time sidebar sync)
+        saveChatSession({
+            id: sessionIdRef.current,
+            title: content.length > 60 ? content.slice(0, 57) + '…' : content,
+            subject: selectedContext.subject,
+            unit: selectedContext.unit,
+            mode,
+            timestamp: Date.now(),
+        });
+
         try {
+            const notebookContext = buildNotebookContext(selectedContext.subject);
             const res = await fetch('/api/chat', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -141,6 +203,7 @@ export default function ChatMainArea({
                     subject: selectedContext.subject,
                     unit: selectedContext.unit,
                     model: selectedModel,
+                    notebookContext,
                 }),
             });
 
@@ -149,6 +212,12 @@ export default function ChatMainArea({
             let replyContent = '';
             if (res.ok && data.reply) {
                 replyContent = data.reply;
+                // Automatically collect user's context in the notebook
+                appendToNotebook(
+                    selectedContext.subject,
+                    `Struggling/Interested in: ${content.slice(0, 150)}${content.length > 150 ? '...' : ''}`,
+                    'user'
+                );
             } else {
                 // If API key error occurs, present clear error notice or concise direct answer without rigid template
                 if (data.error) {
@@ -198,7 +267,7 @@ export default function ChatMainArea({
         <div
             className="flex-1 flex flex-col min-w-0 h-full overflow-hidden relative transition-colors duration-500"
             style={{ 
-              background: theme === 'dark' ? '#141414' : '#ffffff',
+              background: theme === 'dark' ? '#000000' : '#ffffff',
               color: theme === 'dark' ? '#ffffff' : '#000000',
               fontFamily: "'Inter', sans-serif"
             }}
@@ -274,7 +343,7 @@ export default function ChatMainArea({
                     background: theme === 'dark' ? 'rgba(10,10,10,0.85)' : 'rgba(255,255,255,0.85)',
                 }}
             >
-                <div className="flex items-center gap-2 sm:gap-3 overflow-x-auto no-scrollbar">
+                <div className="flex items-center gap-2 sm:gap-3">
                     {/* Mode toggle */}
                     <div
                         className="flex items-center gap-1 p-1 rounded-xl shrink-0"
@@ -306,20 +375,110 @@ export default function ChatMainArea({
                             Sprint
                         </button>
                     </div>
-                    {/* Clickable Context label */}
-                    <button
-                        onClick={() => window.dispatchEvent(new Event('nk-open-settings'))}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl transition-all duration-150 active:scale-95 cursor-pointer shrink-0 hover:bg-white/5"
-                        style={{
-                            background: theme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)',
-                            border: theme === 'dark' ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.1)',
-                        }}
-                        title="Change study context"
-                    >
-                        <span className="text-[11px]" style={{ color: theme === 'dark' ? '#a1a1aa' : '#52525b', fontWeight: '500' }}>{selectedContext.subject}</span>
-                        <span className="text-[11px]" style={{ color: theme === 'dark' ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.2)' }}>·</span>
-                        <span className="text-[11px] truncate max-w-[120px] sm:max-w-none" style={{ color: theme === 'dark' ? '#d4d4d8' : '#27272a', fontWeight: '600' }}>{selectedContext.unit}</span>
-                    </button>
+                    {/* Clickable Context label with Inline Dropdown */}
+                    <div className="relative inline-block" ref={contextDropdownRef}>
+                        <button
+                            onClick={() => setIsContextDropdownOpen(!isContextDropdownOpen)}
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl transition-all duration-150 active:scale-95 cursor-pointer shrink-0 hover:bg-white/5"
+                            style={{
+                                background: theme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)',
+                                border: theme === 'dark' ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.1)',
+                            }}
+                            title="Change study context"
+                        >
+                            <span className="text-[11px]" style={{ color: theme === 'dark' ? '#a1a1aa' : '#52525b', fontWeight: '500' }}>{selectedContext.subject}</span>
+                            <span className="text-[11px]" style={{ color: theme === 'dark' ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.2)' }}>·</span>
+                            <span className="text-[11px] truncate max-w-[120px] sm:max-w-none" style={{ color: theme === 'dark' ? '#d4d4d8' : '#27272a', fontWeight: '600' }}>{selectedContext.unit}</span>
+                            <ChevronDown size={11} className={`transition-transform duration-200 ${isContextDropdownOpen ? 'rotate-180' : ''}`} style={{ color: theme === 'dark' ? '#a1a1aa' : '#71717a' }} />
+                        </button>
+
+                        {isContextDropdownOpen && (
+                            <div
+                                className="absolute left-0 mt-2 w-72 rounded-2xl border p-4 shadow-2xl z-50 transition-all"
+                                style={{
+                                    borderColor: theme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
+                                    background: theme === 'dark' ? '#18181b' : '#ffffff',
+                                    color: theme === 'dark' ? '#ffffff' : '#000000',
+                                }}
+                            >
+                                {/* Subjects section */}
+                                <div className="mb-3">
+                                    <p className="text-[9px] uppercase tracking-wider text-zinc-500 font-semibold mb-2">Select Notebook</p>
+                                    <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto pr-1">
+                                        {subjectsList.map((s) => {
+                                            const isSelected = s.name === selectedContext.subject;
+                                            return (
+                                                <button
+                                                    key={s.id}
+                                                    onClick={() => {
+                                                        const firstUnit = s.units?.[0]?.name ?? '';
+                                                        localStorage.setItem('nk-subject', s.name);
+                                                        if (firstUnit) {
+                                                            localStorage.setItem('nk-unit', firstUnit);
+                                                        } else {
+                                                            localStorage.removeItem('nk-unit');
+                                                        }
+                                                        window.dispatchEvent(new Event('nk-context-change'));
+                                                    }}
+                                                    className="px-2.5 py-1 rounded-full text-xs transition font-medium"
+                                                    style={{
+                                                        background: isSelected
+                                                            ? (theme === 'dark' ? '#ffffff' : '#000000')
+                                                            : (theme === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)'),
+                                                        color: isSelected
+                                                            ? (theme === 'dark' ? '#000000' : '#ffffff')
+                                                            : (theme === 'dark' ? '#d4d4d8' : '#3f3f46'),
+                                                    }}
+                                                >
+                                                    📚 {s.name}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+
+                                <div className="border-t my-2.5" style={{ borderColor: theme === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)' }} />
+
+                                {/* Units section */}
+                                <div>
+                                    <p className="text-[9px] uppercase tracking-wider text-zinc-500 font-semibold mb-2">Select Unit</p>
+                                    <div className="space-y-1 max-h-40 overflow-y-auto pr-1">
+                                        {(() => {
+                                            const currentSubj = subjectsList.find((s) => s.name === selectedContext.subject);
+                                            if (!currentSubj || !currentSubj.units || currentSubj.units.length === 0) {
+                                                return <p className="text-xs text-zinc-500 italic py-1">No units in this notebook.</p>;
+                                            }
+                                            return currentSubj.units.map((u) => {
+                                                const isSelected = u.name === selectedContext.unit;
+                                                return (
+                                                    <button
+                                                        key={u.id}
+                                                        onClick={() => {
+                                                            localStorage.setItem('nk-unit', u.name);
+                                                            window.dispatchEvent(new Event('nk-context-change'));
+                                                            setIsContextDropdownOpen(false);
+                                                        }}
+                                                        className="w-full text-left rounded-xl px-3 py-2 text-xs transition flex items-center justify-between font-medium"
+                                                        style={{
+                                                            background: isSelected
+                                                                ? (theme === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)')
+                                                                : 'transparent',
+                                                            color: isSelected
+                                                                ? (theme === 'dark' ? '#ffffff' : '#000000')
+                                                                : (theme === 'dark' ? '#a1a1aa' : '#52525b'),
+                                                        }}
+                                                    >
+                                                        <span className="truncate pr-2">{u.name}</span>
+                                                        {isSelected && <Check size={12} className="shrink-0" />}
+                                                    </button>
+                                                );
+                                            });
+                                        })()}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </div>
                 </div>
 
                 {/* Model selector pill & action controls */}
@@ -342,47 +501,132 @@ export default function ChatMainArea({
             {/* Messages area */}
             <div className="flex-1 overflow-y-auto min-h-0">
                 {!hasMessages ? (
-                    /* Premium welcome screen */
-                    <div className="flex flex-col items-center justify-center min-h-full px-4 py-8">
-                        {/* Animated logo mark */}
-                        <div
-                            className="w-14 h-14 rounded-2xl flex items-center justify-center mb-6 shadow-sm border"
-                            style={{
-                                background: theme === 'dark' ? '#111111' : '#f4F4f6',
-                                borderColor: theme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)',
-                                color: theme === 'dark' ? '#ffffff' : '#000000',
-                            }}
+                    /* Premium welcome screen matching the landing page / Gemini Students view */
+                    <div className="flex flex-col items-center justify-center min-h-full max-w-4xl mx-auto px-6 py-12 overflow-y-auto">
+                        
+                        {/* Graduation cap */}
+                        <div className="flex items-center justify-center mb-3">
+                          <span className="text-3xl">🎓</span>
+                        </div>
+
+                        {/* Heading */}
+                        <h1 
+                          className="text-3xl sm:text-4xl font-semibold tracking-tight text-center mb-8"
+                          style={{ color: theme === 'dark' ? '#ffffff' : '#000000' }}
                         >
-                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" className="text-current">
-                              <g transform="rotate(-35 12 12)">
-                                <rect x="5" y="4" width="6" height="16" rx="2" fill="currentColor" />
-                                <rect x="13" y="4" width="6" height="16" rx="2" fill="currentColor" />
-                              </g>
-                            </svg>
+                          Level up your studying
+                        </h1>
+
+                        {/* Four cards row */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 w-full mb-10">
+                          {/* Card 1 */}
+                          <div 
+                            onClick={() => setInputValue('Generate focused study materials from my active notes')}
+                            className="rounded-3xl p-5 border cursor-pointer transition-all hover:scale-[1.03] active:scale-[0.98] flex flex-col justify-between h-44 relative overflow-hidden"
+                            style={{ 
+                              background: theme === 'dark' ? 'linear-gradient(135deg, #1e1b4b 0%, #311042 100%)' : 'linear-gradient(135deg, #e0e7ff 0%, #fae8ff 100%)',
+                              borderColor: theme === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'
+                            }}
+                          >
+                            <div className="text-sm font-semibold leading-snug" style={{ color: theme === 'dark' ? '#ffffff' : '#000000' }}>
+                              Add class materials to study smarter this school year
+                            </div>
+                            <div className="text-3xl self-end">📚</div>
+                          </div>
+
+                          {/* Card 2 */}
+                          <div 
+                            onClick={() => handleSend('Start a rapid practice quiz on the active unit')}
+                            className="rounded-3xl p-5 border cursor-pointer transition-all hover:scale-[1.03] active:scale-[0.98] flex flex-col justify-between h-44 relative overflow-hidden"
+                            style={{ 
+                              background: theme === 'dark' ? 'linear-gradient(135deg, #064e3b 0%, #022c22 100%)' : 'linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%)',
+                              borderColor: theme === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'
+                            }}
+                          >
+                            <div className="text-sm font-semibold leading-snug" style={{ color: theme === 'dark' ? '#ffffff' : '#000000' }}>
+                              Quiz yourself on key concepts
+                            </div>
+                            <div className="text-3xl self-end">✅</div>
+                          </div>
+
+                          {/* Card 3 */}
+                          <div 
+                            onClick={() => handleSend('Generate flashcards for my active exam topics')}
+                            className="rounded-3xl p-5 border cursor-pointer transition-all hover:scale-[1.03] active:scale-[0.98] flex flex-col justify-between h-44 relative overflow-hidden"
+                            style={{ 
+                              background: theme === 'dark' ? 'linear-gradient(135deg, #1e3a8a 0%, #172554 100%)' : 'linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%)',
+                              borderColor: theme === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'
+                            }}
+                          >
+                            <div className="text-sm font-semibold leading-snug" style={{ color: theme === 'dark' ? '#ffffff' : '#000000' }}>
+                              Create flashcards for revision
+                            </div>
+                            <div className="text-3xl self-end">🗼</div>
+                          </div>
+
+                          {/* Card 4 */}
+                          <div 
+                            onClick={() => handleSend('Guide me step-by-step through this topic')}
+                            className="rounded-3xl p-5 border cursor-pointer transition-all hover:scale-[1.03] active:scale-[0.98] flex flex-col justify-between h-44 relative overflow-hidden"
+                            style={{ 
+                              background: theme === 'dark' ? 'linear-gradient(135deg, #14532d 0%, #052e16 100%)' : 'linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%)',
+                              borderColor: theme === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'
+                            }}
+                          >
+                            <div className="text-sm font-semibold leading-snug" style={{ color: theme === 'dark' ? '#ffffff' : '#000000' }}>
+                              Use Guided Learning paths
+                            </div>
+                            <div className="text-3xl self-end">📖</div>
+                          </div>
                         </div>
 
-                        <div className="mb-6 text-center">
-                            <p 
-                                className="text-2xl sm:text-3xl font-semibold tracking-tight transition-colors"
-                                style={{ color: theme === 'dark' ? '#ffffff' : '#000000' }}
-                            >
-                                {greetingText}
+                        {/* Your study notebooks label */}
+                        <div className="w-full text-left mb-3">
+                          <span className="text-xs font-semibold uppercase tracking-wider text-zinc-500">Your study notebooks</span>
+                        </div>
+
+                        {/* Personalization card panel */}
+                        <div 
+                          className="w-full rounded-3xl border p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-10"
+                          style={{ 
+                            background: theme === 'dark' ? '#1c1c1e' : '#f4F4f6',
+                            borderColor: theme === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)',
+                          }}
+                        >
+                          <div>
+                            <h4 className="font-bold text-base" style={{ color: theme === 'dark' ? '#ffffff' : '#111111' }}>
+                              Learning tailored to you
+                            </h4>
+                            <p className="text-sm mt-1" style={{ color: '#a1a1aa' }}>
+                              Set up a study notebook to get custom lessons and track your progress.
                             </p>
-                            <p className="mt-2 text-sm text-zinc-500">How can I help you study today?</p>
+                          </div>
+                          <button
+                            onClick={() => window.dispatchEvent(new Event('nk-open-settings'))}
+                            className="px-5 py-2.5 rounded-full text-sm font-bold transition whitespace-nowrap active:scale-[0.98]"
+                            style={{
+                              background: theme === 'dark' ? '#ffffff' : '#000000',
+                              color: theme === 'dark' ? '#000000' : '#ffffff',
+                              boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
+                            }}
+                          >
+                            + New notebook
+                          </button>
                         </div>
 
-                        {/* Input bar */}
+                        {/* Floating Gemini-style input bar */}
                         <div
-                            className="w-full max-w-2xl rounded-2xl px-4 py-3.5 flex items-end gap-3 mb-6 transition-all duration-200"
+                            className="w-full rounded-full px-5 py-3.5 flex items-center gap-3 transition-all duration-200"
                             style={{
-                                background: theme === 'dark' ? '#1a1a1a' : '#f4F4f6',
+                                background: theme === 'dark' ? '#1c1c1e' : '#f4F4f6',
                                 border: theme === 'dark' ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(0,0,0,0.08)',
+                                boxShadow: '0 4px 20px rgba(0,0,0,0.05)'
                             }}
                         >
                             <button
                                 type="button"
                                 onClick={() => setShowFeatureModal(true)}
-                                className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 transition-colors mb-0.5 hover:bg-white/10"
+                                className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 transition-colors hover:bg-white/10"
                                 style={{ 
                                     background: theme === 'dark' ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.05)', 
                                     color: '#8e8ea0' 
@@ -390,28 +634,32 @@ export default function ChatMainArea({
                                 title="Open extra features"
                                 aria-label="Open extra features"
                             >
-                                <Plus size={14} />
+                                <Plus size={16} />
                             </button>
 
-                            <textarea
-                                ref={inputRef}
+                            <input
+                                ref={inputRef as any}
+                                type="text"
                                 value={inputValue}
                                 onChange={(e) => setInputValue(e.target.value)}
-                                onKeyDown={handleKeyDown}
-                                placeholder="Ask anything about your syllabus..."
-                                rows={1}
-                                className="flex-1 bg-transparent text-sm resize-none focus:outline-none leading-relaxed placeholder:text-zinc-500"
+                                onKeyDown={(e) => { if (e.key === 'Enter') handleSend(); }}
+                                placeholder="Ask e-Mate..."
+                                className="flex-1 bg-transparent text-sm focus:outline-none placeholder:text-zinc-500"
                                 style={{
                                     color: theme === 'dark' ? '#ffffff' : '#000000',
-                                    minHeight: '24px',
-                                    maxHeight: '140px',
                                 }}
                             />
 
-                            <div className="flex items-center gap-1.5 shrink-0">
+                            <div className="flex items-center gap-2 shrink-0">
+                                <ModelSelector
+                                    currentModel={selectedModel}
+                                    onSelectModel={setSelectedModel}
+                                    theme={theme}
+                                />
+
                                 <button
-                                    className="w-8 h-8 flex items-center justify-center rounded-xl transition-colors hover:bg-white/5"
-                                    style={{ color: '#4a4a4a' }}
+                                    className="w-8 h-8 flex items-center justify-center rounded-full transition-colors hover:bg-white/5"
+                                    style={{ color: '#8e8ea0' }}
                                     title="Voice input"
                                 >
                                     <Mic size={16} />
@@ -420,43 +668,22 @@ export default function ChatMainArea({
                                 <button
                                     onClick={() => handleSend()}
                                     disabled={!inputValue.trim() || isStreaming}
-                                    className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 transition-all duration-150 active:scale-95 disabled:opacity-20 disabled:cursor-not-allowed"
+                                    className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 transition-all duration-150 active:scale-95 disabled:opacity-20"
                                     style={{
-                                        background: inputValue.trim() && !isStreaming ? (theme === 'dark' ? '#ffffff' : '#000000') : (theme === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'),
+                                    background: inputValue.trim() && !isStreaming ? (theme === 'dark' ? '#ffffff' : '#000000') : (theme === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'),
                                     }}
                                     aria-label="Send message"
                                 >
                                     <Send
                                         size={14}
                                         style={{
-                                            color: inputValue.trim() && !isStreaming ? (theme === 'dark' ? '#000000' : '#ffffff') : '#4a4a4a',
+                                            color: inputValue.trim() && !isStreaming ? '#ffffff' : '#8e8ea0',
                                         }}
                                     />
                                 </button>
                             </div>
                         </div>
 
-                        {/* Personalize Your Experience button */}
-                        <div className="flex justify-center w-full max-w-2xl">
-                            <button
-                                type="button"
-                                onClick={() => window.dispatchEvent(new Event('nk-open-settings'))}
-                                className="flex items-center gap-2 px-5 py-3 rounded-2xl border text-sm font-medium transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] shadow-sm"
-                                style={{
-                                    background: theme === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
-                                    borderColor: theme === 'dark' ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.12)',
-                                    color: theme === 'dark' ? '#ffffff' : '#000000',
-                                }}
-                            >
-                                <Sparkles size={16} className="text-amber-400" />
-                                <span>Personalize your experience</span>
-                            </button>
-                        </div>
-
-                        {/* Disclaimer */}
-                        <p className="text-[11px] text-center mt-5" style={{ color: theme === 'dark' ? 'rgba(255,255,255,0.45)' : 'rgba(0,0,0,0.45)' }}>
-                            e-Mate AI can make mistakes. Always verify important exam answers.
-                        </p>
                     </div>
                 ) : (
                     <div className="py-6 space-y-0">

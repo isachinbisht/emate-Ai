@@ -1,8 +1,10 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Copy, Check, Zap, BookOpen, RotateCcw } from 'lucide-react';
+import { Copy, Check, Zap, BookOpen, RotateCcw, BookMarked } from 'lucide-react';
 import type { ChatMessage } from './AITopperChatScreen';
+import { appendToNotebook } from '@/lib/notebook';
+import { toast } from 'sonner';
 
 interface ChatMessageBubbleProps {
   message: ChatMessage;
@@ -224,6 +226,7 @@ function formatInline(text: string, theme: 'light' | 'dark' = 'dark'): string {
 
 export default function ChatMessageBubble({ message, theme = 'dark' }: ChatMessageBubbleProps) {
   const [copied, setCopied] = useState(false);
+  const [saved, setSaved] = useState(false);
   const isUser = message.role === 'user';
   const isDark = theme === 'dark';
 
@@ -231,6 +234,15 @@ export default function ChatMessageBubble({ message, theme = 'dark' }: ChatMessa
     navigator.clipboard.writeText(message.content);
     setCopied(true);
     setTimeout(() => setCopied(false), 1500);
+  };
+
+  const handleSaveToNotebook = () => {
+    const activeSubj = typeof window !== 'undefined' ? localStorage.getItem('nk-subject') : null;
+    const subj = message.subject || activeSubj || 'DBMS';
+    appendToNotebook(subj, `Key concept: ${message.content.slice(0, 300)}${message.content.length > 300 ? '...' : ''}`, 'ai');
+    setSaved(true);
+    toast.success(`Saved to ${subj} Notebook!`);
+    setTimeout(() => setSaved(false), 2000);
   };
 
   if (isUser) {
@@ -307,6 +319,15 @@ export default function ChatMessageBubble({ message, theme = 'dark' }: ChatMessa
               >
                 {copied ? <Check size={12} /> : <Copy size={12} />}
                 <span>{copied ? 'Copied' : 'Copy'}</span>
+              </button>
+              <button
+                onClick={handleSaveToNotebook}
+                title="Save to Subject Notebook"
+                className="flex items-center gap-1 px-2 py-1 rounded-md text-xs transition-all duration-150 hover:bg-white/6"
+                style={{ color: '#8e8ea0' }}
+              >
+                {saved ? <Check size={12} className="text-emerald-500" /> : <BookMarked size={12} />}
+                <span className={saved ? 'text-emerald-500 font-medium' : ''}>{saved ? 'Saved to Notebook' : 'Save to Notebook'}</span>
               </button>
               <button
                 title="Regenerate"
