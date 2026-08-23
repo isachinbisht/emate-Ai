@@ -7,13 +7,13 @@ export async function POST(req: Request) {
 
     const cookieStore = await cookies();
     const userKey = cookieStore.get('user_openrouter_key')?.value;
-    const apiKey = userKey || process.env.OPENROUTER_API_KEY;
+    const apiKey = userKey || process.env.OPENROUTER_SERVER_FREE_KEY || process.env.OPENROUTER_API_KEY;
 
     if (!apiKey || apiKey === 'your-openrouter-api-key-here') {
       return NextResponse.json(
         {
           error:
-            'OpenRouter API key is missing. Please connect your OpenRouter account or configure OPENROUTER_API_KEY in the environment.',
+            'OpenRouter API key is missing. Please connect your OpenRouter account to unlock unlimited access.',
         },
         { status: 400 }
       );

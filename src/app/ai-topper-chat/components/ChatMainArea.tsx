@@ -157,11 +157,17 @@ export default function ChatMainArea({
         }, 500);
     };
 
+    const [guestQueryCount, setGuestQueryCount] = useState(0);
+
     useEffect(() => {
         if (typeof window !== 'undefined') {
             // Sync study mode from localStorage after hydration
             const saved = localStorage.getItem('nk-study-mode-active');
             if (saved !== null) setIsStudyMode(saved !== 'false');
+
+            // Sync free limit credit count
+            const count = parseInt(localStorage.getItem('guest_query_count') || '0', 10);
+            setGuestQueryCount(count);
 
             // Check if redirected from OAuth callback with ?connected=true
             const params = new URLSearchParams(window.location.search);
@@ -363,10 +369,17 @@ export default function ChatMainArea({
         const content = (text ?? inputValue).trim();
         if (!content || isStreaming) return;
 
-        // Guard: if no API key is connected, show the connect modal instead
+        // Guard: if no API key is connected, check guest freemium credit limit
         if (!isOpenRouterConnected) {
-            setShowConnectModal(true);
-            return;
+            const currentCount = parseInt(localStorage.getItem('guest_query_count') || '0', 10);
+            if (currentCount >= 5) {
+                setShowConnectModal(true);
+                return;
+            }
+            // Increment guest query count
+            const newCount = currentCount + 1;
+            localStorage.setItem('guest_query_count', String(newCount));
+            setGuestQueryCount(newCount);
         }
 
         const formatTimestamp = () => {
@@ -554,7 +567,7 @@ export default function ChatMainArea({
 
             {/* Top bar — fixed height, no absolute positioning to prevent overlap */}
             <div
-                className="shrink-0 flex items-center justify-between gap-3 px-4 py-2.5"
+                className="shrink-0 flex items-center justify-between gap-3 pl-12 md:pl-4 pr-4 py-2.5"
                 style={{
                     borderBottom: theme === 'dark' ? '1px solid rgba(255,255,255,0.06)' : '1px solid rgba(0,0,0,0.07)',
                     background: theme === 'dark' ? '#080809' : '#f9f9fb',
@@ -562,7 +575,7 @@ export default function ChatMainArea({
             >
                 {/* Left: Mode switcher */}
                 <div
-                    className="inline-flex p-0.5 rounded-lg"
+                    className="inline-flex p-0.5 rounded-lg shrink-0"
                     style={{
                         background: theme === 'dark' ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.06)',
                         border: theme === 'dark' ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(0,0,0,0.08)',
@@ -570,7 +583,7 @@ export default function ChatMainArea({
                 >
                     <button
                         onClick={() => setIsStudyMode(true)}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[11px] font-semibold transition-all"
+                        className="flex items-center gap-1.5 px-2.5 md:px-3 py-1.5 rounded-md text-[10px] md:text-[11px] font-semibold transition-all"
                         style={{
                             background: isStudyMode ? (theme === 'dark' ? '#1c1c1f' : '#ffffff') : 'transparent',
                             color: isStudyMode ? (theme === 'dark' ? '#e4e4e7' : '#09090b') : (theme === 'dark' ? '#52525b' : '#a1a1aa'),
@@ -578,11 +591,11 @@ export default function ChatMainArea({
                         }}
                     >
                         <GraduationCap size={12} />
-                        Study Copilot
+                        Study
                     </button>
                     <button
                         onClick={() => setIsStudyMode(false)}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[11px] font-semibold transition-all"
+                        className="flex items-center gap-1.5 px-2.5 md:px-3 py-1.5 rounded-md text-[10px] md:text-[11px] font-semibold transition-all"
                         style={{
                             background: !isStudyMode ? (theme === 'dark' ? '#1c1c1f' : '#ffffff') : 'transparent',
                             color: !isStudyMode ? (theme === 'dark' ? '#e4e4e7' : '#09090b') : (theme === 'dark' ? '#52525b' : '#a1a1aa'),
@@ -590,17 +603,17 @@ export default function ChatMainArea({
                         }}
                     >
                         <MessageSquare size={12} />
-                        General Chat
+                        General
                     </button>
                 </div>
 
-                {/* Center: Breadcrumb (study mode only) */}
-                <div className="flex-1 flex justify-center">
+                {/* Center: Breadcrumb (study mode only, hidden on mobile) */}
+                <div className="hidden md:flex flex-1 justify-center">
                     {isStudyMode && (
-                        <div className="flex items-center gap-1.5 text-[11px] select-none" style={{ color: theme === 'dark' ? '#52525b' : '#a1a1aa' }}>
-                            <span className="font-medium" style={{ color: theme === 'dark' ? '#a1a1aa' : '#52525b' }}>{selectedContext.subject}</span>
+                        <div className="flex items-center gap-1.5 text-[11px] select-none text-zinc-500">
+                            <span className="font-medium">{selectedContext.subject}</span>
                             <span>/</span>
-                            <span style={{ color: theme === 'dark' ? '#71717a' : '#71717a' }}>{selectedContext.unit}</span>
+                            <span>{selectedContext.unit}</span>
                         </div>
                     )}
                 </div>
@@ -613,7 +626,7 @@ export default function ChatMainArea({
                         theme={theme}
                     />
 
-                    {/* OpenRouter connection status pill */}
+                    {/* OpenRouter connection status pill or Free Limit Badge */}
                     {isOpenRouterConnected ? (
                         <div
                             className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium"
@@ -636,18 +649,23 @@ export default function ChatMainArea({
                             Connected
                         </div>
                     ) : (
-                        <button
-                            onClick={handleOpenRouterConnect}
-                            className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium transition-opacity hover:opacity-90"
-                            style={{
-                                background: theme === 'dark' ? '#18181b' : '#09090b',
-                                color: '#ffffff',
-                                border: theme === 'dark' ? '1px solid rgba(255,255,255,0.1)' : 'none',
-                            }}
-                        >
-                            <Key size={11} />
-                            Connect Key
-                        </button>
+                        <div className="flex items-center gap-1.5">
+                            <div className="text-xs font-medium px-2.5 py-1 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300">
+                                Free Credits: {Math.max(0, 5 - guestQueryCount)}/5
+                            </div>
+                            <button
+                                onClick={handleOpenRouterConnect}
+                                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium transition-opacity hover:opacity-90"
+                                style={{
+                                    background: theme === 'dark' ? '#18181b' : '#09090b',
+                                    color: '#ffffff',
+                                    border: theme === 'dark' ? '1px solid rgba(255,255,255,0.1)' : 'none',
+                                }}
+                            >
+                                <Key size={11} />
+                                Connect Key
+                            </button>
+                        </div>
                     )}
 
                     <button
@@ -661,7 +679,7 @@ export default function ChatMainArea({
                 </div>
             </div>
 
-            {/* Glassmorphic Connect Modal — shown when user tries to send without a key */}
+            {/* Glassmorphic Connect Modal / Paywall Modal */}
             {showConnectModal && (
                 <div
                     className="fixed inset-0 z-50 flex items-center justify-center"
@@ -699,10 +717,12 @@ export default function ChatMainArea({
                                 className="text-base font-semibold mb-1"
                                 style={{ color: theme === 'dark' ? '#fafafa' : '#09090b' }}
                             >
-                                Connect Your API Key
+                                {guestQueryCount >= 5 ? "You've reached your 5 free searches" : "Connect Your API Key"}
                             </h3>
                             <p className="text-xs leading-relaxed" style={{ color: theme === 'dark' ? '#71717a' : '#a1a1aa' }}>
-                                Link your OpenRouter account to unlock AI processing. It takes one click and is completely free.
+                                {guestQueryCount >= 5
+                                    ? "Connect your OpenRouter account to unlock unlimited AI processing with full model access."
+                                    : "Link your OpenRouter account to unlock AI processing. It takes one click and is completely free."}
                             </p>
                         </div>
 
@@ -715,7 +735,7 @@ export default function ChatMainArea({
                             }}
                         >
                             <Key size={14} />
-                            Connect OpenRouter
+                            Connect OpenRouter (1-Click)
                         </button>
 
                         <button
@@ -1122,7 +1142,7 @@ export default function ChatMainArea({
                         {messages.map((msg) => (
                             <ChatMessageBubble key={msg.id} message={msg} theme={theme} />
                         ))}
-                        {isStreaming && <StreamingIndicator mode={mode} />}
+                        {isStreaming && <StreamingIndicator />}
                         <div ref={messagesEndRef} />
                     </div>
                 )}

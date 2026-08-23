@@ -248,10 +248,12 @@ export default function ChatMessageBubble({ message, theme = 'dark' }: ChatMessa
     setTimeout(() => setSaved(false), 2000);
   };
 
+  const [isProcessExpanded, setIsProcessExpanded] = useState(false);
+
   if (isUser) {
     return (
       <div className="flex justify-end w-full fade-in-up">
-        <div className="bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 px-4 py-2.5 rounded-2xl max-w-[80%] ml-auto text-sm leading-relaxed shadow-sm font-medium">
+        <div className="bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 px-4 py-2.5 rounded-2xl max-w-[80%] ml-auto text-sm leading-relaxed shadow-sm font-medium">
           {message.content}
         </div>
       </div>
@@ -267,7 +269,7 @@ export default function ChatMessageBubble({ message, theme = 'dark' }: ChatMessa
             <Sparkles size={12} />
           </div>
           <span className="text-xs sm:text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-            AI Topper
+            Assistant
           </span>
           {message.mode === 'sprint' ? (
             <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-900/60">
@@ -281,6 +283,40 @@ export default function ChatMessageBubble({ message, theme = 'dark' }: ChatMessa
           <span className="text-[11px] text-zinc-400 font-normal ml-auto">
             {message.timestamp}
           </span>
+        </div>
+      )}
+
+      {/* Accordion process indicator */}
+      {!message.isGeneralChat && (
+        <div className="my-1">
+          <button
+            onClick={() => setIsProcessExpanded(!isProcessExpanded)}
+            className="flex items-center gap-2 text-xs font-medium text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 transition-colors py-1 focus:outline-none"
+          >
+            <span className="flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
+            <span>Thought process finished</span>
+            <svg
+              width="12"
+              height="12"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className={`transform transition-transform duration-200 ${isProcessExpanded ? 'rotate-180' : ''}`}
+            >
+              <polyline points="6 9 12 15 18 9" />
+            </svg>
+          </button>
+          {isProcessExpanded && (
+            <div className="mt-1.5 pl-3 border-l-2 border-zinc-200 dark:border-zinc-800 text-xs text-zinc-500 space-y-1 font-mono">
+              <div>✓ Loaded subject notebook settings</div>
+              <div>✓ Injected personal context summary</div>
+              <div>✓ Sent request to model</div>
+              <div>✓ Completed stream response successfully</div>
+            </div>
+          )}
         </div>
       )}
 

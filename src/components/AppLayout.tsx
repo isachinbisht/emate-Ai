@@ -13,8 +13,25 @@ export default function AppLayout({ children }: AppLayoutProps) {
   const [sidebarWidth, setSidebarWidth] = useState(248); // server-safe default
   const [isResizing, setIsResizing] = useState(false);
   const [theme, setTheme] = useState<'light' | 'dark'>('light'); // server-safe default
+  const [isMobile, setIsMobile] = useState(false);
 
   const pathname = usePathname();
+
+  useEffect(() => {
+    // Detect mobile viewport size
+    const handleResize = () => {
+      const mobile = window.innerWidth < 768;
+      setIsMobile(mobile);
+      if (mobile) {
+        setSidebarOpen(false); // Close sidebar on mobile load
+      } else {
+        setSidebarOpen(true);
+      }
+    };
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   useEffect(() => {
     // Sync theme and sidebar width from localStorage after hydration
@@ -68,7 +85,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
 
   return (
     <div 
-      className="flex min-h-screen transition-colors duration-300" 
+      className="flex min-h-screen transition-colors duration-300 relative" 
       style={{ 
         background: theme === 'dark' ? '#000000' : '#ffffff', 
         color: theme === 'dark' ? '#ffffff' : '#000000',
@@ -78,20 +95,42 @@ export default function AppLayout({ children }: AppLayoutProps) {
         paddingRight: 'env(safe-area-inset-right)',
       }}
     >
-      {sidebarOpen && (
-        <>
-          <Sidebar width={sidebarWidth} onToggle={() => setSidebarOpen(!sidebarOpen)} />
-          <div
-            onMouseDown={startResizing}
-            className={`w-1 select-none cursor-col-resize hover:bg-sky-500/50 active:bg-sky-500 shrink-0 h-screen transition-colors z-40`}
-            style={{
-              background: isResizing ? '#0284c7' : 'transparent',
-            }}
-          />
-        </>
+      {/* Sidebar drawer container */}
+      <div
+        className={`${
+          isMobile
+            ? 'fixed inset-y-0 left-0 z-50 transform transition-transform duration-300 ease-in-out'
+            : 'relative'
+        } ${sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}
+        style={{
+          width: isMobile ? '280px' : `${sidebarWidth}px`,
+          display: isMobile && !sidebarOpen ? 'none' : 'block',
+        }}
+      >
+        <Sidebar width={isMobile ? 280 : sidebarWidth} onToggle={() => setSidebarOpen(false)} />
+      </div>
+
+      {/* Translucent overlay background backdrop on mobile */}
+      {isMobile && sidebarOpen && (
+        <div
+          onClick={() => setSidebarOpen(false)}
+          className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40 transition-opacity"
+        />
       )}
+
+      {/* Resize handle bar (only on desktop) */}
+      {!isMobile && sidebarOpen && (
+        <div
+          onMouseDown={startResizing}
+          className="w-1 select-none cursor-col-resize hover:bg-sky-500/50 active:bg-sky-500 shrink-0 h-screen transition-colors z-40"
+          style={{
+            background: isResizing ? '#0284c7' : 'transparent',
+          }}
+        />
+      )}
+
       <main className="flex-1 min-w-0 h-screen flex flex-col overflow-hidden" style={{ background: theme === 'dark' ? '#000000' : '#ffffff' }}>
-        {!sidebarOpen && (
+        {(!sidebarOpen || isMobile) && (
           <button
             onClick={() => setSidebarOpen(true)}
             className="fixed left-4 top-4 z-40 p-2 rounded-xl border transition"
