@@ -1,22 +1,11 @@
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
 import { generateCodeVerifier, generateCodeChallenge } from '@/lib/pkce';
 
 export async function GET(request: Request) {
-  const verifier = generateCodeVerifier();
-  const challenge = generateCodeChallenge(verifier);
-
-  const cookieStore = await cookies();
-  cookieStore.set('openrouter_verifier', verifier, {
-    maxAge: 600, // 10 minutes
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
-    path: '/',
-  });
+  const codeVerifier = generateCodeVerifier();
+  const codeChallenge = generateCodeChallenge(codeVerifier);
 
   const host = request.headers.get("x-forwarded-host") || request.headers.get("host");
-  const protocol = request.headers.get("x-forwarded-proto") || "https";
 
   // Ensure localhost is only used if explicitly running on a local development server
   const isLocal = host?.includes("localhost") || host?.includes("127.0.0.1");
@@ -27,7 +16,17 @@ export async function GET(request: Request) {
   const callbackUrl = `${baseUrl}/api/auth/openrouter/callback`;
   const openRouterAuthUrl = `https://openrouter.ai/auth?callback_url=${encodeURIComponent(
     callbackUrl
-  )}&code_challenge=${challenge}&code_challenge_method=S256`;
+  )}&code_challenge=${codeChallenge}&code_challenge_method=S256`;
 
-  return NextResponse.redirect(openRouterAuthUrl);
+  // Set the cookie on the response so it persists across the cross-site redirect
+  const response = NextResponse.redirect(openRouterAuthUrl);
+  response.cookies.set("openrouter_verifier", codeVerifier, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+    path: "/",
+    maxAge: 60 * 10, // 10 minutes
+  });
+
+  return response;
 }
