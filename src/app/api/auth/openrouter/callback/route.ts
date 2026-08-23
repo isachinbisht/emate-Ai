@@ -40,10 +40,29 @@ export async function GET(request: NextRequest) {
       ? "http://localhost:3000"
       : "https://emate-ai.vercel.app";
 
-    const response = NextResponse.redirect(`${baseUrl}/ai-topper-chat?connected=true`);
+    // Return an HTML page that notifies the opener window and self-closes.
+    // Falls back to a redirect if opened without a popup (no window.opener).
+    const html = `<!DOCTYPE html>
+<html><head><title>Connecting...</title></head>
+<body>
+<script>
+  if (window.opener) {
+    window.opener.postMessage({ type: 'OPENROUTER_AUTH_SUCCESS' }, '${baseUrl}');
+    window.close();
+  } else {
+    window.location.href = '${baseUrl}/ai-topper-chat?connected=true';
+  }
+</script>
+<noscript><meta http-equiv="refresh" content="0;url=${baseUrl}/ai-topper-chat?connected=true"></noscript>
+</body></html>`;
 
-    // Prevent Vercel CDN from caching this redirect
-    response.headers.set("Cache-Control", "no-store, max-age=0");
+    const response = new NextResponse(html, {
+      status: 200,
+      headers: {
+        "Content-Type": "text/html; charset=utf-8",
+        "Cache-Control": "no-store, max-age=0",
+      },
+    });
 
     // Save key in a secure HTTP-only cookie
     response.cookies.set("user_openrouter_key", data.key, {

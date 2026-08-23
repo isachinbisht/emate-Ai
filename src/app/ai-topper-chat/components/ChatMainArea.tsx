@@ -102,6 +102,9 @@ export default function ChatMainArea({
     const [isStudyMode, setIsStudyMode] = useState(true); // server-safe default — synced from localStorage in useEffect
     const [isOpenRouterConnected, setIsOpenRouterConnected] = useState(true); // default to true, check in client mount
     const [showConnectModal, setShowConnectModal] = useState(false);
+    const [isConnectingOpenRouter, setIsConnectingOpenRouter] = useState(false);
+    const [showSuccessToast, setShowSuccessToast] = useState(false);
+    const popupRef = useRef<Window | null>(null);
 
     // Build study action tiles dynamically from the active notebook context
     const studyQuickActions = useMemo(() => [
@@ -130,6 +133,30 @@ export default function ChatMainArea({
             prompt: `List all key formulas, rules, and definitions for ${selectedContext.subject} — ${selectedContext.unit} for my exam sprint`,
         },
     ], [selectedContext.subject, selectedContext.unit]);
+    // Open OAuth in a popup window
+    const handleOpenRouterConnect = () => {
+        setShowConnectModal(false);
+        const w = 600, h = 700;
+        const left = window.screenX + (window.outerWidth - w) / 2;
+        const top = window.screenY + (window.outerHeight - h) / 2;
+        const popup = window.open(
+            '/api/auth/openrouter/connect',
+            'OpenRouter Auth',
+            `width=${w},height=${h},left=${left},top=${top},toolbar=no,menubar=no`
+        );
+        popupRef.current = popup;
+        setIsConnectingOpenRouter(true);
+
+        // Poll to detect if the user manually closed the popup
+        const pollTimer = setInterval(() => {
+            if (popup && popup.closed) {
+                clearInterval(pollTimer);
+                setIsConnectingOpenRouter(false);
+                popupRef.current = null;
+            }
+        }, 500);
+    };
+
     useEffect(() => {
         if (typeof window !== 'undefined') {
             // Sync study mode from localStorage after hydration
@@ -152,6 +179,22 @@ export default function ChatMainArea({
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []); // runs once on mount
+
+    // Listen for postMessage from OAuth popup callback
+    useEffect(() => {
+        const handleMessage = (event: MessageEvent) => {
+            if (event.data?.type === 'OPENROUTER_AUTH_SUCCESS') {
+                setIsConnectingOpenRouter(false);
+                setIsOpenRouterConnected(true);
+                popupRef.current = null;
+                // Show success toast
+                setShowSuccessToast(true);
+                setTimeout(() => setShowSuccessToast(false), 4000);
+            }
+        };
+        window.addEventListener('message', handleMessage);
+        return () => window.removeEventListener('message', handleMessage);
+    }, []);
 
 
     useEffect(() => {
@@ -593,8 +636,8 @@ export default function ChatMainArea({
                             Connected
                         </div>
                     ) : (
-                        <a
-                            href="/api/auth/openrouter/connect"
+                        <button
+                            onClick={handleOpenRouterConnect}
                             className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium transition-opacity hover:opacity-90"
                             style={{
                                 background: theme === 'dark' ? '#18181b' : '#09090b',
@@ -604,7 +647,7 @@ export default function ChatMainArea({
                         >
                             <Key size={11} />
                             Connect Key
-                        </a>
+                        </button>
                     )}
 
                     <button
@@ -663,8 +706,8 @@ export default function ChatMainArea({
                             </p>
                         </div>
 
-                        <a
-                            href="/api/auth/openrouter/connect"
+                        <button
+                            onClick={handleOpenRouterConnect}
                             className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all hover:opacity-90 active:scale-[0.98]"
                             style={{
                                 background: theme === 'dark' ? '#fafafa' : '#09090b',
@@ -673,7 +716,7 @@ export default function ChatMainArea({
                         >
                             <Key size={14} />
                             Connect OpenRouter
-                        </a>
+                        </button>
 
                         <button
                             onClick={() => setShowConnectModal(false)}
@@ -683,6 +726,135 @@ export default function ChatMainArea({
                             Maybe later
                         </button>
                     </div>
+                </div>
+            )}
+
+            {/* Linking OpenRouter — Glassmorphic Connecting Modal */}
+            {isConnectingOpenRouter && (
+                <div
+                    className="fixed inset-0 z-[100] flex items-center justify-center"
+                    style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)' }}
+                >
+                    <style dangerouslySetInnerHTML={{ __html: `
+                        @keyframes or-pulse-ring {
+                            0% { transform: scale(0.85); opacity: 0.6; }
+                            50% { transform: scale(1.15); opacity: 0.2; }
+                            100% { transform: scale(0.85); opacity: 0.6; }
+                        }
+                        @keyframes or-icon-float {
+                            0%, 100% { transform: translateY(0); }
+                            50% { transform: translateY(-4px); }
+                        }
+                        @keyframes or-dots {
+                            0%, 80%, 100% { opacity: 0.2; }
+                            40% { opacity: 1; }
+                        }
+                    `}} />
+                    <div
+                        className="relative w-full max-w-sm mx-4 rounded-3xl p-8 flex flex-col items-center text-center gap-5"
+                        style={{
+                            background: theme === 'dark' ? 'rgba(14, 14, 16, 0.92)' : 'rgba(255, 255, 255, 0.95)',
+                            border: theme === 'dark' ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(0,0,0,0.06)',
+                            boxShadow: '0 32px 64px -12px rgba(0,0,0,0.6)',
+                        }}
+                    >
+                        {/* Animated pulsing icon area */}
+                        <div className="relative w-20 h-20 flex items-center justify-center">
+                            {/* Pulse rings */}
+                            <div
+                                className="absolute inset-0 rounded-full"
+                                style={{
+                                    border: theme === 'dark' ? '2px solid rgba(99, 102, 241, 0.25)' : '2px solid rgba(99, 102, 241, 0.2)',
+                                    animation: 'or-pulse-ring 2s ease-in-out infinite',
+                                }}
+                            />
+                            <div
+                                className="absolute rounded-full"
+                                style={{
+                                    inset: '-8px',
+                                    border: theme === 'dark' ? '1px solid rgba(99, 102, 241, 0.12)' : '1px solid rgba(99, 102, 241, 0.08)',
+                                    animation: 'or-pulse-ring 2s ease-in-out 0.5s infinite',
+                                }}
+                            />
+                            {/* Icon container */}
+                            <div
+                                className="relative z-10 w-14 h-14 rounded-2xl flex items-center justify-center"
+                                style={{
+                                    background: theme === 'dark'
+                                        ? 'linear-gradient(135deg, rgba(99, 102, 241, 0.15), rgba(168, 85, 247, 0.15))'
+                                        : 'linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(168, 85, 247, 0.1))',
+                                    border: theme === 'dark' ? '1px solid rgba(99, 102, 241, 0.2)' : '1px solid rgba(99, 102, 241, 0.15)',
+                                    animation: 'or-icon-float 3s ease-in-out infinite',
+                                }}
+                            >
+                                <Sparkles size={24} style={{ color: '#818cf8' }} />
+                            </div>
+                        </div>
+
+                        {/* Text */}
+                        <div>
+                            <h3
+                                className="text-lg font-bold tracking-tight mb-1.5"
+                                style={{ color: theme === 'dark' ? '#fafafa' : '#09090b' }}
+                            >
+                                Linking OpenRouter Account
+                            </h3>
+                            <p className="text-sm leading-relaxed" style={{ color: theme === 'dark' ? '#71717a' : '#a1a1aa' }}>
+                                Please complete authorization in the popup window
+                                <span style={{ animation: 'or-dots 1.4s infinite 0s', display: 'inline-block' }}>.</span>
+                                <span style={{ animation: 'or-dots 1.4s infinite 0.2s', display: 'inline-block' }}>.</span>
+                                <span style={{ animation: 'or-dots 1.4s infinite 0.4s', display: 'inline-block' }}>.</span>
+                            </p>
+                        </div>
+
+                        {/* Cancel button */}
+                        <button
+                            onClick={() => {
+                                if (popupRef.current && !popupRef.current.closed) {
+                                    popupRef.current.close();
+                                }
+                                popupRef.current = null;
+                                setIsConnectingOpenRouter(false);
+                            }}
+                            className="px-5 py-2 rounded-xl text-xs font-semibold transition-all hover:opacity-80 active:scale-[0.97]"
+                            style={{
+                                background: theme === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
+                                border: theme === 'dark' ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.08)',
+                                color: theme === 'dark' ? '#a1a1aa' : '#52525b',
+                            }}
+                        >
+                            Cancel
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {/* Success Toast */}
+            {showSuccessToast && (
+                <div
+                    className="fixed top-6 left-1/2 -translate-x-1/2 z-[200] flex items-center gap-2.5 px-5 py-3 rounded-2xl shadow-2xl"
+                    style={{
+                        background: theme === 'dark' ? '#0f1d15' : '#ecfdf5',
+                        border: theme === 'dark' ? '1px solid rgba(16, 185, 129, 0.2)' : '1px solid rgba(16, 185, 129, 0.3)',
+                        animation: 'guide-scale-up 0.3s ease-out',
+                    }}
+                >
+                    <div
+                        className="w-6 h-6 rounded-full flex items-center justify-center"
+                        style={{ background: 'rgba(16, 185, 129, 0.15)' }}
+                    >
+                        <Check size={13} style={{ color: '#10b981' }} />
+                    </div>
+                    <span className="text-sm font-semibold" style={{ color: theme === 'dark' ? '#34d399' : '#059669' }}>
+                        OpenRouter connected successfully!
+                    </span>
+                    <button
+                        onClick={() => setShowSuccessToast(false)}
+                        className="ml-1 p-0.5 rounded transition-colors hover:bg-black/10"
+                        style={{ color: theme === 'dark' ? '#34d399' : '#059669' }}
+                    >
+                        <X size={12} />
+                    </button>
                 </div>
             )}
 
