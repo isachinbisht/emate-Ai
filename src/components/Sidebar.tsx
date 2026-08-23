@@ -20,6 +20,7 @@ import {
   LogOut,
   Trash2,
   PlusCircle,
+  Plus,
   X,
   Sparkles,
   FlaskConical,
@@ -34,6 +35,11 @@ import {
   Target,
   Zap,
   ArrowLeft,
+  Folder,
+  BookMarked,
+  User,
+  Sun,
+  Moon,
 } from 'lucide-react';
 
 // Data now fetched dynamically from localStorage
@@ -51,20 +57,8 @@ export default function Sidebar({ onToggle, width = 248 }: SidebarProps) {
   const [profileSubtitle, setProfileSubtitle] = useState('Guest mode');
   const [avatarLabel, setAvatarLabel] = useState('G');
   const [showSettingsModal, setShowSettingsModal] = useState(false);
-  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('nk-theme');
-      if (saved === 'dark' || saved === 'light') return saved;
-    }
-    return 'light';
-  });
-  const [appearance, setAppearance] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('nk-theme');
-      if (saved === 'light') return 'Light';
-    }
-    return 'Dark';
-  });
+  const [theme, setTheme] = useState<'light' | 'dark'>('light');
+  const [appearance, setAppearance] = useState<'Light' | 'Dark'>('Light');
   const [language, setLanguage] = useState('Auto-detect');
   const [activeTab, setActiveTab] = useState<'general' | 'context' | 'notebook' | 'account'>('general');
   const [selectedSubject, setSelectedSubject] = useState('DBMS');
@@ -286,6 +280,19 @@ export default function Sidebar({ onToggle, width = 248 }: SidebarProps) {
     window.dispatchEvent(new Event('nk-context-change'));
   };
 
+  const [isGeneralWorkspaceActive, setIsGeneralWorkspaceActive] = useState(false);
+  useEffect(() => {
+    const handleSyncGeneralChat = () => {
+      const active = localStorage.getItem('nk-general-chat-active') === 'true';
+      setIsGeneralWorkspaceActive(active);
+    };
+    handleSyncGeneralChat();
+    window.addEventListener('nk-general-chat-change', handleSyncGeneralChat);
+    return () => {
+      window.removeEventListener('nk-general-chat-change', handleSyncGeneralChat);
+    };
+  }, []);
+
   const isActive = (href: string) => {
     if (href === '/') return pathname === '/';
     return pathname.startsWith(href);
@@ -297,8 +304,8 @@ export default function Sidebar({ onToggle, width = 248 }: SidebarProps) {
         className="relative flex flex-col shrink-0 transition-colors duration-300"
       style={{
         width: `${width}px`,
-        background: theme === 'dark' ? '#0a0a0a' : '#f7f7f8',
-        borderRight: theme === 'dark' ? '1px solid rgba(255,255,255,0.06)' : '1px solid rgba(0,0,0,0.08)',
+        background: theme === 'dark' ? '#080809' : '#f9f9fb',
+        borderRight: theme === 'dark' ? '1px solid rgba(255,255,255,0.06)' : '1px solid rgba(0,0,0,0.07)',
         position: 'sticky',
         top: 0,
         height: '100vh',
@@ -338,39 +345,40 @@ export default function Sidebar({ onToggle, width = 248 }: SidebarProps) {
 
         {/* Nav */}
         <nav className="space-y-1">
-          <Link
+          <a
             href="/ai-topper-chat"
-            className="flex items-center gap-3 rounded-2xl px-2.5 py-2.5 text-sm font-semibold transition"
-            style={{ background: theme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)', color: theme === 'dark' ? '#ffffff' : '#000000' }}
+            className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-xs font-semibold transition-colors"
+            style={{
+              background: isGeneralWorkspaceActive
+                ? (theme === 'dark' ? 'rgba(59,130,246,0.15)' : 'rgba(59,130,246,0.08)')
+                : (theme === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'),
+              color: isGeneralWorkspaceActive
+                ? (theme === 'dark' ? '#93c5fd' : '#2563eb')
+                : (theme === 'dark' ? '#f4f4f5' : '#09090b'),
+              border: isGeneralWorkspaceActive
+                ? (theme === 'dark' ? '1px solid rgba(59,130,246,0.3)' : '1px solid rgba(59,130,246,0.2)')
+                : '1px solid transparent'
+            }}
           >
-            <PenSquare size={18} />
-            <span>New chat</span>
-          </Link>
+            <PenSquare size={14} />
+            <span>{isGeneralWorkspaceActive ? 'General Workspace' : 'New chat'}</span>
+          </a>
 
           <button
             type="button"
-            className="flex items-center gap-3 rounded-2xl px-2.5 py-2.5 text-sm font-medium transition w-full"
-            style={{ color: theme === 'dark' ? '#d4d4d8' : '#3f3f46' }}
+            className="flex items-center gap-2.5 w-full rounded-lg px-3 py-2 text-xs font-medium transition-colors"
+            style={{ color: theme === 'dark' ? '#71717a' : '#71717a' }}
           >
-            <Search size={18} />
-            <span>Search chats</span>
+            <Search size={14} />
+            <span>Search</span>
           </button>
 
           <button
             type="button"
-            className="flex items-center gap-3 rounded-2xl px-2.5 py-2.5 text-sm font-medium transition w-full"
-            style={{ color: theme === 'dark' ? '#d4d4d8' : '#3f3f46' }}
+            className="flex items-center gap-2.5 w-full rounded-lg px-3 py-2 text-xs font-medium transition-colors"
+            style={{ color: theme === 'dark' ? '#71717a' : '#71717a' }}
           >
-            <Image size={18} />
-            <span>Images</span>
-          </button>
-
-          <button
-            type="button"
-            className="flex items-center gap-3 rounded-2xl px-2.5 py-2.5 text-sm font-medium transition w-full"
-            style={{ color: theme === 'dark' ? '#d4d4d8' : '#3f3f46' }}
-          >
-            <BookOpen size={18} />
+            <BookOpen size={14} />
             <span>Library</span>
           </button>
 
@@ -567,13 +575,13 @@ export default function Sidebar({ onToggle, width = 248 }: SidebarProps) {
         </nav>
 
         {/* Notebooks */}
-        <div className="mt-4">
-          <div className="flex items-center justify-between mb-1.5">
-            <p className="text-[10px] uppercase tracking-[0.35em] text-zinc-500">Notebooks</p>
+        <div className="mt-5">
+          <div className="flex items-center justify-between mb-1.5 px-3">
+            <p className="text-[10px] font-mono uppercase tracking-wider" style={{ color: theme === 'dark' ? '#3f3f46' : '#a1a1aa' }}>Notebooks</p>
             <button
               onClick={() => setShowManageModal(true)}
-              className="text-[10px] font-semibold px-3 py-1 rounded-full transition hover:opacity-80"
-              style={{ color: theme === 'dark' ? '#ffffff' : '#000000', background: theme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)' }}
+              className="text-[10px] font-medium px-2 py-0.5 rounded-md transition hover:opacity-80"
+              style={{ color: theme === 'dark' ? '#71717a' : '#71717a', background: theme === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)' }}
             >
               Manage
             </button>
@@ -581,46 +589,47 @@ export default function Sidebar({ onToggle, width = 248 }: SidebarProps) {
           <button
             type="button"
             onClick={handleCreateNotebook}
-            className="flex items-center gap-3 w-full rounded-2xl border px-2.5 py-2 text-sm font-semibold transition hover:scale-[1.01]"
-            style={{ borderColor: theme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)', background: theme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)', color: theme === 'dark' ? '#ffffff' : '#000000' }}
+            className="flex items-center gap-2.5 w-full rounded-lg px-3 py-2 text-xs font-medium transition-colors mb-1"
+            style={{ color: theme === 'dark' ? '#52525b' : '#a1a1aa', border: theme === 'dark' ? '1px dashed rgba(255,255,255,0.08)' : '1px dashed rgba(0,0,0,0.1)' }}
           >
-            <span className="inline-flex h-7 w-7 items-center justify-center rounded-xl" style={{ background: theme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)', color: theme === 'dark' ? '#ffffff' : '#000000' }}>+</span>
+            <Plus size={13} />
             <span>New notebook</span>
           </button>
 
-          <div className="mt-2 space-y-1">
+          <div className="mt-1 space-y-0.5">
             {subjects.map((subject) => (
               <div
                 key={subject.id}
-                className="group flex items-center rounded-full px-3 py-1.5 transition"
+                className="group flex items-center rounded-lg px-3 py-2 transition-colors"
                 style={{
                   background: selectedSubject === subject.name
-                    ? (theme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)')
+                    ? (theme === 'dark' ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.05)')
                     : 'transparent',
                 }}
               >
                 <button
                   type="button"
                   onClick={() => handleSelectNotebook(subject.name)}
-                  className="flex-1 text-left text-sm font-semibold truncate"
-                  style={{ color: theme === 'dark' ? '#ffffff' : '#000000' }}
+                  className="flex-1 text-left text-xs font-medium truncate flex items-center gap-2"
+                  style={{ color: selectedSubject === subject.name ? (theme === 'dark' ? '#e4e4e7' : '#09090b') : (theme === 'dark' ? '#71717a' : '#71717a') }}
                 >
-                  📚 {subject.name}
+                  <Folder size={11} style={{ flexShrink: 0, opacity: 0.7 }} />
+                  {subject.name}
                 </button>
                 <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
                   <button
                     onClick={() => { handleStartRename(subject); setShowManageModal(true); }}
-                    className="p-1 rounded-lg hover:bg-black/10 dark:hover:bg-white/10 transition"
+                    className="p-1 rounded-md hover:bg-black/10 dark:hover:bg-white/10 transition"
                     title="Rename"
                   >
-                    <Edit2 size={11} style={{ color: '#a1a1aa' }} />
+                    <Edit2 size={10} style={{ color: '#a1a1aa' }} />
                   </button>
                   <button
                     onClick={() => setConfirmDeleteId(subject.id)}
-                    className="p-1 rounded-lg hover:bg-red-500/10 transition"
+                    className="p-1 rounded-md hover:bg-red-500/10 transition"
                     title="Delete"
                   >
-                    <Trash2 size={11} style={{ color: '#ef4444' }} />
+                    <Trash2 size={10} style={{ color: '#ef4444' }} />
                   </button>
                 </div>
               </div>
@@ -630,8 +639,8 @@ export default function Sidebar({ onToggle, width = 248 }: SidebarProps) {
 
         {/* Recent chats */}
         <div className="mt-4">
-          <div className="flex items-center justify-between mb-1.5">
-            <p className="text-[10px] uppercase tracking-[0.35em] text-zinc-500">Recent</p>
+          <div className="flex items-center justify-between mb-1.5 px-3">
+            <p className="text-[10px] font-mono uppercase tracking-wider" style={{ color: theme === 'dark' ? '#3f3f46' : '#a1a1aa' }}>Recent</p>
             {chatHistory.length > 0 && (
               <button
                 onClick={() => clearChatHistory()}
@@ -648,35 +657,23 @@ export default function Sidebar({ onToggle, width = 248 }: SidebarProps) {
               <p className="text-[11px] mt-1" style={{ color: '#71717a' }}>Start a conversation to see it here.</p>
             </div>
           ) : (
-            <div className="space-y-1">
+            <div className="space-y-0.5">
               {chatHistory.slice(0, 15).map((chat) => (
                 <div
                   key={chat.id}
-                  className="group relative w-full rounded-2xl border px-2.5 py-2.5 text-left transition hover:scale-[1.01]"
-                  style={{ borderColor: theme === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.07)', background: theme === 'dark' ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)' }}
+                  className="group relative w-full rounded-lg px-3 py-2 text-left transition-colors"
+                  style={{ background: 'transparent' }}
                 >
-                  <div className="flex items-start justify-between gap-2 pr-5">
-                    <span className="text-sm font-semibold line-clamp-1" style={{ color: theme === 'dark' ? '#ffffff' : '#000000' }}>{chat.title}</span>
-                    <span className="text-[10px] shrink-0 text-zinc-500">{formatChatTime(chat.timestamp)}</span>
-                  </div>
-                  <div className="flex items-center gap-2 mt-1">
-                    <span className="text-xs text-zinc-400">{chat.subject}</span>
-                    <span
-                      className="text-[9px] font-semibold uppercase tracking-widest px-1.5 py-0.5 rounded-full"
-                      style={{
-                        background: chat.mode === 'sprint' ? 'rgba(251,191,36,0.15)' : 'rgba(99,102,241,0.15)',
-                        color: chat.mode === 'sprint' ? '#fbbf24' : '#818cf8',
-                      }}
-                    >
-                      {chat.mode}
-                    </span>
+                  <div className="flex items-center justify-between gap-2 pr-4">
+                    <span className="text-xs font-medium line-clamp-1" style={{ color: theme === 'dark' ? '#a1a1aa' : '#52525b' }}>{chat.title}</span>
+                    <span className="text-[9px] shrink-0" style={{ color: theme === 'dark' ? '#3f3f46' : '#d4d4d8' }}>{formatChatTime(chat.timestamp)}</span>
                   </div>
                   <button
                     onClick={(e) => { e.stopPropagation(); deleteChatSession(chat.id); }}
-                    className="absolute right-2 top-2 p-1 rounded-lg opacity-0 group-hover:opacity-100 hover:bg-red-500/10 transition"
+                    className="absolute right-2 top-1.5 p-1 rounded-md opacity-0 group-hover:opacity-100 hover:bg-red-500/10 transition"
                     title="Remove"
                   >
-                    <Trash2 size={11} style={{ color: '#ef4444' }} />
+                    <Trash2 size={10} style={{ color: '#ef4444' }} />
                   </button>
                 </div>
               ))}
@@ -731,311 +728,331 @@ export default function Sidebar({ onToggle, width = 248 }: SidebarProps) {
       </div>
     </aside>
     {/* Settings Modal */}
-    {showSettingsModal && (
+        {showSettingsModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center px-4 py-6 bg-black/60 backdrop-blur-sm">
-          <div className="relative w-full max-w-xl rounded-2xl border shadow-2xl overflow-hidden" style={{ borderColor: theme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)', background: theme === 'dark' ? '#1a1a1a' : '#ffffff' }}>
-            <div className="flex">
-              {/* Left sidebar with tabs */}
-              <div className="w-44 border-r p-4" style={{ borderColor: theme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)', background: theme === 'dark' ? '#0f0f0f' : '#f4f4f5' }}>
-                <div className="space-y-2">
-                  <button 
-                    onClick={() => setActiveTab('general')}
-                    className="w-full text-left px-4 py-2.5 text-sm font-medium rounded-lg transition" 
-                    style={{ 
-                      color: activeTab === 'general' ? (theme === 'dark' ? '#ffffff' : '#000000') : '#a1a1aa', 
-                      background: activeTab === 'general' ? (theme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)') : 'transparent' 
+          <div
+            className="relative w-full max-w-xl rounded-2xl shadow-2xl overflow-hidden"
+            style={{
+              border: theme === 'dark' ? '1px solid rgba(255,255,255,0.09)' : '1px solid rgba(0,0,0,0.09)',
+              background: theme === 'dark' ? '#111113' : '#ffffff',
+              fontFamily: "'Inter', sans-serif",
+            }}
+          >
+            <div className="flex min-h-[460px]">
+              {/* Left tab rail */}
+              <div
+                className="w-44 shrink-0 flex flex-col p-3 gap-0.5"
+                style={{
+                  borderRight: theme === 'dark' ? '1px solid rgba(255,255,255,0.06)' : '1px solid rgba(0,0,0,0.06)',
+                  background: theme === 'dark' ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.015)',
+                }}
+              >
+                <p className="text-[9px] font-mono uppercase tracking-widest px-3 pt-2 pb-1.5" style={{ color: '#52525b' }}>Settings</p>
+                {([
+                  { id: 'general', label: 'General', icon: Settings },
+                  { id: 'context', label: 'Study Context', icon: Compass },
+                  { id: 'notebook', label: 'My Notebook', icon: BookOpen },
+                  { id: 'account', label: 'Account', icon: User },
+                ] as { id: typeof activeTab; label: string; icon: React.ElementType }[]).map(({ id, label, icon: Icon }) => (
+                  <button
+                    key={id}
+                    onClick={() => setActiveTab(id)}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium text-left transition-all"
+                    style={{
+                      background: activeTab === id
+                        ? (theme === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)')
+                        : 'transparent',
+                      color: activeTab === id
+                        ? (theme === 'dark' ? '#f4f4f5' : '#09090b')
+                        : (theme === 'dark' ? '#71717a' : '#71717a'),
                     }}
                   >
-                    General
+                    <Icon size={13} />
+                    {label}
                   </button>
-                  <button 
-                    onClick={() => setActiveTab('context')}
-                    className="w-full text-left px-4 py-2.5 text-sm font-medium rounded-lg transition" 
-                    style={{ 
-                      color: activeTab === 'context' ? (theme === 'dark' ? '#ffffff' : '#000000') : '#a1a1aa', 
-                      background: activeTab === 'context' ? (theme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)') : 'transparent' 
-                    }}
-                  >
-                    Study Context
-                  </button>
-                  <button 
-                    onClick={() => setActiveTab('notebook')}
-                    className="w-full text-left px-4 py-2.5 text-sm font-medium rounded-lg transition" 
-                    style={{ 
-                      color: activeTab === 'notebook' ? (theme === 'dark' ? '#ffffff' : '#000000') : '#a1a1aa', 
-                      background: activeTab === 'notebook' ? (theme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)') : 'transparent' 
-                    }}
-                  >
-                    Notebook Notes
-                  </button>
-                  <button 
-                    onClick={() => setActiveTab('account')}
-                    className="w-full text-left px-4 py-2.5 text-sm font-medium rounded-lg transition" 
-                    style={{ 
-                      color: activeTab === 'account' ? (theme === 'dark' ? '#ffffff' : '#000000') : '#a1a1aa', 
-                      background: activeTab === 'account' ? (theme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)') : 'transparent' 
-                    }}
-                  >
-                    Account
-                  </button>
-                </div>
+                ))}
               </div>
 
-              {/* Right content area */}
-              <div className="flex-1 p-6" style={{ color: theme === 'dark' ? '#ffffff' : '#000000' }}>
-                <div className="flex items-center justify-between mb-6">
-                  <h2 className="text-lg font-semibold" style={{ color: theme === 'dark' ? '#ffffff' : '#000000' }}>
-                    {activeTab === 'general' ? 'General Settings' : activeTab === 'context' ? 'Study Context' : activeTab === 'notebook' ? `${selectedSubject} Notebook` : 'Account Settings'}
+              {/* Right content panel */}
+              <div className="flex-1 flex flex-col p-6">
+                {/* Panel header */}
+                <div className="flex items-center justify-between mb-5 shrink-0">
+                  <h2 className="text-sm font-semibold" style={{ color: theme === 'dark' ? '#f4f4f5' : '#09090b' }}>
+                    {activeTab === 'general' ? 'General' : activeTab === 'context' ? 'Study Context' : activeTab === 'notebook' ? `${selectedSubject} Notebook` : 'Account'}
                   </h2>
                   <button
                     onClick={() => setShowSettingsModal(false)}
-                    className="text-zinc-400 hover:text-zinc-200 transition"
+                    className="w-6 h-6 flex items-center justify-center rounded-md transition"
+                    style={{
+                      color: '#71717a',
+                      background: 'transparent',
+                    }}
+                    onMouseEnter={e => (e.currentTarget.style.background = theme === 'dark' ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.06)')}
+                    onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                   >
-                    ✕
+                    <X size={14} />
                   </button>
                 </div>
 
+                {/* ── General tab ── */}
                 {activeTab === 'general' && (
-                  <div className="space-y-6">
-                    {/* Appearance setting */}
-                    <div className="flex items-center justify-between">
-                      <label className="text-sm font-medium" style={{ color: theme === 'dark' ? '#d4d4d8' : '#3f3f46' }}>Appearance</label>
-                      <select
-                        value={appearance}
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          setAppearance(val);
-                          const newTheme = val === 'Light' ? 'light' : 'dark';
-                          localStorage.setItem('nk-theme', newTheme);
-                          applyTheme(newTheme);
-                          window.dispatchEvent(new Event('storage'));
-                        }}
-                        className="px-3 py-1.5 border rounded-lg text-sm focus:outline-none transition"
+                  <div className="space-y-5">
+                    {/* Appearance */}
+                    <div
+                      className="flex items-center justify-between p-3.5 rounded-xl"
+                      style={{
+                        border: theme === 'dark' ? '1px solid rgba(255,255,255,0.07)' : '1px solid rgba(0,0,0,0.07)',
+                        background: theme === 'dark' ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.015)',
+                      }}
+                    >
+                      <div>
+                        <p className="text-xs font-semibold" style={{ color: theme === 'dark' ? '#e4e4e7' : '#18181b' }}>Appearance</p>
+                        <p className="text-[11px] mt-0.5" style={{ color: '#71717a' }}>Interface colour scheme</p>
+                      </div>
+                      <div
+                        className="flex items-center p-0.5 rounded-lg gap-0.5"
                         style={{
-                          background: theme === 'dark' ? '#111111' : '#ffffff',
-                          borderColor: theme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
-                          color: theme === 'dark' ? '#ffffff' : '#000000'
+                          background: theme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)',
+                          border: theme === 'dark' ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(0,0,0,0.08)',
                         }}
                       >
-                        <option value="Dark">Dark</option>
-                        <option value="Light">Light</option>
-                      </select>
+                        {(['Light', 'Dark'] as const).map((opt) => (
+                          <button
+                            key={opt}
+                            onClick={() => {
+                              setAppearance(opt);
+                              const newTheme = opt === 'Light' ? 'light' : 'dark';
+                              localStorage.setItem('nk-theme', newTheme);
+                              applyTheme(newTheme);
+                              window.dispatchEvent(new Event('storage'));
+                            }}
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[11px] font-semibold transition-all"
+                            style={{
+                              background: appearance === opt
+                                ? (theme === 'dark' ? '#27272a' : '#ffffff')
+                                : 'transparent',
+                              color: appearance === opt
+                                ? (theme === 'dark' ? '#f4f4f5' : '#09090b')
+                                : '#71717a',
+                              boxShadow: appearance === opt ? '0 1px 3px rgba(0,0,0,0.12)' : 'none',
+                            }}
+                          >
+                            {opt === 'Light' ? <Sun size={11} /> : <Moon size={11} />}
+                            {opt}
+                          </button>
+                        ))}
+                      </div>
                     </div>
 
-                    {/* Language setting */}
-                    <div className="flex items-center justify-between">
-                      <label className="text-sm font-medium" style={{ color: theme === 'dark' ? '#d4d4d8' : '#3f3f46' }}>Language</label>
-                      <select
-                        value={language}
-                        onChange={(e) => setLanguage(e.target.value)}
-                        className="px-3 py-1.5 border rounded-lg text-sm focus:outline-none transition"
-                        style={{
-                          background: theme === 'dark' ? '#111111' : '#ffffff',
-                          borderColor: theme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
-                          color: theme === 'dark' ? '#ffffff' : '#000000'
-                        }}
-                      >
-                        <option>Auto-detect</option>
-                        <option>English</option>
-                        <option>Spanish</option>
-                        <option>French</option>
-                        <option>German</option>
-                        <option>Hindi</option>
-                      </select>
+                    {/* Language */}
+                    <div
+                      className="p-3.5 rounded-xl"
+                      style={{
+                        border: theme === 'dark' ? '1px solid rgba(255,255,255,0.07)' : '1px solid rgba(0,0,0,0.07)',
+                        background: theme === 'dark' ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.015)',
+                      }}
+                    >
+                      <p className="text-xs font-semibold mb-0.5" style={{ color: theme === 'dark' ? '#e4e4e7' : '#18181b' }}>Language</p>
+                      <p className="text-[11px] mb-3" style={{ color: '#71717a' }}>AI response language</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {['Auto-detect', 'English', 'Hindi', 'Spanish', 'French', 'German'].map((lang) => (
+                          <button
+                            key={lang}
+                            onClick={() => setLanguage(lang)}
+                            className="px-2.5 py-1 rounded-md text-[11px] font-medium transition-all"
+                            style={{
+                              background: language === lang
+                                ? (theme === 'dark' ? '#27272a' : '#09090b')
+                                : (theme === 'dark' ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)'),
+                              color: language === lang
+                                ? (theme === 'dark' ? '#f4f4f5' : '#ffffff')
+                                : (theme === 'dark' ? '#a1a1aa' : '#71717a'),
+                              border: language === lang
+                                ? (theme === 'dark' ? '1px solid rgba(255,255,255,0.12)' : '1px solid rgba(0,0,0,0.15)')
+                                : (theme === 'dark' ? '1px solid rgba(255,255,255,0.06)' : '1px solid rgba(0,0,0,0.07)'),
+                            }}
+                          >
+                            {lang}
+                          </button>
+                        ))}
+                      </div>
                     </div>
-                    {/* Welcome Guide */}
-                    <div className="flex items-center justify-between pt-4 border-t" style={{ borderColor: theme === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)' }}>
-                      <div className="flex flex-col">
-                        <label className="text-sm font-medium" style={{ color: theme === 'dark' ? '#d4d4d8' : '#3f3f46' }}>Interactive Guide</label>
-                        <span className="text-[11px] text-zinc-500">Learn how to use e-Mate's advanced features</span>
+
+                    {/* Guide */}
+                    <div
+                      className="flex items-center justify-between p-3.5 rounded-xl"
+                      style={{
+                        border: theme === 'dark' ? '1px solid rgba(255,255,255,0.07)' : '1px solid rgba(0,0,0,0.07)',
+                        background: theme === 'dark' ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.015)',
+                      }}
+                    >
+                      <div>
+                        <p className="text-xs font-semibold" style={{ color: theme === 'dark' ? '#e4e4e7' : '#18181b' }}>Interactive Guide</p>
+                        <p className="text-[11px] mt-0.5" style={{ color: '#71717a' }}>Learn e-Mate's advanced features</p>
                       </div>
                       <button
                         onClick={() => {
                           setShowSettingsModal(false);
                           window.dispatchEvent(new Event('nk-launch-guide'));
                         }}
-                        className="px-4 py-2 rounded-full text-xs font-semibold transition hover:opacity-85"
-                        style={{ 
-                          background: theme === 'dark' ? '#ffffff' : '#000000', 
-                          color: theme === 'dark' ? '#000000' : '#ffffff' 
-                        }}
+                        className="px-3 py-1.5 rounded-lg text-[11px] font-semibold transition hover:opacity-85"
+                        style={{ background: theme === 'dark' ? '#ffffff' : '#09090b', color: theme === 'dark' ? '#000000' : '#ffffff' }}
                       >
                         Launch Guide
                       </button>
                     </div>
                   </div>
-                )}                 {activeTab === 'context' && (
-                  <div className="space-y-6">
+                )}
+
+                {/* ── Study Context tab ── */}
+                {activeTab === 'context' && (
+                  <div className="space-y-5 flex-1 overflow-y-auto">
                     <div>
-                      <label className="text-xs uppercase tracking-wider text-zinc-500 font-semibold block mb-2">Syllabus Subject</label>
-                      <select
-                        value={selectedSubject}
-                        onChange={(e) => {
-                          const subjName = e.target.value;
-                          setSelectedSubject(subjName);
-                          const subj = subjects.find(s => s.name === subjName);
-                          if (subj && subj.units.length > 0) {
-                            const firstUnit = subj.units[0].name;
-                            setSelectedUnit(firstUnit);
-                            localStorage.setItem('nk-subject', subjName);
-                            localStorage.setItem('nk-unit', firstUnit);
-                            window.dispatchEvent(new Event('nk-context-change'));
-                          }
-                        }}
-                        className="w-full px-3 py-2.5 border rounded-xl text-sm focus:outline-none transition"
-                        style={{
-                          background: theme === 'dark' ? '#111111' : '#ffffff',
-                          borderColor: theme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
-                          color: theme === 'dark' ? '#ffffff' : '#000000'
-                        }}
-                      >
+                      <p className="text-[10px] font-mono uppercase tracking-widest mb-2" style={{ color: '#71717a' }}>Syllabus Subject</p>
+                      <div className="flex flex-col gap-1 max-h-[150px] overflow-y-auto pr-1">
                         {subjects.map(s => (
-                          <option key={s.id} value={s.name}>{s.name}</option>
+                          <button
+                            key={s.id}
+                            onClick={() => {
+                              setSelectedSubject(s.name);
+                              const firstUnit = s.units[0]?.name ?? '';
+                              if (firstUnit) setSelectedUnit(firstUnit);
+                              localStorage.setItem('nk-subject', s.name);
+                              if (firstUnit) localStorage.setItem('nk-unit', firstUnit);
+                              window.dispatchEvent(new Event('nk-context-change'));
+                            }}
+                            className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-left transition-all"
+                            style={{
+                              background: selectedSubject === s.name
+                                ? (theme === 'dark' ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.05)')
+                                : 'transparent',
+                              color: selectedSubject === s.name
+                                ? (theme === 'dark' ? '#f4f4f5' : '#09090b')
+                                : (theme === 'dark' ? '#71717a' : '#71717a'),
+                              border: selectedSubject === s.name
+                                ? (theme === 'dark' ? '1px solid rgba(255,255,255,0.09)' : '1px solid rgba(0,0,0,0.08)')
+                                : '1px solid transparent',
+                            }}
+                          >
+                            {s.name}
+                            {selectedSubject === s.name && <div className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: '#71717a' }} />}
+                          </button>
                         ))}
-                      </select>
+                      </div>
                     </div>
 
                     <div>
-                      <label className="text-xs uppercase tracking-wider text-zinc-500 font-semibold block mb-2">Subject Unit</label>
-                      <select
-                        value={selectedUnit}
-                        onChange={(e) => {
-                          const unitName = e.target.value;
-                          setSelectedUnit(unitName);
-                          localStorage.setItem('nk-unit', unitName);
-                          window.dispatchEvent(new Event('nk-context-change'));
-                        }}
-                        className="w-full px-3 py-2.5 border rounded-xl text-sm focus:outline-none transition"
-                        style={{
-                          background: theme === 'dark' ? '#111111' : '#ffffff',
-                          borderColor: theme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
-                          color: theme === 'dark' ? '#ffffff' : '#000000'
-                        }}
-                      >
-                        {subjects.find(s => s.name === selectedSubject)?.units.map(u => (
-                          <option key={u.id} value={u.name}>{u.name}</option>
+                      <p className="text-[10px] font-mono uppercase tracking-widest mb-2" style={{ color: '#71717a' }}>Unit / Topic</p>
+                      <div className="flex flex-col gap-1 max-h-[150px] overflow-y-auto pr-1">
+                        {(subjects.find(s => s.name === selectedSubject)?.units ?? []).map(u => (
+                          <button
+                            key={u.id}
+                            onClick={() => {
+                              setSelectedUnit(u.name);
+                              localStorage.setItem('nk-unit', u.name);
+                              window.dispatchEvent(new Event('nk-context-change'));
+                            }}
+                            className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-left transition-all"
+                            style={{
+                              background: selectedUnit === u.name
+                                ? (theme === 'dark' ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.05)')
+                                : 'transparent',
+                              color: selectedUnit === u.name
+                                ? (theme === 'dark' ? '#f4f4f5' : '#09090b')
+                                : (theme === 'dark' ? '#71717a' : '#71717a'),
+                              border: selectedUnit === u.name
+                                ? (theme === 'dark' ? '1px solid rgba(255,255,255,0.09)' : '1px solid rgba(0,0,0,0.08)')
+                                : '1px solid transparent',
+                            }}
+                          >
+                            {u.name}
+                            {selectedUnit === u.name && <div className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: '#71717a' }} />}
+                          </button>
                         ))}
-                      </select>
+                      </div>
                     </div>
                   </div>
                 )}
 
+                {/* ── Notebook tab ── */}
                 {activeTab === 'notebook' && (
-                  <div className="flex flex-col h-[340px] justify-between">
-                    <div className="flex-1 overflow-y-auto space-y-3 pr-2 mb-3">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs uppercase tracking-wider text-zinc-500 font-semibold">Saved Personalization Notes ({notebookNotes.length})</span>
+                  <div className="flex flex-col flex-1 min-h-0">
+                    <div className="flex-1 overflow-y-auto space-y-2 pr-1 mb-3">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-[10px] font-mono uppercase tracking-widest" style={{ color: '#71717a' }}>Notes ({notebookNotes.length})</span>
                         {notebookNotes.length > 0 && (
                           <button
-                            onClick={() => {
-                              clearNotebook(selectedSubject);
-                              setNotebookNotes([]);
-                            }}
-                            className="text-xs text-red-500 hover:text-red-400 font-semibold transition"
-                          >
-                            Clear All
-                          </button>
+                            onClick={() => { clearNotebook(selectedSubject); setNotebookNotes([]); }}
+                            className="text-[11px] text-red-500 hover:text-red-400 font-semibold transition"
+                          >Clear All</button>
                         )}
                       </div>
-
                       {notebookNotes.length === 0 ? (
-                        <div className="flex flex-col items-center justify-center h-44 border border-dashed rounded-xl p-4" style={{ borderColor: theme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' }}>
-                          <p className="text-xs text-zinc-500 text-center">No notes collected yet. Notes are saved automatically when you chat or you can add manual notes below to personalize e-Mate!</p>
+                        <div className="flex flex-col items-center justify-center h-36 rounded-xl border border-dashed" style={{ borderColor: theme === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)' }}>
+                          <p className="text-[11px] text-zinc-500 text-center px-4">No notes yet. Notes are auto-saved when you chat.</p>
                         </div>
-                      ) : (
-                        <div className="space-y-2">
-                          {notebookNotes.map((note) => (
-                            <div
-                              key={note.id}
-                              className="group flex items-start justify-between gap-3 p-3 rounded-xl border"
-                              style={{
-                                background: theme === 'dark' ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)',
-                                borderColor: theme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)',
-                              }}
-                            >
-                              <div className="flex-1 min-w-0">
-                                <p className="text-xs leading-relaxed" style={{ color: theme === 'dark' ? '#d4d4d8' : '#3f3f46' }}>{note.content}</p>
-                                <span className="text-[10px] text-zinc-500 block mt-1">{note.timestamp} · {note.source === 'ai' ? 'Saved response' : 'Custom preference'}</span>
-                              </div>
-                              <button
-                                onClick={() => {
-                                  deleteNotebookEntry(selectedSubject, note.id);
-                                  setNotebookNotes(prev => prev.filter(n => n.id !== note.id));
-                                }}
-                                className="text-zinc-500 hover:text-red-500 transition p-1"
-                                title="Delete note"
-                              >
-                                <Trash2 size={13} />
-                              </button>
-                            </div>
-                          ))}
+                      ) : notebookNotes.map((note) => (
+                        <div key={note.id} className="group flex items-start justify-between gap-3 p-3 rounded-xl border" style={{ background: theme === 'dark' ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)', borderColor: theme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' }}>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs leading-relaxed" style={{ color: theme === 'dark' ? '#d4d4d8' : '#3f3f46' }}>{note.content}</p>
+                            <span className="text-[10px] text-zinc-500 block mt-1">{note.timestamp} · {note.source === 'ai' ? 'Auto-saved' : 'Manual'}</span>
+                          </div>
+                          <button onClick={() => { deleteNotebookEntry(selectedSubject, note.id); setNotebookNotes(prev => prev.filter(n => n.id !== note.id)); }} className="text-zinc-500 hover:text-red-500 transition p-1" title="Delete"><Trash2 size={12} /></button>
                         </div>
-                      )}
+                      ))}
                     </div>
-
-                    <div className="pt-3 border-t shrink-0" style={{ borderColor: theme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)' }}>
-                      <label className="text-[10px] uppercase tracking-wider text-zinc-500 font-semibold block mb-1.5">Add Personalization Preference</label>
+                    <div className="pt-3 border-t shrink-0" style={{ borderColor: theme === 'dark' ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.07)' }}>
                       <div className="flex gap-2">
                         <input
                           type="text"
                           value={newNoteText}
                           onChange={(e) => setNewNoteText(e.target.value)}
-                          placeholder="e.g. Focus on coding examples, explain with analogies..."
-                          className="flex-1 px-3 py-2 border rounded-xl text-xs focus:outline-none transition"
-                          style={{
-                            background: theme === 'dark' ? '#111111' : '#ffffff',
-                            borderColor: theme === 'dark' ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.12)',
-                            color: theme === 'dark' ? '#ffffff' : '#000000'
-                          }}
+                          placeholder="Add a study preference or note..."
+                          className="flex-1 px-3 py-2 rounded-lg text-xs focus:outline-none transition"
+                          style={{ background: theme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)', border: theme === 'dark' ? '1px solid rgba(255,255,255,0.09)' : '1px solid rgba(0,0,0,0.09)', color: theme === 'dark' ? '#ffffff' : '#000000' }}
                           onKeyDown={(e) => {
                             if (e.key === 'Enter' && newNoteText.trim()) {
-                              const txt = newNoteText.trim();
-                              appendToNotebook(selectedSubject, txt, 'user');
+                              appendToNotebook(selectedSubject, newNoteText.trim(), 'user');
                               setNotebookNotes(getNotebook(selectedSubject).entries);
                               setNewNoteText('');
                             }
                           }}
                         />
                         <button
-                          onClick={() => {
-                            if (newNoteText.trim()) {
-                              const txt = newNoteText.trim();
-                              appendToNotebook(selectedSubject, txt, 'user');
-                              setNotebookNotes(getNotebook(selectedSubject).entries);
-                              setNewNoteText('');
-                            }
-                          }}
+                          onClick={() => { if (newNoteText.trim()) { appendToNotebook(selectedSubject, newNoteText.trim(), 'user'); setNotebookNotes(getNotebook(selectedSubject).entries); setNewNoteText(''); } }}
                           disabled={!newNoteText.trim()}
-                          className="px-3 py-2 rounded-xl text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white transition disabled:opacity-50"
-                        >
-                          Add
-                        </button>
+                          className="px-3 py-2 rounded-lg text-xs font-semibold transition disabled:opacity-40"
+                          style={{ background: theme === 'dark' ? '#27272a' : '#09090b', color: theme === 'dark' ? '#f4f4f5' : '#ffffff', border: theme === 'dark' ? '1px solid rgba(255,255,255,0.09)' : '1px solid rgba(0,0,0,0.12)' }}
+                        >Add</button>
                       </div>
                     </div>
                   </div>
                 )}
 
+                {/* ── Account tab ── */}
                 {activeTab === 'account' && (
-                  <div className="space-y-6">
-                    <div className="p-4 rounded-3xl border flex items-center justify-between" style={{ borderColor: theme === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)', background: theme === 'dark' ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)' }}>
-                      <div>
-                        <h4 className="text-sm font-semibold" style={{ color: theme === 'dark' ? '#ffffff' : '#000000' }}>{profileName}</h4>
-                        <p className="text-xs text-zinc-500 mt-0.5">{profileSubtitle}</p>
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-3 p-4 rounded-xl" style={{ background: theme === 'dark' ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)', border: theme === 'dark' ? '1px solid rgba(255,255,255,0.07)' : '1px solid rgba(0,0,0,0.07)' }}>
+                      <div className="w-9 h-9 rounded-xl flex items-center justify-center text-sm font-bold shrink-0" style={{ background: theme === 'dark' ? '#27272a' : '#f4f4f5', color: theme === 'dark' ? '#f4f4f5' : '#09090b' }}>
+                        {avatarLabel}
                       </div>
-                      <span className="text-[10px] uppercase font-bold tracking-wider rounded-full px-2.5 py-0.5" style={{ background: theme === 'dark' ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.06)', color: theme === 'dark' ? '#ffffff' : '#000000' }}>
-                        {isGuest ? 'Guest User' : 'Authenticated'}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-semibold truncate" style={{ color: theme === 'dark' ? '#f4f4f5' : '#09090b' }}>{profileName}</p>
+                        <p className="text-[11px] truncate mt-0.5" style={{ color: '#71717a' }}>{profileSubtitle}</p>
+                      </div>
+                      <span className="text-[9px] uppercase font-bold tracking-wider rounded-full px-2 py-0.5 shrink-0" style={{ background: theme === 'dark' ? 'rgba(255,255,255,0.09)' : 'rgba(0,0,0,0.06)', color: theme === 'dark' ? '#a1a1aa' : '#52525b' }}>
+                        {isGuest ? 'Guest' : 'Pro'}
                       </span>
                     </div>
 
-                    <div className="pt-4">
-                      <button
-                        onClick={handleSignOut}
-                        className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-full border text-sm font-semibold text-red-500 hover:bg-red-500/10 border-red-500/20 transition-all active:scale-[0.99]"
-                      >
-                        <LogOut size={16} />
-                        <span>Sign Out of e-Mate</span>
-                      </button>
-                    </div>
+                    <button
+                      onClick={handleSignOut}
+                      className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl border text-xs font-semibold transition-all hover:bg-red-500/8 active:scale-[0.99]"
+                      style={{ color: '#ef4444', borderColor: 'rgba(239,68,68,0.2)' }}
+                    >
+                      <LogOut size={13} />
+                      Sign Out of e-Mate
+                    </button>
                   </div>
                 )}
               </div>

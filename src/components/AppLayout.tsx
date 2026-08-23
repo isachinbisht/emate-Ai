@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { usePathname } from 'next/navigation';
 import Sidebar from './Sidebar';
 
 interface AppLayoutProps {
@@ -9,35 +10,34 @@ interface AppLayoutProps {
 
 export default function AppLayout({ children }: AppLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [sidebarWidth, setSidebarWidth] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const savedWidth = localStorage.getItem('nk-sidebar-width');
-      if (savedWidth) return parseInt(savedWidth, 10);
-    }
-    return 248;
-  });
+  const [sidebarWidth, setSidebarWidth] = useState(248); // server-safe default
   const [isResizing, setIsResizing] = useState(false);
-  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
-    if (typeof window !== 'undefined') {
-      const savedTheme = localStorage.getItem('nk-theme');
-      if (savedTheme === 'dark' || savedTheme === 'light') return savedTheme;
-    }
-    return 'light';
-  });
+  const [theme, setTheme] = useState<'light' | 'dark'>('light'); // server-safe default
+
+  const pathname = usePathname();
 
   useEffect(() => {
-    const updateTheme = () => {
-      const savedTheme = localStorage.getItem('nk-theme') as 'light' | 'dark' | null;
-      setTheme(savedTheme || 'light');
-    };
+    // Sync theme and sidebar width from localStorage after hydration
+    const savedTheme = localStorage.getItem('nk-theme') as 'light' | 'dark' | null;
+    if (savedTheme === 'dark' || savedTheme === 'light') setTheme(savedTheme);
+
     const savedWidth = localStorage.getItem('nk-sidebar-width');
-    if (savedWidth) {
-      setSidebarWidth(parseInt(savedWidth, 10));
-    }
-    updateTheme();
+    if (savedWidth) setSidebarWidth(parseInt(savedWidth, 10));
+
+    const updateTheme = () => {
+      const t = localStorage.getItem('nk-theme') as 'light' | 'dark' | null;
+      setTheme(t || 'light');
+    };
     window.addEventListener('storage', updateTheme);
     return () => window.removeEventListener('storage', updateTheme);
   }, []);
+
+  // Persist last visited path so the landing page can redirect back
+  useEffect(() => {
+    if (pathname) {
+      localStorage.setItem('nk-last-path', pathname);
+    }
+  }, [pathname]);
 
   const startResizing = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -67,7 +67,17 @@ export default function AppLayout({ children }: AppLayoutProps) {
   }, [isResizing]);
 
   return (
-    <div className="flex min-h-screen transition-colors duration-300" style={{ background: theme === 'dark' ? '#000000' : '#ffffff', color: theme === 'dark' ? '#ffffff' : '#000000' }}>
+    <div 
+      className="flex min-h-screen transition-colors duration-300" 
+      style={{ 
+        background: theme === 'dark' ? '#000000' : '#ffffff', 
+        color: theme === 'dark' ? '#ffffff' : '#000000',
+        paddingTop: 'env(safe-area-inset-top)',
+        paddingBottom: 'env(safe-area-inset-bottom)',
+        paddingLeft: 'env(safe-area-inset-left)',
+        paddingRight: 'env(safe-area-inset-right)',
+      }}
+    >
       {sidebarOpen && (
         <>
           <Sidebar width={sidebarWidth} onToggle={() => setSidebarOpen(!sidebarOpen)} />

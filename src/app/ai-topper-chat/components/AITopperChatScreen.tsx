@@ -22,6 +22,7 @@ export interface ChatMessage {
   mode: StudyMode;
   timestamp: string;
   subject?: string;
+  isGeneralChat?: boolean;
 }
 
 export interface SelectedContext {

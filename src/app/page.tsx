@@ -22,6 +22,15 @@ export default function LandingPage() {
     applyTheme(t);
   }, []);
 
+  // Redirect back to chatbot if that's where the user was last
+  useEffect(() => {
+    const lastPath = localStorage.getItem('nk-last-path');
+    const RESUMABLE_PATHS = ['/ai-topper-chat'];
+    if (lastPath && RESUMABLE_PATHS.some(p => lastPath.startsWith(p))) {
+      router.replace(lastPath);
+    }
+  }, [router]);
+
   const toggleTheme = () => {
     const nextTheme = theme === 'dark' ? 'light' : 'dark';
     setTheme(nextTheme);

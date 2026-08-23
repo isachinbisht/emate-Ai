@@ -20,15 +20,46 @@ const geistMono = Geist_Mono({
 
 export const viewport: Viewport = {
   width: 'device-width',
-  initialScale: 1,
+  initialScale: 1.0,
+  maximumScale: 1.0,
+  userScalable: false,
+  viewportFit: 'cover',
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#FFFFFF' },
+    { media: '(prefers-color-scheme: dark)', color: '#09090B' },
+  ],
 };
 
 export const metadata: Metadata = {
-  title: 'e-Mate — AI Academic Copilot for University Students',
+  title: 'e-Mate AI — Your Smart Study Copilot & Academic Assistant',
   description:
-    'e-Mate helps university students ace exams with AI-powered question prediction, Study Sprints, and an intelligent AI Topper agent tuned to your syllabus.',
+    'AI-powered study partner for interactive flashcards, quizzes, PDF summarization, and hands-free voice studying.',
+  keywords: ['AI study assistant', 'e-Mate AI', 'flashcard generator', 'AI topper', 'quiz generator', 'academic copilot'],
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'default',
+    title: 'e-Mate AI',
+  },
+  formatDetection: {
+    telephone: false,
+  },
   icons: {
     icon: [{ url: '/favicon.ico', type: 'image/x-icon' }],
+    apple: [{ url: '/apple-touch-icon.png' }],
+  },
+  openGraph: {
+    title: 'e-Mate AI — Your Smart Study Copilot & Academic Assistant',
+    description: 'AI-powered study partner for interactive flashcards, quizzes, PDF summarization, and hands-free voice studying.',
+    url: 'https://emate-ai.vercel.app',
+    siteName: 'e-Mate AI',
+    type: 'website',
+    locale: 'en_US',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'e-Mate AI — Your Smart Study Copilot & Academic Assistant',
+    description: 'AI-powered study partner for interactive flashcards, quizzes, PDF summarization, and hands-free voice studying.',
+    creator: '@emate_ai',
   },
 };
 

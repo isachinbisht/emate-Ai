@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Copy, Check, Zap, BookOpen, RotateCcw, BookMarked } from 'lucide-react';
+import { Copy, Check, Zap, BookOpen, RotateCcw, BookMarked, Sparkles } from 'lucide-react';
 import type { ChatMessage } from './AITopperChatScreen';
 import { appendToNotebook } from '@/lib/notebook';
 import { toast } from 'sonner';
@@ -32,21 +32,17 @@ function renderMarkdown(text: string, theme: 'light' | 'dark' = 'dark'): React.R
       result.push(
         <div
           key={`code-${i}`}
-          className="my-3 rounded-xl overflow-hidden"
-          style={{ 
-            background: isDark ? 'rgba(0,0,0,0.3)' : 'rgba(0,0,0,0.03)', 
-            border: isDark ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.08)' 
-          }}
+          className="my-3 p-3 rounded-lg border bg-zinc-50 dark:bg-zinc-900/50 border-zinc-200/60 dark:border-zinc-800/60 overflow-hidden"
         >
           {lang && (
-            <div className="px-4 py-2" style={{ borderBottom: isDark ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(0,0,0,0.06)' }}>
-              <span className="text-xs font-mono" style={{ color: isDark ? '#8e8ea0' : '#71717a' }}>
+            <div className="pb-2 mb-2 border-b border-zinc-200/60 dark:border-zinc-800/60">
+              <span className="text-xs font-mono font-bold text-zinc-500">
                 {lang}
               </span>
             </div>
           )}
-          <pre className="px-4 py-3 overflow-x-auto">
-            <code className="text-xs font-mono leading-relaxed" style={{ color: isDark ? '#b4b4b4' : '#27272a' }}>
+          <pre className="overflow-x-auto">
+            <code className="text-xs font-mono leading-relaxed" style={{ color: isDark ? '#e4e4e7' : '#27272a' }}>
               {codeLines.join('\n')}
             </code>
           </pre>
@@ -148,7 +144,7 @@ function renderMarkdown(text: string, theme: 'light' | 'dark' = 'dark'): React.R
         i++;
       }
       result.push(
-        <ul key={`ul-${i}`} className="my-2 space-y-1.5 pl-4">
+        <ul key={`ul-${i}`} className="my-2 space-y-2 pl-4">
           {bullets.map((b, bi) => (
             <li
               key={`li-${i}-${bi}`}
@@ -156,7 +152,7 @@ function renderMarkdown(text: string, theme: 'light' | 'dark' = 'dark'): React.R
               style={{ color: isDark ? '#b4b4b4' : '#27272a' }}
             >
               <span
-                className="w-1 h-1 rounded-full mt-2 shrink-0"
+                className="w-1 h-1 rounded-full mt-2.5 shrink-0"
                 style={{ background: '#10a37f' }}
               />
               <span dangerouslySetInnerHTML={{ __html: formatInline(b, theme) }} />
@@ -174,7 +170,7 @@ function renderMarkdown(text: string, theme: 'light' | 'dark' = 'dark'): React.R
         i++;
       }
       result.push(
-        <ol key={`ol-${i}`} className="my-2 space-y-1.5 pl-4 list-decimal list-inside">
+        <ol key={`ol-${i}`} className="my-2 space-y-2 pl-4 list-decimal list-inside">
           {items.map((item, ii) => (
             <li
               key={`oli-${i}-${ii}`}
@@ -189,7 +185,7 @@ function renderMarkdown(text: string, theme: 'light' | 'dark' = 'dark'): React.R
     }
 
     if (line.trim() === '') {
-      result.push(<div key={`br-${i}`} className="h-1" />);
+      result.push(<div key={`br-${i}`} className="h-1.5" />);
       i++;
       continue;
     }
@@ -210,13 +206,15 @@ function renderMarkdown(text: string, theme: 'light' | 'dark' = 'dark'): React.R
 
 function formatInline(text: string, theme: 'light' | 'dark' = 'dark'): string {
   const isDark = theme === 'dark';
-  const strongColor = isDark ? '#ececec' : '#000000';
+  const strongColor = isDark ? '#ffffff' : '#111111';
   const emColor = isDark ? '#b4b4b4' : '#52525b';
   const codeBg = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)';
   const codeColor = isDark ? '#a78bfa' : '#6d28d9';
+  const chipBg = isDark ? 'rgba(59,130,246,0.08)' : 'rgba(59,130,246,0.05)';
+  const chipBorder = isDark ? 'rgba(59,130,246,0.15)' : 'rgba(59,130,246,0.1)';
 
   return text
-    .replace(/\*\*(.+?)\*\*/g, `<strong style="font-weight:600;color:${strongColor}">$1</strong>`)
+    .replace(/\*\*(.+?)\*\*/g, `<strong style="font-weight:600;color:${strongColor};background:${chipBg};border:1px solid ${chipBorder};padding:1px 5px;border-radius:4px;font-size:0.95em;margin:0 1px;">$1</strong>`)
     .replace(/\*(.+?)\*/g, `<em style="font-style:italic;color:${emColor}">$1</em>`)
     .replace(
       /`(.+?)`/g,
@@ -247,99 +245,75 @@ export default function ChatMessageBubble({ message, theme = 'dark' }: ChatMessa
 
   if (isUser) {
     return (
-      <div className="flex justify-end px-4 py-2 fade-in-up">
-        <div className="chat-message-width flex justify-end">
-          <div
-            className="max-w-[75%] xl:max-w-[65%] px-4 py-3 rounded-2xl rounded-tr-sm text-sm leading-relaxed"
-            style={{
-              background: isDark ? '#2f2f2f' : '#f4F4f6',
-              color: isDark ? '#ececec' : '#000000',
-              border: isDark ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.06)',
-            }}
-          >
-            {message.content}
-          </div>
+      <div className="flex justify-end w-full fade-in-up">
+        <div className="bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 px-4 py-2.5 rounded-2xl max-w-[80%] ml-auto text-sm leading-relaxed shadow-sm font-medium">
+          {message.content}
         </div>
       </div>
     );
   }
 
   return (
-    <div className="px-4 py-4 fade-in-up group transition-colors" style={{ borderBottom: isDark ? 'none' : '1px solid rgba(0,0,0,0.03)' }}>
-      <div className="chat-message-width">
-        <div className="flex items-start gap-3">
-          {/* Avatar */}
-          <div
-            className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 mt-0.5"
-            style={{
-              background: 'rgba(16,163,127,0.15)',
-              border: '1px solid rgba(16,163,127,0.25)',
-            }}
-          >
-            <svg width="13" height="13" viewBox="0 0 28 28" fill="none">
-              <path
-                d="M9 14h10M9 10.5h6M9 17.5h8"
-                stroke="#10a37f"
-                strokeWidth="2.2"
-                strokeLinecap="round"
-              />
-            </svg>
+    <div className="w-full fade-in-up group transition-colors flex flex-col gap-2">
+      {/* Header Row — only in Study Copilot mode */}
+      {!message.isGeneralChat && (
+        <div className="flex items-center gap-2 mb-2">
+          <div className="bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 w-6 h-6 rounded-md flex items-center justify-center shrink-0">
+            <Sparkles size={12} />
           </div>
-
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-2">
-              <span className="text-sm font-semibold" style={{ color: isDark ? '#ececec' : '#000000' }}>
-                AI Topper
-              </span>
-              {message.mode === 'sprint' ? (
-                <span className="inline-flex items-center gap-1 text-xs sprint-badge px-2 py-0.5 rounded-full font-medium">
-                  <Zap size={9} />
-                  Sprint
-                </span>
-              ) : (
-                <span className="inline-flex items-center gap-1 text-xs deep-dive-badge px-2 py-0.5 rounded-full font-medium">
-                  <BookOpen size={9} />
-                  Deep
-                </span>
-              )}
-              <span className="text-xs" style={{ color: isDark ? '#8e8ea0' : '#71717a' }}>
-                {message.timestamp}
-              </span>
-            </div>
-
-            <div className="prose-sm max-w-none">{renderMarkdown(message.content, theme)}</div>
-
-            {/* Actions */}
-            <div className="flex items-center gap-1 mt-3 opacity-0 group-hover:opacity-100 transition-opacity duration-150">
-              <button
-                onClick={handleCopy}
-                title="Copy response"
-                className="flex items-center gap-1 px-2 py-1 rounded-md text-xs transition-all duration-150 hover:bg-white/6"
-                style={{ color: '#8e8ea0' }}
-              >
-                {copied ? <Check size={12} /> : <Copy size={12} />}
-                <span>{copied ? 'Copied' : 'Copy'}</span>
-              </button>
-              <button
-                onClick={handleSaveToNotebook}
-                title="Save to Subject Notebook"
-                className="flex items-center gap-1 px-2 py-1 rounded-md text-xs transition-all duration-150 hover:bg-white/6"
-                style={{ color: '#8e8ea0' }}
-              >
-                {saved ? <Check size={12} className="text-emerald-500" /> : <BookMarked size={12} />}
-                <span className={saved ? 'text-emerald-500 font-medium' : ''}>{saved ? 'Saved to Notebook' : 'Save to Notebook'}</span>
-              </button>
-              <button
-                title="Regenerate"
-                className="flex items-center gap-1 px-2 py-1 rounded-md text-xs transition-all duration-150 hover:bg-white/6"
-                style={{ color: '#8e8ea0' }}
-              >
-                <RotateCcw size={12} />
-                <span>Regenerate</span>
-              </button>
-            </div>
-          </div>
+          <span className="text-xs sm:text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+            AI Topper
+          </span>
+          {message.mode === 'sprint' ? (
+            <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-900/60">
+              Sprint
+            </span>
+          ) : (
+            <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-950/40 text-blue-800 dark:text-blue-300 border border-blue-200 dark:border-blue-900/60">
+              Deep Dive
+            </span>
+          )}
+          <span className="text-[11px] text-zinc-400 font-normal ml-auto">
+            {message.timestamp}
+          </span>
         </div>
+      )}
+
+      {/* Message content */}
+      <div className="prose prose-zinc dark:prose-invert max-w-none text-sm leading-relaxed font-normal" style={{ color: isDark ? '#d4d4d8' : '#27272a' }}>
+        {renderMarkdown(message.content, theme)}
+      </div>
+
+      {/* Actions */}
+      <div className="flex items-center gap-1 mt-1 opacity-0 group-hover:opacity-100 transition-opacity duration-150">
+        <button
+          onClick={handleCopy}
+          title="Copy response"
+          className="flex items-center gap-1 px-2 py-1 rounded-md text-xs transition-all duration-150 hover:bg-black/5 dark:hover:bg-white/5"
+          style={{ color: '#8e8ea0' }}
+        >
+          {copied ? <Check size={12} /> : <Copy size={12} />}
+          <span>{copied ? 'Copied' : 'Copy'}</span>
+        </button>
+        {!message.isGeneralChat && (
+          <button
+            onClick={handleSaveToNotebook}
+            title="Save to Subject Notebook"
+            className="flex items-center gap-1 px-2 py-1 rounded-md text-xs transition-all duration-150 hover:bg-black/5 dark:hover:bg-white/5"
+            style={{ color: '#8e8ea0' }}
+          >
+            {saved ? <Check size={12} className="text-emerald-500" /> : <BookMarked size={12} />}
+            <span className={saved ? 'text-emerald-500 font-medium' : ''}>{saved ? 'Saved to Notebook' : 'Save to Notebook'}</span>
+          </button>
+        )}
+        <button
+          title="Regenerate"
+          className="flex items-center gap-1 px-2 py-1 rounded-md text-xs transition-all duration-150 hover:bg-black/5 dark:hover:bg-white/5"
+          style={{ color: '#8e8ea0' }}
+        >
+          <RotateCcw size={12} />
+          <span>Regenerate</span>
+        </button>
       </div>
     </div>
   );

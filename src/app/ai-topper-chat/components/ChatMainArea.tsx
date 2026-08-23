@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import {
     Send,
     Zap,
@@ -16,39 +16,52 @@ import {
     Lightbulb,
     Sparkles,
     Check,
+    Paperclip,
+    Compass,
+    Folder,
+    BookMarked,
+    Code2,
+    PenLine,
+    MessageSquare,
+    GraduationCap,
+    Volume2,
+    X,
+    Key,
 } from 'lucide-react';
 import ChatMessageBubble from './ChatMessageBubble';
 import StreamingIndicator from './StreamingIndicator';
 import type { ChatMessage, SelectedContext, StudyMode } from './AITopperChatScreen';
 import { applyTheme } from '@/lib/theme';
 import { ModelSelector } from '@/components/ModelSelector';
-import { buildNotebookContext, appendToNotebook, getSubjects, Subject } from '@/lib/notebook';
+import { buildNotebookContext, appendToNotebook, getSubjects, getNotebook, Subject } from '@/lib/notebook';
 import { saveChatSession } from '@/lib/chatHistory';
 
-const QUICK_ACTIONS = [
+// Study quick actions are built dynamically inside the component from selectedContext.
+
+const GENERAL_QUICK_ACTIONS = [
     {
-        icon: FileText,
-        label: 'Generate high-probability exam questions',
-        sub: 'DBMS · Normalization',
-        prompt: 'Generate 5 high-probability exam questions for DBMS Normalization (3NF/BCNF) with model answers',
+        icon: Code2,
+        label: 'Write & debug code',
+        sub: 'Get working code with explanations',
+        prompt: 'Help me write and debug code for: ',
     },
     {
-        icon: Lightbulb,
-        label: 'Summarize for last-minute revision',
-        sub: 'OS · Scheduling',
-        prompt: 'Give me a concise last-minute revision summary for Operating System scheduling algorithms',
+        icon: PenLine,
+        label: 'Draft & edit text',
+        sub: 'Polish essays, emails, or reports',
+        prompt: 'Help me draft and improve this text: ',
     },
     {
         icon: Brain,
-        label: 'Explain a concept step-by-step',
-        sub: 'DSA · Linked Lists',
-        prompt: 'Explain the concept of Linked Lists with a step-by-step breakdown and exam tips',
+        label: 'Brainstorm ideas',
+        sub: 'Explore angles and creative options',
+        prompt: 'Help me brainstorm ideas for: ',
     },
     {
-        icon: Zap,
-        label: 'Sprint: Key formulas & rules',
-        sub: 'CN · TCP/IP',
-        prompt: 'Give me all key formulas and rules for TCP/IP model layers for my exam sprint',
+        icon: Compass,
+        label: 'Explain a complex topic',
+        sub: 'Clear, structured explanations',
+        prompt: 'Explain this topic clearly and simply: ',
     },
 ];
 
@@ -86,10 +99,81 @@ export default function ChatMainArea({
     const [inputValue, setInputValue] = useState('');
     const [isStreaming, setIsStreaming] = useState(false);
     const [showFeatureModal, setShowFeatureModal] = useState(false);
+    const [isStudyMode, setIsStudyMode] = useState(true); // server-safe default — synced from localStorage in useEffect
+    const [isOpenRouterConnected, setIsOpenRouterConnected] = useState(true); // default to true, check in client mount
+    const [showConnectModal, setShowConnectModal] = useState(false);
+
+    // Build study action tiles dynamically from the active notebook context
+    const studyQuickActions = useMemo(() => [
+        {
+            icon: BookOpen,
+            label: 'Generate exam questions',
+            sub: `${selectedContext.subject} · ${selectedContext.unit}`,
+            prompt: `Generate 5 high-probability exam questions for ${selectedContext.subject} — ${selectedContext.unit} with model answers`,
+        },
+        {
+            icon: Sparkles,
+            label: 'Last-minute revision',
+            sub: `Quick summary for ${selectedContext.unit}`,
+            prompt: `Give me a concise last-minute revision summary for ${selectedContext.subject} — ${selectedContext.unit}`,
+        },
+        {
+            icon: Brain,
+            label: 'Step-by-step explanation',
+            sub: `Deep breakdown of ${selectedContext.unit}`,
+            prompt: `Explain ${selectedContext.unit} (${selectedContext.subject}) step-by-step with examples and exam tips`,
+        },
+        {
+            icon: Compass,
+            label: 'Key formulas & rules',
+            sub: `Sprint sheet for ${selectedContext.unit}`,
+            prompt: `List all key formulas, rules, and definitions for ${selectedContext.subject} — ${selectedContext.unit} for my exam sprint`,
+        },
+    ], [selectedContext.subject, selectedContext.unit]);
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            // Sync study mode from localStorage after hydration
+            const saved = localStorage.getItem('nk-study-mode-active');
+            if (saved !== null) setIsStudyMode(saved !== 'false');
+
+            // Check if redirected from OAuth callback with ?connected=true
+            const params = new URLSearchParams(window.location.search);
+            if (params.get('connected') === 'true') {
+                setIsOpenRouterConnected(true);
+                // Clean up the URL param without reloading
+                window.history.replaceState({}, '', window.location.pathname);
+            } else {
+                // Check server-side cookie via API (HTTP-only cookies aren't readable from JS)
+                fetch('/api/auth/openrouter/status')
+                    .then(res => res.json())
+                    .then(data => setIsOpenRouterConnected(!!data.connected))
+                    .catch(() => setIsOpenRouterConnected(false));
+            }
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []); // runs once on mount
+
+
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            // Persist the mode choice so it survives page reloads and new chats
+            localStorage.setItem('nk-study-mode-active', String(isStudyMode));
+            localStorage.setItem('nk-general-chat-active', String(!isStudyMode));
+            window.dispatchEvent(new Event('nk-general-chat-change'));
+        }
+    }, [isStudyMode]);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLTextAreaElement>(null);
     // Stable session id — created once per component mount
     const sessionIdRef = useRef<string>(`chat-${Date.now()}`);
+    const centerInputRef = useRef<HTMLTextAreaElement>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
+
+    useEffect(() => {
+        if (!messages.length) {
+            setTimeout(() => centerInputRef.current?.focus(), 50);
+        }
+    }, [messages.length]);
 
     // Dropdown state for study context
     const [isContextDropdownOpen, setIsContextDropdownOpen] = useState(false);
@@ -119,14 +203,8 @@ export default function ChatMainArea({
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
-    // Sync theme state with localStorage
-    const [theme, setTheme] = useState<'light' | 'dark'>(() => {
-        if (typeof window !== 'undefined') {
-            const savedTheme = localStorage.getItem('nk-theme');
-            if (savedTheme === 'dark' || savedTheme === 'light') return savedTheme;
-        }
-        return 'light';
-    });
+    // Sync theme state with localStorage — server-safe: start with 'light', read localStorage after mount
+    const [theme, setTheme] = useState<'light' | 'dark'>('light');
     useEffect(() => {
         const updateTheme = () => {
             const savedTheme = localStorage.getItem('nk-theme') as 'light' | 'dark' | null;
@@ -140,24 +218,113 @@ export default function ChatMainArea({
         return () => window.removeEventListener('storage', updateTheme);
     }, []);
 
-    useEffect(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }, [messages, isStreaming]);
+    // ── Inline Voice Dictation implementation ──────────────────────────────
+    const [isListening, setIsListening] = useState(false);
+    const recognitionRef = useRef<any>(null);
+    const silenceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-    // Listen for suggested prompts fired from the sidebar Study Context panel
-    useEffect(() => {
-        const handleSendPrompt = (e: Event) => {
-            const text = (e as CustomEvent<{ text: string }>).detail?.text;
-            if (text) handleSend(text);
+    const toggleListening = () => {
+        if (typeof window === 'undefined') return;
+
+        if (isListening) {
+            stopListening();
+            return;
+        }
+
+        const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+        if (!SpeechRecognition) {
+            alert('Speech recognition is not supported in this browser. Please try Chrome or Safari.');
+            return;
+        }
+
+        setIsListening(true);
+
+        const rec = new SpeechRecognition();
+        rec.continuous = true;
+        rec.interimResults = true;
+        rec.lang = 'en-US';
+
+        rec.onresult = (event: any) => {
+            if (silenceTimeoutRef.current) {
+                clearTimeout(silenceTimeoutRef.current);
+            }
+
+            let interimTranscript = '';
+            let finalTranscript = '';
+
+            for (let i = event.resultIndex; i < event.results.length; ++i) {
+                if (event.results[i].isFinal) {
+                    finalTranscript += event.results[i][0].transcript;
+                } else {
+                    interimTranscript += event.results[i][0].transcript;
+                }
+            }
+
+            const activePhrase = finalTranscript || interimTranscript;
+            if (activePhrase.trim()) {
+                setInputValue(activePhrase);
+            }
+
+            // Stops listening automatically after 2 seconds of silence, leaving text in input
+            silenceTimeoutRef.current = setTimeout(() => {
+                stopListening();
+            }, 2000);
         };
-        window.addEventListener('nk-send-prompt', handleSendPrompt);
-        return () => window.removeEventListener('nk-send-prompt', handleSendPrompt);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
+        rec.onerror = (e: any) => {
+            console.error('Speech recognition error:', e);
+            stopListening();
+        };
+
+        rec.onend = () => {
+            setIsListening(false);
+        };
+
+        recognitionRef.current = rec;
+        try {
+            rec.start();
+        } catch (err) {
+            console.error('Failed to start speech recognition:', err);
+            setIsListening(false);
+        }
+    };
+
+    const stopListening = () => {
+        setIsListening(false);
+        if (silenceTimeoutRef.current) {
+            clearTimeout(silenceTimeoutRef.current);
+            silenceTimeoutRef.current = null;
+        }
+        try {
+            if (recognitionRef.current) {
+                recognitionRef.current.onend = null;
+                recognitionRef.current.stop();
+            }
+        } catch (_) {}
+    };
+
+    // Clean up on unmount
+    useEffect(() => {
+        return () => {
+            if (silenceTimeoutRef.current) clearTimeout(silenceTimeoutRef.current);
+            try {
+                if (recognitionRef.current) {
+                    recognitionRef.current.onend = null;
+                    recognitionRef.current.stop();
+                }
+            } catch (_) {}
+        };
     }, []);
 
     const handleSend = async (text?: string) => {
         const content = (text ?? inputValue).trim();
         if (!content || isStreaming) return;
+
+        // Guard: if no API key is connected, show the connect modal instead
+        if (!isOpenRouterConnected) {
+            setShowConnectModal(true);
+            return;
+        }
 
         const formatTimestamp = () => {
             try {
@@ -175,6 +342,7 @@ export default function ChatMainArea({
             mode,
             timestamp: formatTimestamp(),
             subject: selectedContext.subject,
+            isGeneralChat: !isStudyMode,
         };
 
         const newMessages = [...messages, userMsg];
@@ -193,17 +361,18 @@ export default function ChatMainArea({
         });
 
         try {
-            const notebookContext = buildNotebookContext(selectedContext.subject);
+            const notebookContext = isStudyMode ? buildNotebookContext(selectedContext.subject) : '';
             const res = await fetch('/api/chat', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     messages: newMessages,
                     mode,
-                    subject: selectedContext.subject,
-                    unit: selectedContext.unit,
+                    subject: isStudyMode ? selectedContext.subject : undefined,
+                    unit: isStudyMode ? selectedContext.unit : undefined,
                     model: selectedModel,
                     notebookContext,
+                    isGeneralChat: !isStudyMode,
                 }),
             });
 
@@ -212,12 +381,14 @@ export default function ChatMainArea({
             let replyContent = '';
             if (res.ok && data.reply) {
                 replyContent = data.reply;
-                // Automatically collect user's context in the notebook
-                appendToNotebook(
-                    selectedContext.subject,
-                    `Struggling/Interested in: ${content.slice(0, 150)}${content.length > 150 ? '...' : ''}`,
-                    'user'
-                );
+                if (isStudyMode) {
+                    // Automatically collect user's context in the notebook
+                    appendToNotebook(
+                        selectedContext.subject,
+                        `Struggling/Interested in: ${content.slice(0, 150)}${content.length > 150 ? '...' : ''}`,
+                        'user'
+                    );
+                }
             } else {
                 // If API key error occurs, present clear error notice or concise direct answer without rigid template
                 if (data.error) {
@@ -234,17 +405,20 @@ export default function ChatMainArea({
                 mode,
                 timestamp: formatTimestamp(),
                 subject: selectedContext.subject,
+                isGeneralChat: !isStudyMode,
             };
 
             setMessages((prev) => [...prev, assistantMsg]);
         } catch (err: any) {
+            const errorMsg = `Error generating response: ${err.message || 'Failed to connect to server.'}`;
             const assistantMsg: ChatMessage = {
                 id: `msg-${String(msgCounter++).padStart(3, '0')}`,
                 role: 'assistant',
-                content: `Error generating response: ${err.message || 'Failed to connect to server.'}`,
+                content: errorMsg,
                 mode,
                 timestamp: formatTimestamp(),
                 subject: selectedContext.subject,
+                isGeneralChat: !isStudyMode,
             };
             setMessages((prev) => [...prev, assistantMsg]);
         } finally {
@@ -335,358 +509,444 @@ export default function ChatMainArea({
                 </div>
             )}
 
-            {/* Top bar — always shown */}
+            {/* Top bar — fixed height, no absolute positioning to prevent overlap */}
             <div
-                className="flex items-center justify-between gap-3 px-4 py-3 shrink-0 backdrop-blur-md z-10"
+                className="shrink-0 flex items-center justify-between gap-3 px-4 py-2.5"
                 style={{
-                    borderBottom: theme === 'dark' ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(0,0,0,0.08)',
-                    background: theme === 'dark' ? 'rgba(10,10,10,0.85)' : 'rgba(255,255,255,0.85)',
+                    borderBottom: theme === 'dark' ? '1px solid rgba(255,255,255,0.06)' : '1px solid rgba(0,0,0,0.07)',
+                    background: theme === 'dark' ? '#080809' : '#f9f9fb',
                 }}
             >
-                <div className="flex items-center gap-2 sm:gap-3">
-                    {/* Mode toggle */}
-                    <div
-                        className="flex items-center gap-1 p-1 rounded-xl shrink-0"
+                {/* Left: Mode switcher */}
+                <div
+                    className="inline-flex p-0.5 rounded-lg"
+                    style={{
+                        background: theme === 'dark' ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.06)',
+                        border: theme === 'dark' ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(0,0,0,0.08)',
+                    }}
+                >
+                    <button
+                        onClick={() => setIsStudyMode(true)}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[11px] font-semibold transition-all"
                         style={{
-                            background: theme === 'dark' ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)',
-                            border: theme === 'dark' ? '1px solid rgba(255,255,255,0.07)' : '1px solid rgba(0,0,0,0.07)',
+                            background: isStudyMode ? (theme === 'dark' ? '#1c1c1f' : '#ffffff') : 'transparent',
+                            color: isStudyMode ? (theme === 'dark' ? '#e4e4e7' : '#09090b') : (theme === 'dark' ? '#52525b' : '#a1a1aa'),
+                            boxShadow: isStudyMode ? '0 1px 3px rgba(0,0,0,0.12)' : 'none',
                         }}
                     >
-                        <button
-                            onClick={() => setMode('deep-dive')}
-                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 ${
-                                mode === 'deep-dive'
-                                    ? 'bg-[#1a2a4a] text-blue-400 border border-blue-500/20 shadow-sm'
-                                    : 'text-zinc-500 hover:text-zinc-300'
-                            }`}
-                        >
-                            <BookOpen size={11} />
-                            Deep Dive
-                        </button>
-                        <button
-                            onClick={() => setMode('sprint')}
-                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 ${
-                                mode === 'sprint'
-                                    ? 'bg-[#2a1a06] text-amber-400 border border-amber-500/20 shadow-sm'
-                                    : 'text-zinc-500 hover:text-zinc-300'
-                            }`}
-                        >
-                            <Zap size={11} />
-                            Sprint
-                        </button>
-                    </div>
-                    {/* Clickable Context label with Inline Dropdown */}
-                    <div className="relative inline-block" ref={contextDropdownRef}>
-                        <button
-                            onClick={() => setIsContextDropdownOpen(!isContextDropdownOpen)}
-                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl transition-all duration-150 active:scale-95 cursor-pointer shrink-0 hover:bg-white/5"
-                            style={{
-                                background: theme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)',
-                                border: theme === 'dark' ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.1)',
-                            }}
-                            title="Change study context"
-                        >
-                            <span className="text-[11px]" style={{ color: theme === 'dark' ? '#a1a1aa' : '#52525b', fontWeight: '500' }}>{selectedContext.subject}</span>
-                            <span className="text-[11px]" style={{ color: theme === 'dark' ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.2)' }}>·</span>
-                            <span className="text-[11px] truncate max-w-[120px] sm:max-w-none" style={{ color: theme === 'dark' ? '#d4d4d8' : '#27272a', fontWeight: '600' }}>{selectedContext.unit}</span>
-                            <ChevronDown size={11} className={`transition-transform duration-200 ${isContextDropdownOpen ? 'rotate-180' : ''}`} style={{ color: theme === 'dark' ? '#a1a1aa' : '#71717a' }} />
-                        </button>
-
-                        {isContextDropdownOpen && (
-                            <div
-                                className="absolute left-0 mt-2 w-72 rounded-2xl border p-4 shadow-2xl z-50 transition-all"
-                                style={{
-                                    borderColor: theme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
-                                    background: theme === 'dark' ? '#18181b' : '#ffffff',
-                                    color: theme === 'dark' ? '#ffffff' : '#000000',
-                                }}
-                            >
-                                {/* Subjects section */}
-                                <div className="mb-3">
-                                    <p className="text-[9px] uppercase tracking-wider text-zinc-500 font-semibold mb-2">Select Notebook</p>
-                                    <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto pr-1">
-                                        {subjectsList.map((s) => {
-                                            const isSelected = s.name === selectedContext.subject;
-                                            return (
-                                                <button
-                                                    key={s.id}
-                                                    onClick={() => {
-                                                        const firstUnit = s.units?.[0]?.name ?? '';
-                                                        localStorage.setItem('nk-subject', s.name);
-                                                        if (firstUnit) {
-                                                            localStorage.setItem('nk-unit', firstUnit);
-                                                        } else {
-                                                            localStorage.removeItem('nk-unit');
-                                                        }
-                                                        window.dispatchEvent(new Event('nk-context-change'));
-                                                    }}
-                                                    className="px-2.5 py-1 rounded-full text-xs transition font-medium"
-                                                    style={{
-                                                        background: isSelected
-                                                            ? (theme === 'dark' ? '#ffffff' : '#000000')
-                                                            : (theme === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)'),
-                                                        color: isSelected
-                                                            ? (theme === 'dark' ? '#000000' : '#ffffff')
-                                                            : (theme === 'dark' ? '#d4d4d8' : '#3f3f46'),
-                                                    }}
-                                                >
-                                                    📚 {s.name}
-                                                </button>
-                                            );
-                                        })}
-                                    </div>
-                                </div>
-
-                                <div className="border-t my-2.5" style={{ borderColor: theme === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)' }} />
-
-                                {/* Units section */}
-                                <div>
-                                    <p className="text-[9px] uppercase tracking-wider text-zinc-500 font-semibold mb-2">Select Unit</p>
-                                    <div className="space-y-1 max-h-40 overflow-y-auto pr-1">
-                                        {(() => {
-                                            const currentSubj = subjectsList.find((s) => s.name === selectedContext.subject);
-                                            if (!currentSubj || !currentSubj.units || currentSubj.units.length === 0) {
-                                                return <p className="text-xs text-zinc-500 italic py-1">No units in this notebook.</p>;
-                                            }
-                                            return currentSubj.units.map((u) => {
-                                                const isSelected = u.name === selectedContext.unit;
-                                                return (
-                                                    <button
-                                                        key={u.id}
-                                                        onClick={() => {
-                                                            localStorage.setItem('nk-unit', u.name);
-                                                            window.dispatchEvent(new Event('nk-context-change'));
-                                                            setIsContextDropdownOpen(false);
-                                                        }}
-                                                        className="w-full text-left rounded-xl px-3 py-2 text-xs transition flex items-center justify-between font-medium"
-                                                        style={{
-                                                            background: isSelected
-                                                                ? (theme === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)')
-                                                                : 'transparent',
-                                                            color: isSelected
-                                                                ? (theme === 'dark' ? '#ffffff' : '#000000')
-                                                                : (theme === 'dark' ? '#a1a1aa' : '#52525b'),
-                                                        }}
-                                                    >
-                                                        <span className="truncate pr-2">{u.name}</span>
-                                                        {isSelected && <Check size={12} className="shrink-0" />}
-                                                    </button>
-                                                );
-                                            });
-                                        })()}
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-                    </div>
+                        <GraduationCap size={12} />
+                        Study Copilot
+                    </button>
+                    <button
+                        onClick={() => setIsStudyMode(false)}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[11px] font-semibold transition-all"
+                        style={{
+                            background: !isStudyMode ? (theme === 'dark' ? '#1c1c1f' : '#ffffff') : 'transparent',
+                            color: !isStudyMode ? (theme === 'dark' ? '#e4e4e7' : '#09090b') : (theme === 'dark' ? '#52525b' : '#a1a1aa'),
+                            boxShadow: !isStudyMode ? '0 1px 3px rgba(0,0,0,0.12)' : 'none',
+                        }}
+                    >
+                        <MessageSquare size={12} />
+                        General Chat
+                    </button>
                 </div>
 
-                {/* Model selector pill & action controls */}
+                {/* Center: Breadcrumb (study mode only) */}
+                <div className="flex-1 flex justify-center">
+                    {isStudyMode && (
+                        <div className="flex items-center gap-1.5 text-[11px] select-none" style={{ color: theme === 'dark' ? '#52525b' : '#a1a1aa' }}>
+                            <span className="font-medium" style={{ color: theme === 'dark' ? '#a1a1aa' : '#52525b' }}>{selectedContext.subject}</span>
+                            <span>/</span>
+                            <span style={{ color: theme === 'dark' ? '#71717a' : '#71717a' }}>{selectedContext.unit}</span>
+                        </div>
+                    )}
+                </div>
+
+                {/* Right: Model selector, OpenRouter status & clear */}
                 <div className="flex items-center gap-2 shrink-0">
                     <ModelSelector
                         currentModel={selectedModel}
                         onSelectModel={setSelectedModel}
                         theme={theme}
                     />
+
+                    {/* OpenRouter connection status pill */}
+                    {isOpenRouterConnected ? (
+                        <div
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium"
+                            style={{
+                                background: theme === 'dark' ? 'rgba(16, 185, 129, 0.08)' : 'rgba(16, 185, 129, 0.06)',
+                                border: theme === 'dark' ? '1px solid rgba(16, 185, 129, 0.2)' : '1px solid rgba(16, 185, 129, 0.25)',
+                                color: theme === 'dark' ? '#34d399' : '#059669',
+                            }}
+                        >
+                            <span
+                                className="animate-pulse"
+                                style={{
+                                    width: 6,
+                                    height: 6,
+                                    borderRadius: '50%',
+                                    background: '#10b981',
+                                    display: 'inline-block',
+                                }}
+                            />
+                            Connected
+                        </div>
+                    ) : (
+                        <a
+                            href="/api/auth/openrouter/connect"
+                            className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium transition-opacity hover:opacity-90"
+                            style={{
+                                background: theme === 'dark' ? '#18181b' : '#09090b',
+                                color: '#ffffff',
+                                border: theme === 'dark' ? '1px solid rgba(255,255,255,0.1)' : 'none',
+                            }}
+                        >
+                            <Key size={11} />
+                            Connect Key
+                        </a>
+                    )}
+
                     <button
                         title="Clear conversation"
                         onClick={() => setMessages([])}
-                        className="p-2 rounded-xl transition-all duration-150 text-zinc-400 hover:text-zinc-200 border border-transparent hover:border-zinc-800 hover:bg-white/5 active:scale-95"
+                        className="p-1.5 rounded-lg transition-all duration-150 active:scale-95"
+                        style={{ color: theme === 'dark' ? '#52525b' : '#a1a1aa' }}
                     >
-                        <RotateCcw size={14} />
+                        <RotateCcw size={13} />
                     </button>
                 </div>
             </div>
 
-            {/* Messages area */}
-            <div className="flex-1 overflow-y-auto min-h-0">
+            {/* Glassmorphic Connect Modal — shown when user tries to send without a key */}
+            {showConnectModal && (
+                <div
+                    className="fixed inset-0 z-50 flex items-center justify-center"
+                    style={{ background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}
+                    onClick={() => setShowConnectModal(false)}
+                >
+                    <div
+                        className="relative w-full max-w-sm mx-4 rounded-2xl p-6 flex flex-col items-center text-center gap-4"
+                        style={{
+                            background: theme === 'dark' ? 'rgba(24, 24, 27, 0.92)' : 'rgba(255, 255, 255, 0.95)',
+                            border: theme === 'dark' ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(0,0,0,0.08)',
+                            boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)',
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <button
+                            onClick={() => setShowConnectModal(false)}
+                            className="absolute top-3 right-3 p-1 rounded-lg transition-colors"
+                            style={{ color: theme === 'dark' ? '#71717a' : '#a1a1aa' }}
+                        >
+                            <X size={16} />
+                        </button>
+
+                        <div
+                            className="w-12 h-12 rounded-full flex items-center justify-center"
+                            style={{
+                                background: theme === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
+                            }}
+                        >
+                            <Key size={22} style={{ color: theme === 'dark' ? '#a1a1aa' : '#52525b' }} />
+                        </div>
+
+                        <div>
+                            <h3
+                                className="text-base font-semibold mb-1"
+                                style={{ color: theme === 'dark' ? '#fafafa' : '#09090b' }}
+                            >
+                                Connect Your API Key
+                            </h3>
+                            <p className="text-xs leading-relaxed" style={{ color: theme === 'dark' ? '#71717a' : '#a1a1aa' }}>
+                                Link your OpenRouter account to unlock AI processing. It takes one click and is completely free.
+                            </p>
+                        </div>
+
+                        <a
+                            href="/api/auth/openrouter/connect"
+                            className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all hover:opacity-90 active:scale-[0.98]"
+                            style={{
+                                background: theme === 'dark' ? '#fafafa' : '#09090b',
+                                color: theme === 'dark' ? '#09090b' : '#fafafa',
+                            }}
+                        >
+                            <Key size={14} />
+                            Connect OpenRouter
+                        </a>
+
+                        <button
+                            onClick={() => setShowConnectModal(false)}
+                            className="text-[11px] font-medium transition-colors"
+                            style={{ color: theme === 'dark' ? '#52525b' : '#a1a1aa' }}
+                        >
+                            Maybe later
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {/* Messages area — no pt-20 needed since header is no longer absolute */}
+            <div className="flex-1 overflow-y-auto min-h-0 flex flex-col">
+
                 {!hasMessages ? (
-                    /* Premium welcome screen matching the landing page / Gemini Students view */
-                    <div className="flex flex-col items-center justify-center min-h-full max-w-4xl mx-auto px-6 py-12 overflow-y-auto">
-                        
-                        {/* Graduation cap */}
-                        <div className="flex items-center justify-center mb-3">
-                          <span className="text-3xl">🎓</span>
+                    <div className="flex flex-col items-center justify-start pt-16 pb-12 px-4 max-w-3xl mx-auto w-full text-center overflow-visible">
+                        {/* Hidden File Input */}
+                        <input
+                            type="file"
+                            ref={fileInputRef}
+                            className="hidden"
+                            onChange={(e) => {
+                                if (e.target.files && e.target.files[0]) {
+                                    setInputValue((prev) => `${prev} Attached: ${e.target.files![0].name} `);
+                                    setTimeout(() => centerInputRef.current?.focus(), 50);
+                                }
+                            }}
+                        />
+
+                        {/* Header mark */}
+                        <div className="flex items-center justify-center mb-6">
+                            <div
+                                className="w-10 h-10 rounded-2xl flex items-center justify-center"
+                                style={{ background: theme === 'dark' ? '#18181b' : '#f4f4f5', border: theme === 'dark' ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(0,0,0,0.08)', boxShadow: '0 1px 2px rgba(0,0,0,0.04)' }}
+                            >
+                                {isStudyMode ? <GraduationCap size={18} style={{ color: theme === 'dark' ? '#a1a1aa' : '#71717a' }} /> : <MessageSquare size={18} style={{ color: theme === 'dark' ? '#a1a1aa' : '#71717a' }} />}
+                            </div>
                         </div>
 
                         {/* Heading */}
-                        <h1 
-                          className="text-3xl sm:text-4xl font-semibold tracking-tight text-center mb-8"
-                          style={{ color: theme === 'dark' ? '#ffffff' : '#000000' }}
+                        <h1
+                            className="text-3xl font-bold tracking-tight text-center mb-2"
+                            style={{ color: theme === 'dark' ? '#ffffff' : '#09090b' }}
                         >
-                          Level up your studying
+                            {isStudyMode ? 'Level up your studying' : 'What can I help you with?'}
                         </h1>
+                        <p className="text-sm text-center mb-8 max-w-md leading-relaxed" style={{ color: theme === 'dark' ? '#52525b' : '#a1a1aa' }}>
+                            {isStudyMode
+                                ? 'Ask anything, paste notes, or trigger a study workflow below.'
+                                : 'Ask anything — code, writing, analysis, or just a question.'}
+                        </p>
 
-                        {/* Four cards row */}
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 w-full mb-10">
-                          {/* Card 1 */}
-                          <div 
-                            onClick={() => setInputValue('Generate focused study materials from my active notes')}
-                            className="rounded-3xl p-5 border cursor-pointer transition-all hover:scale-[1.03] active:scale-[0.98] flex flex-col justify-between h-44 relative overflow-hidden"
-                            style={{ 
-                              background: theme === 'dark' ? 'linear-gradient(135deg, #1e1b4b 0%, #311042 100%)' : 'linear-gradient(135deg, #e0e7ff 0%, #fae8ff 100%)',
-                              borderColor: theme === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'
-                            }}
-                          >
-                            <div className="text-sm font-semibold leading-snug" style={{ color: theme === 'dark' ? '#ffffff' : '#000000' }}>
-                              Add class materials to study smarter this school year
-                            </div>
-                            <div className="text-3xl self-end">📚</div>
-                          </div>
-
-                          {/* Card 2 */}
-                          <div 
-                            onClick={() => handleSend('Start a rapid practice quiz on the active unit')}
-                            className="rounded-3xl p-5 border cursor-pointer transition-all hover:scale-[1.03] active:scale-[0.98] flex flex-col justify-between h-44 relative overflow-hidden"
-                            style={{ 
-                              background: theme === 'dark' ? 'linear-gradient(135deg, #064e3b 0%, #022c22 100%)' : 'linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%)',
-                              borderColor: theme === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'
-                            }}
-                          >
-                            <div className="text-sm font-semibold leading-snug" style={{ color: theme === 'dark' ? '#ffffff' : '#000000' }}>
-                              Quiz yourself on key concepts
-                            </div>
-                            <div className="text-3xl self-end">✅</div>
-                          </div>
-
-                          {/* Card 3 */}
-                          <div 
-                            onClick={() => handleSend('Generate flashcards for my active exam topics')}
-                            className="rounded-3xl p-5 border cursor-pointer transition-all hover:scale-[1.03] active:scale-[0.98] flex flex-col justify-between h-44 relative overflow-hidden"
-                            style={{ 
-                              background: theme === 'dark' ? 'linear-gradient(135deg, #1e3a8a 0%, #172554 100%)' : 'linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%)',
-                              borderColor: theme === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'
-                            }}
-                          >
-                            <div className="text-sm font-semibold leading-snug" style={{ color: theme === 'dark' ? '#ffffff' : '#000000' }}>
-                              Create flashcards for revision
-                            </div>
-                            <div className="text-3xl self-end">🗼</div>
-                          </div>
-
-                          {/* Card 4 */}
-                          <div 
-                            onClick={() => handleSend('Guide me step-by-step through this topic')}
-                            className="rounded-3xl p-5 border cursor-pointer transition-all hover:scale-[1.03] active:scale-[0.98] flex flex-col justify-between h-44 relative overflow-hidden"
-                            style={{ 
-                              background: theme === 'dark' ? 'linear-gradient(135deg, #14532d 0%, #052e16 100%)' : 'linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%)',
-                              borderColor: theme === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'
-                            }}
-                          >
-                            <div className="text-sm font-semibold leading-snug" style={{ color: theme === 'dark' ? '#ffffff' : '#000000' }}>
-                              Use Guided Learning paths
-                            </div>
-                            <div className="text-3xl self-end">📖</div>
-                          </div>
-                        </div>
-
-                        {/* Your study notebooks label */}
-                        <div className="w-full text-left mb-3">
-                          <span className="text-xs font-semibold uppercase tracking-wider text-zinc-500">Your study notebooks</span>
-                        </div>
-
-                        {/* Personalization card panel */}
-                        <div 
-                          className="w-full rounded-3xl border p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-10"
-                          style={{ 
-                            background: theme === 'dark' ? '#1c1c1e' : '#f4F4f6',
-                            borderColor: theme === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)',
-                          }}
-                        >
-                          <div>
-                            <h4 className="font-bold text-base" style={{ color: theme === 'dark' ? '#ffffff' : '#111111' }}>
-                              Learning tailored to you
-                            </h4>
-                            <p className="text-sm mt-1" style={{ color: '#a1a1aa' }}>
-                              Set up a study notebook to get custom lessons and track your progress.
-                            </p>
-                          </div>
-                          <button
-                            onClick={() => window.dispatchEvent(new Event('nk-open-settings'))}
-                            className="px-5 py-2.5 rounded-full text-sm font-bold transition whitespace-nowrap active:scale-[0.98]"
-                            style={{
-                              background: theme === 'dark' ? '#ffffff' : '#000000',
-                              color: theme === 'dark' ? '#000000' : '#ffffff',
-                              boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
-                            }}
-                          >
-                            + New notebook
-                          </button>
-                        </div>
-
-                        {/* Floating Gemini-style input bar */}
+                        {/* Elevated Command Input Card */}
                         <div
-                            className="w-full rounded-full px-5 py-3.5 flex items-center gap-3 transition-all duration-200"
+                            className="w-full mb-6 rounded-2xl transition-all focus-within:ring-1"
                             style={{
-                                background: theme === 'dark' ? '#1c1c1e' : '#f4F4f6',
-                                border: theme === 'dark' ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(0,0,0,0.08)',
-                                boxShadow: '0 4px 20px rgba(0,0,0,0.05)'
+                                background: theme === 'dark' ? '#111113' : '#ffffff',
+                                border: theme === 'dark' ? '1px solid rgba(255,255,255,0.09)' : '1px solid rgba(0,0,0,0.1)',
+                                boxShadow: theme === 'dark' ? '0 4px 20px -4px rgba(0,0,0,0.4)' : '0 4px 20px -4px rgba(0,0,0,0.05)',
                             }}
                         >
-                            <button
-                                type="button"
-                                onClick={() => setShowFeatureModal(true)}
-                                className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 transition-colors hover:bg-white/10"
-                                style={{ 
-                                    background: theme === 'dark' ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.05)', 
-                                    color: '#8e8ea0' 
-                                }}
-                                title="Open extra features"
-                                aria-label="Open extra features"
-                            >
-                                <Plus size={16} />
-                            </button>
-
-                            <input
-                                ref={inputRef as any}
-                                type="text"
-                                value={inputValue}
-                                onChange={(e) => setInputValue(e.target.value)}
-                                onKeyDown={(e) => { if (e.key === 'Enter') handleSend(); }}
-                                placeholder="Ask e-Mate..."
-                                className="flex-1 bg-transparent text-sm focus:outline-none placeholder:text-zinc-500"
-                                style={{
-                                    color: theme === 'dark' ? '#ffffff' : '#000000',
-                                }}
-                            />
-
-                            <div className="flex items-center gap-2 shrink-0">
-                                <ModelSelector
-                                    currentModel={selectedModel}
-                                    onSelectModel={setSelectedModel}
-                                    theme={theme}
-                                />
-
-                                <button
-                                    className="w-8 h-8 flex items-center justify-center rounded-full transition-colors hover:bg-white/5"
-                                    style={{ color: '#8e8ea0' }}
-                                    title="Voice input"
-                                >
-                                    <Mic size={16} />
-                                </button>
-
-                                <button
-                                    onClick={() => handleSend()}
-                                    disabled={!inputValue.trim() || isStreaming}
-                                    className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 transition-all duration-150 active:scale-95 disabled:opacity-20"
+                            <div className="px-4 pt-4 pb-2">
+                                <textarea
+                                    ref={centerInputRef}
+                                    value={inputValue}
+                                    onChange={(e) => setInputValue(e.target.value)}
+                                    onKeyDown={handleKeyDown}
+                                    placeholder={isListening ? 'Listening... Speak now...' : 'Ask anything, paste notes, or use /quiz, /flashcards...'}
+                                    rows={3}
+                                    className="w-full bg-transparent text-sm font-normal resize-none focus:outline-none leading-relaxed"
                                     style={{
-                                    background: inputValue.trim() && !isStreaming ? (theme === 'dark' ? '#ffffff' : '#000000') : (theme === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'),
+                                        color: theme === 'dark' ? '#e4e4e7' : '#09090b',
+                                        minHeight: '72px',
+                                        maxHeight: '200px',
+                                        caretColor: theme === 'dark' ? '#ffffff' : '#000000',
                                     }}
-                                    aria-label="Send message"
-                                >
-                                    <Send
-                                        size={14}
+                                />
+                            </div>
+                            {/* Control bar inside card */}
+                            <div className="flex items-center justify-between px-3 pb-3">
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        type="button"
+                                        onClick={() => fileInputRef.current?.click()}
+                                        className="p-1.5 rounded-lg transition-colors"
+                                        style={{ color: theme === 'dark' ? '#71717a' : '#71717a' }}
+                                        title="Attach materials"
+                                    >
+                                        <Paperclip size={15} />
+                                    </button>
+                                    {/* Segmented mode control */}
+                                    <div
+                                        className="inline-flex p-0.5 rounded-lg"
                                         style={{
-                                            color: inputValue.trim() && !isStreaming ? '#ffffff' : '#8e8ea0',
+                                            background: theme === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)',
                                         }}
-                                    />
-                                </button>
+                                    >
+                                        <button
+                                            onClick={() => setMode('sprint')}
+                                            className="text-[11px] font-medium px-2.5 py-1 rounded-md transition-all"
+                                            style={{
+                                                background: mode === 'sprint' ? (theme === 'dark' ? '#27272a' : '#ffffff') : 'transparent',
+                                                color: mode === 'sprint' ? (theme === 'dark' ? '#e4e4e7' : '#09090b') : (theme === 'dark' ? '#71717a' : '#71717a'),
+                                                boxShadow: mode === 'sprint' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                                            }}
+                                        >
+                                            Sprint
+                                        </button>
+                                        <button
+                                            onClick={() => setMode('deep-dive')}
+                                            className="text-[11px] font-medium px-2.5 py-1 rounded-md transition-all"
+                                            style={{
+                                                background: mode === 'deep-dive' ? (theme === 'dark' ? '#27272a' : '#ffffff') : 'transparent',
+                                                color: mode === 'deep-dive' ? (theme === 'dark' ? '#e4e4e7' : '#09090b') : (theme === 'dark' ? '#71717a' : '#71717a'),
+                                                boxShadow: mode === 'deep-dive' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                                            }}
+                                        >
+                                            Deep Dive
+                                        </button>
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-1.5 shrink-0">
+                                    <button
+                                        onClick={toggleListening}
+                                        type="button"
+                                        className={`p-1.5 rounded-lg flex items-center justify-center transition-all relative ${
+                                            isListening 
+                                                ? 'text-red-500 animate-pulse bg-red-500/10 before:absolute before:inset-0 before:rounded-lg before:bg-red-500/20 before:animate-ping' 
+                                                : 'text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800'
+                                        }`}
+                                        title={isListening ? 'Stop Listening' : 'Start Voice Mode'}
+                                    >
+                                        <Mic size={15} />
+                                        {isListening && (
+                                            <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse border-2 border-zinc-900" />
+                                        )}
+                                    </button>
+                                    <button
+                                        onClick={() => handleSend()}
+                                        disabled={!inputValue.trim() || isStreaming}
+                                        className="w-8 h-8 rounded-xl flex items-center justify-center transition-all duration-150 active:scale-95 disabled:opacity-25 disabled:cursor-not-allowed"
+                                        style={{
+                                            background: inputValue.trim() && !isStreaming
+                                                ? (theme === 'dark' ? '#ffffff' : '#09090b')
+                                                : (theme === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.07)'),
+                                        }}
+                                        aria-label="Send"
+                                    >
+                                        <Send
+                                            size={14}
+                                            style={{
+                                                color: inputValue.trim() && !isStreaming
+                                                    ? (theme === 'dark' ? '#000000' : '#ffffff')
+                                                    : '#71717a',
+                                            }}
+                                        />
+                                    </button>
+                                </div>
                             </div>
                         </div>
 
+                        {/* 2×2 Linear-style action tiles — swaps per mode */}
+                        <div className="grid grid-cols-2 gap-3 w-full mb-12">
+                            {(isStudyMode ? studyQuickActions : GENERAL_QUICK_ACTIONS).map((action) => (
+                                <button
+                                    key={action.label}
+                                    type="button"
+                                    onClick={() => {
+                                        if (action.prompt) {
+                                            setInputValue(action.prompt);
+                                            setTimeout(() => centerInputRef.current?.focus(), 50);
+                                        }
+                                    }}
+                                    className="group p-3.5 rounded-xl text-left flex items-start gap-3 cursor-pointer transition-all"
+                                    style={{
+                                        border: theme === 'dark' ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(0,0,0,0.08)',
+                                        background: theme === 'dark' ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.015)',
+                                    }}
+                                >
+                                    <div
+                                        className="p-2 rounded-lg shrink-0 transition-transform group-hover:scale-105"
+                                        style={{
+                                            background: theme === 'dark' ? '#27272a' : '#ffffff',
+                                            border: theme === 'dark' ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(0,0,0,0.08)',
+                                            color: theme === 'dark' ? '#a1a1aa' : '#52525b',
+                                        }}
+                                    >
+                                        <action.icon size={13} />
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <p
+                                            className="text-xs font-semibold leading-snug mb-0.5"
+                                            style={{ color: theme === 'dark' ? '#e4e4e7' : '#18181b' }}
+                                        >
+                                            {action.label}
+                                        </p>
+                                        <p className="text-[11px] leading-snug" style={{ color: theme === 'dark' ? '#71717a' : '#71717a' }}>
+                                            {action.sub}
+                                        </p>
+                                    </div>
+                                </button>
+                            ))}
+                        </div>
+
+                        {/* Study notebooks section — only in Study Copilot mode */}
+                        {isStudyMode && (<>
+                        <div className="w-full max-w-2xl mt-8 pt-6 border-t mb-3" style={{ borderColor: theme === 'dark' ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.06)' }}>
+                          <span className="text-[10px] font-mono uppercase tracking-widest block mb-3" style={{ color: theme === 'dark' ? '#52525b' : '#71717a' }}>
+                            Study Notebooks
+                          </span>
+                        </div>
+
+                        {/* Modern notebook cards grid */}
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 w-full max-w-2xl mb-10">
+                            {subjectsList.map((subj) => {
+                                const notebook = getNotebook(subj.name);
+                                let activeTime = 'Never';
+                                if (notebook && notebook.updatedAt) {
+                                    try {
+                                        activeTime = new Date(notebook.updatedAt).toLocaleDateString([], {
+                                            month: 'short',
+                                            day: 'numeric',
+                                        });
+                                    } catch (_) {
+                                        activeTime = 'Recently';
+                                    }
+                                }
+                                const topicCount = subj.units?.length || 0;
+                                return (
+                                    <div
+                                        key={subj.id}
+                                        onClick={() => {
+                                            localStorage.setItem('nk-subject', subj.name);
+                                            if (subj.units && subj.units.length > 0) {
+                                                localStorage.setItem('nk-unit', subj.units[0].name);
+                                            }
+                                            window.dispatchEvent(new Event('nk-context-change'));
+                                        }}
+                                        className="group p-3.5 rounded-xl border cursor-pointer transition-all flex flex-col justify-between h-24"
+                                        style={{
+                                            background: theme === 'dark' ? '#111113' : '#ffffff',
+                                            borderColor: theme === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)',
+                                        }}
+                                    >
+                                        <div className="flex items-start justify-between gap-1">
+                                            <Folder size={13} style={{ color: theme === 'dark' ? '#71717a' : '#a1a1aa', marginTop: '1px', flexShrink: 0 }} />
+                                            <span
+                                                className="text-[10px] font-mono px-1.5 py-0.5 rounded"
+                                                style={{
+                                                    background: theme === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)',
+                                                    color: theme === 'dark' ? '#71717a' : '#71717a',
+                                                }}
+                                            >
+                                                {topicCount}
+                                            </span>
+                                        </div>
+                                        <div>
+                                            <p className="text-xs font-semibold leading-tight truncate" style={{ color: theme === 'dark' ? '#e4e4e7' : '#18181b' }}>
+                                                {subj.name}
+                                            </p>
+                                            <p className="text-[10px] mt-0.5" style={{ color: theme === 'dark' ? '#52525b' : '#a1a1aa' }}>
+                                                {activeTime}
+                                            </p>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                        </>)}
                     </div>
                 ) : (
-                    <div className="py-6 space-y-0">
+                    <div className="max-w-3xl mx-auto w-full px-4 py-6 space-y-6">
                         {messages.map((msg) => (
                             <ChatMessageBubble key={msg.id} message={msg} theme={theme} />
                         ))}
@@ -696,79 +956,130 @@ export default function ChatMainArea({
                 )}
             </div>
 
-            {/* Input bar — shown at bottom when there ARE messages */}
+            {/* Input bar — shown at bottom only when conversation is active */}
             {hasMessages && (
-                <div className="shrink-0 px-4 pb-5 pt-3">
-                    <div className="chat-message-width">
+                <div className="sticky bottom-0 bg-white/80 dark:bg-zinc-950/80 backdrop-blur-md pt-2 pb-4 w-full max-w-3xl mx-auto z-10 px-4">
+                    <div className="w-full">
                         <div
-                            className="rounded-2xl px-4 py-3.5 flex items-end gap-3"
+                            className="rounded-2xl px-4 py-3 flex flex-col gap-2.5"
                             style={{
                                 background: theme === 'dark' ? '#1a1a1a' : '#f4F4f6',
                                 border: theme === 'dark' ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(0,0,0,0.08)',
                             }}
                         >
-                            <button
-                                type="button"
-                                onClick={() => setShowFeatureModal(true)}
-                                className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 mb-0.5"
-                                style={{ 
-                                    background: theme === 'dark' ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.05)', 
-                                    color: '#8e8ea0' 
-                                }}
-                                title="Open extra features"
-                                aria-label="Open extra features"
-                            >
-                                <Plus size={14} />
-                            </button>
+                            {/* Segmented Control embedded inside input container — only visible in Study Mode */}
+                            {isStudyMode && (
+                                <div className="flex justify-start">
+                                    <div
+                                        className="flex items-center gap-0.5 p-0.5 rounded-lg text-[10px]"
+                                        style={{
+                                            background: theme === 'dark' ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)',
+                                            border: theme === 'dark' ? '1px solid rgba(255,255,255,0.07)' : '1px solid rgba(0,0,0,0.07)',
+                                        }}
+                                    >
+                                        <button
+                                            onClick={() => setMode('sprint')}
+                                            className={`flex items-center gap-1 px-2.5 py-1 rounded-md font-semibold transition-all duration-200 ${
+                                                mode === 'sprint'
+                                                    ? (theme === 'dark' ? 'bg-[#2a1a06] text-amber-400 border border-amber-500/20 shadow-sm' : 'bg-amber-100 text-amber-800 border border-amber-200/50 shadow-sm')
+                                                    : 'text-zinc-500 hover:text-zinc-300'
+                                            }`}
+                                        >
+                                            <Zap size={9} />
+                                            Sprint
+                                        </button>
+                                        <button
+                                            onClick={() => setMode('deep-dive')}
+                                            className={`flex items-center gap-1 px-2.5 py-1 rounded-md font-semibold transition-all duration-200 ${
+                                                mode === 'deep-dive'
+                                                    ? (theme === 'dark' ? 'bg-[#1a2a4a] text-blue-400 border border-blue-500/20 shadow-sm' : 'bg-blue-100 text-blue-800 border border-blue-200/50 shadow-sm')
+                                                    : 'text-zinc-500 hover:text-zinc-300'
+                                            }`}
+                                        >
+                                            <BookOpen size={9} />
+                                            Deep Dive
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
 
-                            <textarea
-                                ref={inputRef}
-                                value={inputValue}
-                                onChange={(e) => setInputValue(e.target.value)}
-                                onKeyDown={handleKeyDown}
-                                placeholder={
-                                    mode === 'sprint'
-                                        ? 'Ask for a quick summary, formula, or cram tip...'
-                                        : 'Ask for a full explanation, proof, or derivation...'
-                                }
-                                rows={1}
-                                className="flex-1 bg-transparent text-sm resize-none focus:outline-none leading-relaxed placeholder:text-zinc-500"
-                                style={{
-                                    color: theme === 'dark' ? '#ffffff' : '#000000',
-                                    minHeight: '24px',
-                                    maxHeight: '140px',
-                                }}
-                            />
-
-                            <div className="flex items-center gap-1.5 shrink-0">
+                            {/* Input Area */}
+                            <div className="flex items-end gap-3 w-full">
                                 <button
-                                    className="w-8 h-8 flex items-center justify-center rounded-xl transition-colors hover:bg-white/5"
-                                    style={{ color: '#4a4a4a' }}
-                                >
-                                    <Mic size={16} />
-                                </button>
-
-                                <button
-                                    onClick={() => handleSend()}
-                                    disabled={!inputValue.trim() || isStreaming}
-                                    className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 transition-all duration-150 active:scale-95 disabled:opacity-20 disabled:cursor-not-allowed"
-                                    style={{
-                                        background:
-                                            inputValue.trim() && !isStreaming ? (theme === 'dark' ? '#ffffff' : '#000000') : (theme === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'),
+                                    type="button"
+                                    onClick={() => fileInputRef.current?.click()}
+                                    className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 mb-0.5"
+                                    style={{ 
+                                        background: theme === 'dark' ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.05)', 
+                                        color: '#8e8ea0' 
                                     }}
-                                    aria-label={isStreaming ? 'Stop generation' : 'Send message'}
+                                    title="Attach materials"
                                 >
-                                    {isStreaming ? (
-                                        <Square size={12} style={{ color: '#000000' }} />
-                                    ) : (
-                                        <Send
-                                            size={14}
-                                            style={{
-                                                color: inputValue.trim() && !isStreaming ? (theme === 'dark' ? '#000000' : '#ffffff') : '#4a4a4a',
-                                            }}
-                                        />
-                                    )}
+                                    <Paperclip size={14} />
                                 </button>
+
+                                <textarea
+                                    ref={inputRef}
+                                    value={inputValue}
+                                    onChange={(e) => setInputValue(e.target.value)}
+                                    onKeyDown={handleKeyDown}
+                                    placeholder={
+                                        isListening
+                                            ? 'Listening... Speak now...'
+                                            : !isStudyMode
+                                                ? 'Ask a question or request help...'
+                                                : mode === 'sprint'
+                                                    ? 'Ask for a quick summary, formula, or cram tip...'
+                                                    : 'Ask for a full explanation, proof, or derivation...'
+                                    }
+                                    rows={1}
+                                    className="flex-1 bg-transparent text-sm resize-none focus:outline-none leading-relaxed placeholder:text-zinc-500"
+                                    style={{
+                                        color: theme === 'dark' ? '#ffffff' : '#000000',
+                                        minHeight: '24px',
+                                        maxHeight: '140px',
+                                    }}
+                                />
+
+                                <div className="flex items-center gap-1.5 shrink-0">
+                                    <button
+                                        onClick={toggleListening}
+                                        type="button"
+                                        className={`p-2 rounded-xl flex items-center justify-center transition-all relative ${
+                                            isListening
+                                                ? 'text-red-500 animate-pulse bg-red-500/10 before:absolute before:inset-0 before:rounded-xl before:bg-red-500/20 before:animate-ping'
+                                                : 'text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800'
+                                        }`}
+                                        title={isListening ? 'Stop Listening' : 'Start Voice Mode'}
+                                    >
+                                        <Mic size={16} />
+                                        {isListening && (
+                                            <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse border-2 border-zinc-900" />
+                                        )}
+                                    </button>
+
+                                    <button
+                                        onClick={() => handleSend()}
+                                        disabled={!inputValue.trim() || isStreaming}
+                                        className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 transition-all duration-150 active:scale-95 disabled:opacity-20 disabled:cursor-not-allowed"
+                                        style={{
+                                            background:
+                                                inputValue.trim() && !isStreaming ? (theme === 'dark' ? '#ffffff' : '#000000') : (theme === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'),
+                                        }}
+                                        aria-label={isStreaming ? 'Stop generation' : 'Send message'}
+                                    >
+                                        {isStreaming ? (
+                                            <Square size={12} style={{ color: '#000000' }} />
+                                        ) : (
+                                            <Send
+                                                size={14}
+                                                style={{
+                                                    color: inputValue.trim() && !isStreaming ? (theme === 'dark' ? '#000000' : '#ffffff') : '#4a4a4a',
+                                                }}
+                                            />
+                                        )}
+                                    </button>
+                                </div>
                             </div>
                         </div>
                         <p className="text-[11px] text-center mt-2" style={{ color: '#3a3a3a' }}>
