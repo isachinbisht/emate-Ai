@@ -597,43 +597,49 @@ export default function Sidebar({ onToggle, width = 248 }: SidebarProps) {
           </button>
 
           <div className="mt-1 space-y-0.5">
-            {subjects.map((subject) => (
-              <div
-                key={subject.id}
-                className="group flex items-center rounded-lg px-3 py-2 transition-colors"
-                style={{
-                  background: selectedSubject === subject.name
-                    ? (theme === 'dark' ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.05)')
-                    : 'transparent',
-                }}
-              >
-                <button
-                  type="button"
-                  onClick={() => handleSelectNotebook(subject.name)}
-                  className="flex-1 text-left text-xs font-medium truncate flex items-center gap-2"
-                  style={{ color: selectedSubject === subject.name ? (theme === 'dark' ? '#e4e4e7' : '#09090b') : (theme === 'dark' ? '#71717a' : '#71717a') }}
-                >
-                  <Folder size={11} style={{ flexShrink: 0, opacity: 0.7 }} />
-                  {subject.name}
-                </button>
-                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-                  <button
-                    onClick={() => { handleStartRename(subject); setShowManageModal(true); }}
-                    className="p-1 rounded-md hover:bg-black/10 dark:hover:bg-white/10 transition"
-                    title="Rename"
-                  >
-                    <Edit2 size={10} style={{ color: '#a1a1aa' }} />
-                  </button>
-                  <button
-                    onClick={() => setConfirmDeleteId(subject.id)}
-                    className="p-1 rounded-md hover:bg-red-500/10 transition"
-                    title="Delete"
-                  >
-                    <Trash2 size={10} style={{ color: '#ef4444' }} />
-                  </button>
-                </div>
+            {subjects.length === 0 ? (
+              <div className="px-3 py-3 text-center rounded-lg border border-dashed border-zinc-200/50 dark:border-zinc-800/40 bg-zinc-50/30 dark:bg-zinc-900/10">
+                <p className="text-[11px] font-medium text-zinc-400 dark:text-zinc-500">No notebooks yet</p>
               </div>
-            ))}
+            ) : (
+              subjects.map((subject) => (
+                <div
+                  key={subject.id}
+                  className="group flex items-center rounded-lg px-3 py-2 transition-colors"
+                  style={{
+                    background: selectedSubject === subject.name
+                      ? (theme === 'dark' ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.05)')
+                      : 'transparent',
+                  }}
+                >
+                  <button
+                    type="button"
+                    onClick={() => handleSelectNotebook(subject.name)}
+                    className="flex-1 text-left text-xs font-medium truncate flex items-center gap-2"
+                    style={{ color: selectedSubject === subject.name ? (theme === 'dark' ? '#e4e4e7' : '#09090b') : (theme === 'dark' ? '#71717a' : '#71717a') }}
+                  >
+                    <Folder size={11} style={{ flexShrink: 0, opacity: 0.7 }} />
+                    {subject.name}
+                  </button>
+                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                    <button
+                      onClick={() => { handleStartRename(subject); setShowManageModal(true); }}
+                      className="p-1 rounded-md hover:bg-black/10 dark:hover:bg-white/10 transition"
+                      title="Rename"
+                    >
+                      <Edit2 size={10} style={{ color: '#a1a1aa' }} />
+                    </button>
+                    <button
+                      onClick={() => setConfirmDeleteId(subject.id)}
+                      className="p-1 rounded-md hover:bg-red-500/10 transition"
+                      title="Delete"
+                    >
+                      <Trash2 size={10} style={{ color: '#ef4444' }} />
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </div>
 

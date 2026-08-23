@@ -100,51 +100,7 @@ export interface Subject {
   units: { id: string; name: string; }[];
 }
 
-const STATIC_SUBJECTS: Subject[] = [
-  {
-    id: 'subj-dbms',
-    name: 'DBMS',
-    units: [
-      { id: 'unit-dbms-1', name: 'ER Model & Relational Algebra' },
-      { id: 'unit-dbms-2', name: 'SQL Joins & Subqueries' },
-      { id: 'unit-dbms-3', name: 'Normalization (3NF/BCNF)' },
-      { id: 'unit-dbms-4', name: 'Transaction Management & ACID' },
-      { id: 'unit-dbms-5', name: 'Indexing & Query Optimization' },
-    ],
-  },
-  {
-    id: 'subj-ds',
-    name: 'Data Structures',
-    units: [
-      { id: 'unit-ds-1', name: 'Arrays & Linked Lists' },
-      { id: 'unit-ds-2', name: 'Stacks, Queues & Deques' },
-      { id: 'unit-ds-3', name: 'Binary Trees & Heaps' },
-      { id: 'unit-ds-4', name: 'Graph Traversal (DFS/BFS)' },
-      { id: 'unit-ds-5', name: 'Sorting & Searching Algorithms' },
-    ],
-  },
-  {
-    id: 'subj-os',
-    name: 'Operating Systems',
-    units: [
-      { id: 'unit-os-1', name: 'Process Scheduling' },
-      { id: 'unit-os-2', name: 'Deadlock Detection & Prevention' },
-      { id: 'unit-os-3', name: 'Memory Management & Paging' },
-      { id: 'unit-os-4', name: 'File System Implementation' },
-      { id: 'unit-os-5', name: 'Page Replacement Algorithms' },
-    ],
-  },
-  {
-    id: 'subj-web',
-    name: 'Web Technologies',
-    units: [
-      { id: 'unit-web-1', name: 'HTML5 & CSS3 Fundamentals' },
-      { id: 'unit-web-2', name: 'JavaScript & DOM Manipulation' },
-      { id: 'unit-web-3', name: 'React Hooks & State' },
-      { id: 'unit-web-4', name: 'REST API Design Patterns' },
-    ],
-  },
-];
+const STATIC_SUBJECTS: Subject[] = [];
 
 export function getSubjects(): Subject[] {
   if (typeof window === 'undefined') return STATIC_SUBJECTS;
