@@ -5,8 +5,12 @@ export async function GET(request: NextRequest) {
   const verifier = request.cookies.get("openrouter_verifier")?.value;
 
   if (!code || !verifier) {
+    const missing = [
+      !code && "authorization code",
+      !verifier && "PKCE verifier cookie",
+    ].filter(Boolean).join(" and ");
     return NextResponse.json(
-      { error: "Missing authorization code or PKCE verifier cookie." },
+      { error: `Missing ${missing}. The verifier cookie may have been lost during the redirect.` },
       { status: 400 }
     );
   }
@@ -38,11 +42,14 @@ export async function GET(request: NextRequest) {
 
     const response = NextResponse.redirect(`${baseUrl}/ai-topper-chat?connected=true`);
 
+    // Prevent Vercel CDN from caching this redirect
+    response.headers.set("Cache-Control", "no-store, max-age=0");
+
     // Save key in a secure HTTP-only cookie
     response.cookies.set("user_openrouter_key", data.key, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
-      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+      sameSite: "lax",
       path: "/",
       maxAge: 60 * 60 * 24 * 365, // 1 year
     });
@@ -58,4 +65,3 @@ export async function GET(request: NextRequest) {
     );
   }
 }
-

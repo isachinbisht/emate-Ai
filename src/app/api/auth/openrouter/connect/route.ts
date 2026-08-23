@@ -18,15 +18,21 @@ export async function GET(request: Request) {
     callbackUrl
   )}&code_challenge=${codeChallenge}&code_challenge_method=S256`;
 
-  // Set the cookie on the response so it persists across the cross-site redirect
   const response = NextResponse.redirect(openRouterAuthUrl);
+
+  // Prevent Vercel CDN from caching this redirect (which would strip Set-Cookie)
+  response.headers.set("Cache-Control", "no-store, max-age=0");
+
+  // Set the PKCE verifier cookie — sameSite "lax" is correct here because the
+  // callback from OpenRouter is a top-level GET navigation back to our domain.
   response.cookies.set("openrouter_verifier", codeVerifier, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
-    sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+    sameSite: "lax",
     path: "/",
     maxAge: 60 * 10, // 10 minutes
   });
 
   return response;
 }
+
