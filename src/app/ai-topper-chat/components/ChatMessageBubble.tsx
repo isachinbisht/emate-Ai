@@ -32,17 +32,22 @@ function renderMarkdown(text: string, theme: 'light' | 'dark' = 'dark'): React.R
       result.push(
         <div
           key={`code-${i}`}
-          className="my-3 p-3 rounded-lg border bg-zinc-50 dark:bg-zinc-900/50 border-zinc-200/60 dark:border-zinc-800/60 overflow-hidden"
+          className="relative my-4 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-950 overflow-hidden font-mono text-sm shadow-md"
         >
-          {lang && (
-            <div className="pb-2 mb-2 border-b border-zinc-200/60 dark:border-zinc-800/60">
-              <span className="text-xs font-mono font-bold text-zinc-500">
-                {lang}
-              </span>
-            </div>
-          )}
-          <pre className="overflow-x-auto">
-            <code className="text-xs font-mono leading-relaxed" style={{ color: isDark ? '#e4e4e7' : '#27272a' }}>
+          <div className="flex items-center justify-between px-4 py-1.5 bg-zinc-900 border-b border-zinc-800 text-xs text-zinc-400 font-sans">
+            <span>{lang || 'code'}</span>
+            <button
+              onClick={() => {
+                navigator.clipboard.writeText(codeLines.join('\n'));
+                toast.success('Code copied to clipboard!');
+              }}
+              className="hover:text-zinc-200 transition-colors"
+            >
+              Copy
+            </button>
+          </div>
+          <pre className="p-4 overflow-x-auto bg-transparent text-zinc-100 whitespace-pre scrollbar-thin scrollbar-thumb-zinc-800 scrollbar-track-transparent">
+            <code className="text-xs font-mono leading-relaxed bg-transparent overflow-x-auto whitespace-pre">
               {codeLines.join('\n')}
             </code>
           </pre>
