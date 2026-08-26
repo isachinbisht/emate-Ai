@@ -27,6 +27,9 @@ import {
     Volume2,
     X,
     Key,
+    ArrowRight,
+    ImagePlus,
+    Menu,
 } from 'lucide-react';
 import ChatMessageBubble from './ChatMessageBubble';
 import StreamingIndicator from './StreamingIndicator';
@@ -211,11 +214,52 @@ export default function ChatMainArea({
             window.dispatchEvent(new Event('nk-general-chat-change'));
         }
     }, [isStudyMode]);
+    const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
+    const [previewUrls, setPreviewUrls] = useState<string[]>([]);
+    const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+    const [isModelMenuOpen, setIsModelMenuOpen] = useState(false);
+    const modelMenuRef = useRef<HTMLDivElement>(null);
+
+    const MODELS = [
+        { id: 'google/gemini-2.0-flash-001', name: 'Gemini 2.0 Flash', badge: 'Fastest' },
+        { id: 'google/gemini-2.5-flash', name: 'Gemini 2.5 Flash', badge: 'Latest' },
+        { id: 'openai/gpt-4o-mini', name: 'GPT-4o Mini', badge: 'Efficient' },
+        { id: 'anthropic/claude-3.5-sonnet', name: 'Claude 3.5 Sonnet', badge: 'Smartest' },
+    ];
+
+    const activeModel = MODELS.find(m => m.id === selectedModel) || MODELS[0];
+
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (modelMenuRef.current && !modelMenuRef.current.contains(event.target as Node)) {
+                setIsModelMenuOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    useEffect(() => {
+        const saved = localStorage.getItem('nk-sidebar-open');
+        if (saved !== null) {
+            setIsSidebarOpen(saved === 'true');
+        }
+
+        const handleSidebarChange = () => {
+            const current = localStorage.getItem('nk-sidebar-open');
+            if (current !== null) {
+                setIsSidebarOpen(current === 'true');
+            }
+        };
+
+        window.addEventListener('nk-sidebar-change', handleSidebarChange);
+        return () => window.removeEventListener('nk-sidebar-change', handleSidebarChange);
+    }, []);
+
     const messagesEndRef = useRef<HTMLDivElement>(null);
-    const inputRef = useRef<HTMLTextAreaElement>(null);
+    const centerInputRef = useRef<HTMLTextAreaElement>(null);
     // Stable session id — created once per component mount
     const sessionIdRef = useRef<string>(`chat-${Date.now()}`);
-    const centerInputRef = useRef<HTMLTextAreaElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
@@ -352,6 +396,48 @@ export default function ChatMainArea({
         } catch (_) {}
     };
 
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files) {
+            const files = Array.from(e.target.files);
+            setAttachedFiles((prev) => [...prev, ...files]);
+            
+            // Create preview URLs
+            const newPreviews = files.map(f => {
+                if (f.type.startsWith('image/')) return URL.createObjectURL(f);
+                return 'doc'; // placeholder for non-images
+            });
+            setPreviewUrls((prev) => [...prev, ...newPreviews]);
+        }
+    };
+
+    const removeAttachment = (index: number) => {
+        setAttachedFiles((prev) => prev.filter((_, i) => i !== index));
+        setPreviewUrls((prev) => {
+            const newUrls = [...prev];
+            if (newUrls[index] !== 'doc') URL.revokeObjectURL(newUrls[index]);
+            newUrls.splice(index, 1);
+            return newUrls;
+        });
+    };
+
+    const convertFilesToBase64 = async (files: File[]): Promise<{ data: string, mimeType: string }[]> => {
+        return Promise.all(
+            files.map(file => {
+                return new Promise<{ data: string, mimeType: string }>((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = () => {
+                        const result = reader.result as string;
+                        // Strip the "data:image/jpeg;base64," prefix
+                        const base64Data = result.split(',')[1];
+                        resolve({ data: base64Data, mimeType: file.type });
+                    };
+                    reader.onerror = reject;
+                    reader.readAsDataURL(file);
+                });
+            })
+        );
+    };
+
     // Clean up on unmount
     useEffect(() => {
         return () => {
@@ -418,53 +504,100 @@ export default function ChatMainArea({
 
         try {
             const notebookContext = isStudyMode ? buildNotebookContext(selectedContext.subject) : '';
+            const base64Attachments = attachedFiles.length > 0 ? await convertFilesToBase64(attachedFiles) : [];
+            const finalPayloadMessages = [...newMessages];
+            
+            // If we have attachments, modify the last user message to include them
+            if (base64Attachments.length > 0) {
+                const lastMsg = finalPayloadMessages[finalPayloadMessages.length - 1];
+                // Store original string for UI, but payload will have array format
+                (lastMsg as any)._attachments = base64Attachments;
+            }
+
             const res = await fetch('/api/chat', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    messages: newMessages,
+                    messages: finalPayloadMessages,
                     mode,
                     subject: isStudyMode ? selectedContext.subject : undefined,
                     unit: isStudyMode ? selectedContext.unit : undefined,
                     model: selectedModel,
                     notebookContext,
                     isGeneralChat: !isStudyMode,
+                    attachments: base64Attachments,
                 }),
             });
 
-            const data = await res.json();
+            // Clear attachments immediately after sending
+            setAttachedFiles([]);
+            setPreviewUrls([]);
 
-            let replyContent = '';
-            if (res.ok && data.reply) {
-                replyContent = data.reply;
-                if (isStudyMode) {
-                    // Automatically collect user's context in the notebook
-                    appendToNotebook(
-                        selectedContext.subject,
-                        `Struggling/Interested in: ${content.slice(0, 150)}${content.length > 150 ? '...' : ''}`,
-                        'user'
-                    );
-                }
-            } else {
-                // If API key error occurs, present clear error notice or concise direct answer without rigid template
-                if (data.error) {
-                    replyContent = `⚠️ **Notice:** ${data.error}`;
-                } else {
-                    replyContent = `I am here to help! Feel free to ask any question or topic you'd like to discuss.`;
+            if (!res.ok) {
+                const data = await res.json().catch(() => ({}));
+                throw new Error(data.error || `Request failed with status ${res.status}`);
+            }
+
+            const assistantMsgId = `msg-${String(msgCounter++).padStart(3, '0')}`;
+            setMessages((prev) => [
+                ...prev,
+                {
+                    id: assistantMsgId,
+                    role: 'assistant',
+                    content: '',
+                    mode,
+                    timestamp: formatTimestamp(),
+                    subject: selectedContext.subject,
+                    isGeneralChat: !isStudyMode,
+                },
+            ]);
+
+            const reader = res.body?.getReader();
+            if (!reader) throw new Error("No response body stream available.");
+
+            const decoder = new TextDecoder();
+            let accumulatedText = "";
+
+            while (true) {
+                const { value, done } = await reader.read();
+                if (done) break;
+                
+                const chunk = decoder.decode(value, { stream: true });
+                const lines = chunk.split('\n\n');
+                
+                for (let line of lines) {
+                    line = line.trim();
+                    if (line.startsWith('data: ')) {
+                        const dataStr = line.replace('data: ', '');
+                        if (dataStr === '[DONE]') continue;
+                        try {
+                            const parsed = JSON.parse(dataStr);
+                            if (parsed.error) {
+                                accumulatedText += `\n\n⚠️ **Notice:** ${parsed.error}`;
+                            } else {
+                                accumulatedText += parsed.text || parsed;
+                            }
+                            setMessages((prev) => 
+                                prev.map(m => m.id === assistantMsgId ? { ...m, content: accumulatedText } : m)
+                            );
+                        } catch (e) {
+                            // Fallback for raw text chunks
+                            accumulatedText += dataStr;
+                            setMessages((prev) => 
+                                prev.map(m => m.id === assistantMsgId ? { ...m, content: accumulatedText } : m)
+                            );
+                        }
+                    }
                 }
             }
 
-            const assistantMsg: ChatMessage = {
-                id: `msg-${String(msgCounter++).padStart(3, '0')}`,
-                role: 'assistant',
-                content: replyContent,
-                mode,
-                timestamp: formatTimestamp(),
-                subject: selectedContext.subject,
-                isGeneralChat: !isStudyMode,
-            };
-
-            setMessages((prev) => [...prev, assistantMsg]);
+            if (isStudyMode && accumulatedText) {
+                appendToNotebook(
+                    selectedContext.subject,
+                    `Struggling/Interested in: ${content.slice(0, 150)}${content.length > 150 ? '...' : ''}`,
+                    'user'
+                );
+            }
         } catch (err: any) {
             const errorMsg = `Error generating response: ${err.message || 'Failed to connect to server.'}`;
             const assistantMsg: ChatMessage = {
@@ -565,119 +698,109 @@ export default function ChatMainArea({
                 </div>
             )}
 
-            {/* Top bar — fixed height, no absolute positioning to prevent overlap */}
-            <div
-                className="shrink-0 flex items-center justify-between gap-3 pl-12 md:pl-4 pr-4 py-2.5"
-                style={{
-                    borderBottom: theme === 'dark' ? '1px solid rgba(255,255,255,0.06)' : '1px solid rgba(0,0,0,0.07)',
-                    background: theme === 'dark' ? '#080809' : '#f9f9fb',
-                }}
-            >
-                {/* Left: Mode switcher */}
-                <div
-                    className="inline-flex p-0.5 rounded-lg shrink-0"
-                    style={{
-                        background: theme === 'dark' ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.06)',
-                        border: theme === 'dark' ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(0,0,0,0.08)',
-                    }}
-                >
-                    <button
-                        onClick={() => setIsStudyMode(true)}
-                        className="flex items-center gap-1.5 px-2.5 md:px-3 py-1.5 rounded-md text-[10px] md:text-[11px] font-semibold transition-all"
-                        style={{
-                            background: isStudyMode ? (theme === 'dark' ? '#1c1c1f' : '#ffffff') : 'transparent',
-                            color: isStudyMode ? (theme === 'dark' ? '#e4e4e7' : '#09090b') : (theme === 'dark' ? '#52525b' : '#a1a1aa'),
-                            boxShadow: isStudyMode ? '0 1px 3px rgba(0,0,0,0.12)' : 'none',
-                        }}
+            {/* Top bar — sticky header scoped inside <main>, not full-viewport */}
+            <header className="sticky top-0 z-40 w-full flex items-center justify-between px-8 py-4 bg-transparent gap-4">
+                
+                {/* Left Group: Toggle + Mode Switcher compact segmented pill */}
+                <div className="flex items-center gap-3">
+                    {!isSidebarOpen && (
+                        <button
+                            onClick={() => {
+                                localStorage.setItem('nk-sidebar-open', 'true');
+                                window.dispatchEvent(new Event('nk-sidebar-change'));
+                            }}
+                            className="p-1.5 rounded-xl border hover:bg-gray-55/10 dark:hover:bg-zinc-800/80 transition-colors"
+                            style={{
+                                borderColor: theme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
+                                background: theme === 'dark' ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
+                                color: theme === 'dark' ? '#ffffff' : '#000000',
+                            }}
+                            title="Open sidebar"
+                        >
+                            <Menu size={16} />
+                        </button>
+                    )}
+
+                    <div
+                        className="inline-flex p-1 rounded-full shadow-sm bg-gray-100/90 dark:bg-zinc-800/90 backdrop-blur-md border border-gray-200/60 dark:border-zinc-700/60 items-center gap-0.5"
                     >
-                        <GraduationCap size={12} />
-                        Study
-                    </button>
-                    <button
-                        onClick={() => setIsStudyMode(false)}
-                        className="flex items-center gap-1.5 px-2.5 md:px-3 py-1.5 rounded-md text-[10px] md:text-[11px] font-semibold transition-all"
-                        style={{
-                            background: !isStudyMode ? (theme === 'dark' ? '#1c1c1f' : '#ffffff') : 'transparent',
-                            color: !isStudyMode ? (theme === 'dark' ? '#e4e4e7' : '#09090b') : (theme === 'dark' ? '#52525b' : '#a1a1aa'),
-                            boxShadow: !isStudyMode ? '0 1px 3px rgba(0,0,0,0.12)' : 'none',
-                        }}
-                    >
-                        <MessageSquare size={12} />
-                        General
-                    </button>
+                        <button
+                            onClick={() => setIsStudyMode(true)}
+                            className={`flex items-center gap-1 transition-all rounded-full px-3 py-1 text-xs ${
+                                isStudyMode
+                                    ? 'bg-white dark:bg-zinc-700 text-gray-900 dark:text-zinc-150 font-semibold shadow-sm'
+                                    : 'text-gray-500 hover:text-gray-800 dark:text-zinc-400 dark:hover:text-zinc-200'
+                            }`}
+                        >
+                            <GraduationCap size={12} />
+                            Study
+                        </button>
+                        <button
+                            onClick={() => setIsStudyMode(false)}
+                            className={`flex items-center gap-1 transition-all rounded-full px-3 py-1 text-xs ${
+                                !isStudyMode
+                                    ? 'bg-white dark:bg-zinc-700 text-gray-900 dark:text-zinc-150 font-semibold shadow-sm'
+                                    : 'text-gray-550 hover:text-gray-800 dark:text-zinc-400 dark:hover:text-zinc-200'
+                            }`}
+                        >
+                            <MessageSquare size={12} />
+                            General
+                        </button>
+                    </div>
                 </div>
 
-                {/* Center: Breadcrumb (study mode only, hidden on mobile) */}
+                {/* Center Group: Breadcrumb Floating Pill */}
                 <div className="hidden md:flex flex-1 justify-center">
                     {isStudyMode && (
-                        <div className="flex items-center gap-1.5 text-[11px] select-none text-zinc-500">
-                            <span className="font-medium">{selectedContext.subject}</span>
-                            <span>/</span>
-                            <span>{selectedContext.unit}</span>
+                        <div className="bg-white/80 dark:bg-zinc-900/80 backdrop-blur-md border border-gray-200/60 dark:border-zinc-700/60 rounded-full px-4 py-1.5 shadow-sm text-xs flex items-center gap-1.5 select-none">
+                            <span className="text-gray-400 dark:text-zinc-500 font-medium">{selectedContext.subject}</span>
+                            <span className="text-gray-400 dark:text-zinc-500">/</span>
+                            <span className="text-gray-800 dark:text-zinc-200 font-semibold">{selectedContext.unit}</span>
                         </div>
                     )}
                 </div>
 
-                {/* Right: Model selector, OpenRouter status & clear */}
-                <div className="flex items-center gap-2 shrink-0">
-                    <ModelSelector
-                        currentModel={selectedModel}
-                        onSelectModel={setSelectedModel}
-                        theme={theme}
-                    />
-
-                    {/* OpenRouter connection status pill or Free Limit Badge */}
-                    {isOpenRouterConnected ? (
-                        <div
-                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium"
-                            style={{
-                                background: theme === 'dark' ? 'rgba(16, 185, 129, 0.08)' : 'rgba(16, 185, 129, 0.06)',
-                                border: theme === 'dark' ? '1px solid rgba(16, 185, 129, 0.2)' : '1px solid rgba(16, 185, 129, 0.25)',
-                                color: theme === 'dark' ? '#34d399' : '#059669',
-                            }}
-                        >
-                            <span
-                                className="animate-pulse"
-                                style={{
-                                    width: 6,
-                                    height: 6,
-                                    borderRadius: '50%',
-                                    background: '#10b981',
-                                    display: 'inline-block',
-                                }}
-                            />
-                            Connected
-                        </div>
-                    ) : (
-                        <div className="flex items-center gap-1.5">
-                            <div className="text-xs font-medium px-2.5 py-1 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300">
-                                Free Credits: {Math.max(0, 5 - guestQueryCount)}/5
+                {/* Right Group: Combined status and control floating pill */}
+                <div className="bg-white/90 dark:bg-zinc-900/90 backdrop-blur-md border border-gray-200/60 dark:border-zinc-700/60 rounded-full px-3 py-1 shadow-sm flex items-center gap-2 text-xs font-medium text-gray-700 dark:text-zinc-300 hover:border-gray-300 dark:hover:border-zinc-650 transition-all">
+                    <div className="flex gap-2 items-center h-8">
+                        {/* Active connection status or limit info */}
+                        {isOpenRouterConnected ? (
+                            <div className="h-8 flex items-center gap-1.5 select-none text-[11px] text-gray-550 dark:text-zinc-400">
+                                <span className="relative flex h-2 w-2">
+                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                                </span>
+                                Connected
                             </div>
-                            <button
-                                onClick={handleOpenRouterConnect}
-                                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium transition-opacity hover:opacity-90"
-                                style={{
-                                    background: theme === 'dark' ? '#18181b' : '#09090b',
-                                    color: '#ffffff',
-                                    border: theme === 'dark' ? '1px solid rgba(255,255,255,0.1)' : 'none',
-                                }}
-                            >
-                                <Key size={11} />
-                                Connect Key
-                            </button>
-                        </div>
-                    )}
+                        ) : (
+                            <div className="flex items-center gap-2 h-8">
+                                <span className="text-gray-500 dark:text-zinc-400 text-[10px] h-8 flex items-center">
+                                    {Math.max(0, 5 - guestQueryCount)}/5 Free
+                                </span>
+                                <button
+                                    onClick={handleOpenRouterConnect}
+                                    className="h-8 flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-zinc-900 dark:bg-zinc-100 text-zinc-100 dark:text-zinc-900 text-[10px] hover:opacity-90 transition-opacity"
+                                >
+                                    <Key size={10} className="mr-0.5" />
+                                    Connect
+                                </button>
+                            </div>
+                        )}
+                    </div>
 
+                    {/* Separator */}
+                    <span className="w-[1px] h-3 bg-gray-200 dark:bg-zinc-800" />
+
+                    {/* Clear Conversation Action */}
                     <button
                         title="Clear conversation"
                         onClick={() => setMessages([])}
-                        className="p-1.5 rounded-lg transition-all duration-150 active:scale-95"
-                        style={{ color: theme === 'dark' ? '#52525b' : '#a1a1aa' }}
+                        className="h-8 flex items-center justify-center p-1 rounded-full transition-all duration-150 hover:bg-gray-100 dark:hover:bg-zinc-800 active:scale-95 text-gray-500 hover:text-gray-700 dark:text-zinc-400 dark:hover:text-zinc-200"
                     >
-                        <RotateCcw size={13} />
+                        <RotateCcw size={12} />
                     </button>
                 </div>
-            </div>
+            </header>
 
             {/* Glassmorphic Connect Modal / Paywall Modal */}
             {showConnectModal && (
@@ -882,7 +1005,7 @@ export default function ChatMainArea({
             <div className="flex-1 overflow-y-auto min-h-0 flex flex-col">
 
                 {!hasMessages ? (
-                    <div className="flex flex-col items-center justify-start pt-16 pb-12 px-4 max-w-3xl mx-auto w-full text-center overflow-visible">
+                    <div className="flex flex-col items-center justify-start pt-6 pb-12 px-4 max-w-3xl mx-auto w-full text-center overflow-visible">
                         {/* Hidden File Input */}
                         <input
                             type="file"
@@ -921,14 +1044,9 @@ export default function ChatMainArea({
 
                         {/* Elevated Command Input Card */}
                         <div
-                            className="w-full mb-6 rounded-2xl transition-all focus-within:ring-1"
-                            style={{
-                                background: theme === 'dark' ? '#111113' : '#ffffff',
-                                border: theme === 'dark' ? '1px solid rgba(255,255,255,0.09)' : '1px solid rgba(0,0,0,0.1)',
-                                boxShadow: theme === 'dark' ? '0 4px 20px -4px rgba(0,0,0,0.4)' : '0 4px 20px -4px rgba(0,0,0,0.05)',
-                            }}
+                            className="w-full mb-6 border border-gray-200 focus-within:border-gray-400 dark:border-zinc-800 dark:focus-within:border-zinc-700 focus-within:shadow-md rounded-2xl bg-white dark:bg-zinc-900/40 p-4 transition-all"
                         >
-                            <div className="px-4 pt-4 pb-2">
+                            <div className="pb-2">
                                 <textarea
                                     ref={centerInputRef}
                                     value={inputValue}
@@ -936,7 +1054,7 @@ export default function ChatMainArea({
                                     onKeyDown={handleKeyDown}
                                     placeholder={isListening ? 'Listening... Speak now...' : 'Ask anything, paste notes, or use /quiz, /flashcards...'}
                                     rows={3}
-                                    className="w-full bg-transparent text-sm font-normal resize-none focus:outline-none leading-relaxed"
+                                    className="w-full bg-transparent text-sm font-normal resize-none focus:outline-none outline-none focus:outline-none ring-0 focus:ring-0 leading-relaxed"
                                     style={{
                                         color: theme === 'dark' ? '#e4e4e7' : '#09090b',
                                         minHeight: '72px',
@@ -946,13 +1064,12 @@ export default function ChatMainArea({
                                 />
                             </div>
                             {/* Control bar inside card */}
-                            <div className="flex items-center justify-between px-3 pb-3">
+                            <div className="flex items-center justify-between pt-1">
                                 <div className="flex items-center gap-2">
                                     <button
                                         type="button"
                                         onClick={() => fileInputRef.current?.click()}
-                                        className="p-1.5 rounded-lg transition-colors"
-                                        style={{ color: theme === 'dark' ? '#71717a' : '#71717a' }}
+                                        className="p-1.5 rounded-lg transition-colors text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
                                         title="Attach materials"
                                     >
                                         <Paperclip size={15} />
@@ -1007,29 +1124,17 @@ export default function ChatMainArea({
                                     <button
                                         onClick={() => handleSend()}
                                         disabled={!inputValue.trim() || isStreaming}
-                                        className="w-8 h-8 rounded-xl flex items-center justify-center transition-all duration-150 active:scale-95 disabled:opacity-25 disabled:cursor-not-allowed"
-                                        style={{
-                                            background: inputValue.trim() && !isStreaming
-                                                ? (theme === 'dark' ? '#ffffff' : '#09090b')
-                                                : (theme === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.07)'),
-                                        }}
+                                        className="w-8 h-8 rounded-full flex items-center justify-center transition-all duration-150 active:scale-95 disabled:opacity-25 disabled:cursor-not-allowed bg-slate-900 text-white hover:bg-black p-2.5"
                                         aria-label="Send"
                                     >
-                                        <Send
-                                            size={14}
-                                            style={{
-                                                color: inputValue.trim() && !isStreaming
-                                                    ? (theme === 'dark' ? '#000000' : '#ffffff')
-                                                    : '#71717a',
-                                            }}
-                                        />
+                                        <Send size={14} className="text-white" />
                                     </button>
                                 </div>
                             </div>
                         </div>
 
                         {/* 2×2 Linear-style action tiles — swaps per mode */}
-                        <div className="grid grid-cols-2 gap-3 w-full mb-12">
+                        <div className="grid grid-cols-2 gap-3 w-full mt-6 mb-12">
                             {(isStudyMode ? studyQuickActions : GENERAL_QUICK_ACTIONS).map((action) => (
                                 <button
                                     key={action.label}
@@ -1040,33 +1145,24 @@ export default function ChatMainArea({
                                             setTimeout(() => centerInputRef.current?.focus(), 50);
                                         }
                                     }}
-                                    className="group p-3.5 rounded-xl text-left flex items-start gap-3 cursor-pointer transition-all"
-                                    style={{
-                                        border: theme === 'dark' ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(0,0,0,0.08)',
-                                        background: theme === 'dark' ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.015)',
-                                    }}
+                                    className="group text-left flex items-start gap-3 cursor-pointer transition-all border border-gray-200/80 hover:border-gray-300 hover:shadow-xs rounded-xl p-4 bg-gray-50/50 hover:bg-white dark:border-zinc-800/80 dark:hover:border-zinc-700 dark:bg-zinc-900/30 dark:hover:bg-zinc-900"
                                 >
                                     <div
-                                        className="p-2 rounded-lg shrink-0 transition-transform group-hover:scale-105"
-                                        style={{
-                                            background: theme === 'dark' ? '#27272a' : '#ffffff',
-                                            border: theme === 'dark' ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(0,0,0,0.08)',
-                                            color: theme === 'dark' ? '#a1a1aa' : '#52525b',
-                                        }}
+                                        className="p-2 rounded-lg shrink-0 transition-transform group-hover:scale-105 bg-white dark:bg-zinc-800 border border-gray-200/60 dark:border-zinc-750 text-gray-500 dark:text-zinc-400"
                                     >
                                         <action.icon size={13} />
                                     </div>
-                                    <div className="flex-1 min-w-0">
+                                    <div className="flex-1 min-w-0 pr-1">
                                         <p
-                                            className="text-xs font-semibold leading-snug mb-0.5"
-                                            style={{ color: theme === 'dark' ? '#e4e4e7' : '#18181b' }}
+                                            className="font-semibold text-slate-900 dark:text-zinc-150 text-sm leading-snug mb-0.5"
                                         >
                                             {action.label}
                                         </p>
-                                        <p className="text-[11px] leading-snug" style={{ color: theme === 'dark' ? '#71717a' : '#71717a' }}>
+                                        <p className="text-gray-500 dark:text-zinc-400 text-xs leading-snug">
                                             {action.sub}
                                         </p>
                                     </div>
+                                    <ArrowRight size={13} className="text-gray-400 dark:text-zinc-650 self-center shrink-0 ml-auto transition-transform group-hover:translate-x-0.5" />
                                 </button>
                             ))}
                         </div>
@@ -1151,127 +1247,171 @@ export default function ChatMainArea({
             {/* Input bar — shown at bottom only when conversation is active */}
             {hasMessages && (
                 <div className="sticky bottom-0 bg-white/80 dark:bg-zinc-950/80 backdrop-blur-md pt-2 pb-4 w-full max-w-3xl mx-auto z-10 px-4">
-                    <div className="w-full">
-                        <div
-                            className="rounded-2xl px-4 py-3 flex flex-col gap-2.5"
-                            style={{
-                                background: theme === 'dark' ? '#1a1a1a' : '#f4F4f6',
-                                border: theme === 'dark' ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(0,0,0,0.08)',
-                            }}
-                        >
-                            {/* Segmented Control embedded inside input container — only visible in Study Mode */}
-                            {isStudyMode && (
-                                <div className="flex justify-start">
-                                    <div
-                                        className="flex items-center gap-0.5 p-0.5 rounded-lg text-[10px]"
-                                        style={{
-                                            background: theme === 'dark' ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)',
-                                            border: theme === 'dark' ? '1px solid rgba(255,255,255,0.07)' : '1px solid rgba(0,0,0,0.07)',
-                                        }}
+                    <div 
+                        className="relative flex flex-col w-full max-w-3xl mx-auto rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-lg p-3 transition-all focus-within:ring-2 focus-within:ring-indigo-500/20 focus-within:border-indigo-500"
+                        onDragOver={(e) => e.preventDefault()}
+                        onDrop={(e) => {
+                            e.preventDefault();
+                            if (e.dataTransfer.files) {
+                                const files = Array.from(e.dataTransfer.files);
+                                setAttachedFiles((prev) => [...prev, ...files]);
+                                const newPreviews = files.map(f => f.type.startsWith('image/') ? URL.createObjectURL(f) : 'doc');
+                                setPreviewUrls((prev) => [...prev, ...newPreviews]);
+                            }
+                        }}
+                    >
+                        {/* Image & File Attachment Preview Area */}
+                        {attachedFiles.length > 0 && (
+                            <div className="flex items-center gap-2 pb-2 overflow-x-auto">
+                                {attachedFiles.map((file, i) => (
+                                    <div key={i} className="relative group shrink-0">
+                                        {previewUrls[i] !== 'doc' ? (
+                                            <div className="relative w-14 h-14 rounded-lg overflow-hidden border border-zinc-200 dark:border-zinc-700">
+                                                <img src={previewUrls[i]} alt="Preview" className="w-full h-full object-cover" />
+                                            </div>
+                                        ) : (
+                                            <div className="flex items-center gap-1.5 px-2.5 py-1.5 h-14 rounded-lg text-xs bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700">
+                                                <Paperclip size={12} />
+                                                <span className="truncate max-w-[80px]">{file.name}</span>
+                                            </div>
+                                        )}
+                                        <button 
+                                            onClick={() => removeAttachment(i)}
+                                            className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-zinc-800 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                                        >
+                                            <X size={10} />
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+
+                        {/* Input Area */}
+                        <div className="flex items-start gap-3 w-full">
+                            <textarea
+                                ref={centerInputRef}
+                                value={inputValue}
+                                onChange={(e) => setInputValue(e.target.value)}
+                                onKeyDown={handleKeyDown}
+                                placeholder={
+                                    isListening
+                                        ? 'Listening... Speak now...'
+                                        : !isStudyMode
+                                            ? 'Ask a question or request help...'
+                                            : mode === 'sprint'
+                                                ? 'Ask for a quick summary, formula, or cram tip...'
+                                                : 'Ask for a full explanation, proof, or derivation...'
+                                }
+                                rows={1}
+                                className="flex-1 w-full bg-transparent text-sm resize-none outline-none placeholder:text-zinc-400 py-1"
+                                style={{
+                                    color: theme === 'dark' ? '#ffffff' : '#000000',
+                                    minHeight: '24px',
+                                    maxHeight: '140px',
+                                }}
+                            />
+                        </div>
+
+                        {/* Bottom Action Toolbar */}
+                        <div className="flex items-center justify-between pt-2 mt-1 border-t border-zinc-100 dark:border-zinc-800/80">
+                            {/* Left Side — Attachment & Model Selector Integration */}
+                            <div className="flex items-center gap-2">
+                                <label className="p-1.5 rounded-lg text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100 dark:hover:bg-zinc-800 cursor-pointer transition-colors" title="Attach files">
+                                    <input 
+                                        type="file" 
+                                        className="hidden" 
+                                        onChange={handleFileChange}
+                                        multiple 
+                                        accept="image/*,.pdf,.txt,.csv"
+                                    />
+                                    <ImagePlus size={16} />
+                                </label>
+                                
+                                <div className="relative" ref={modelMenuRef}>
+                                    <button
+                                        type="button"
+                                        onClick={() => setIsModelMenuOpen(!isModelMenuOpen)}
+                                        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-zinc-100/80 dark:bg-zinc-800/80 hover:bg-zinc-200/70 dark:hover:bg-zinc-700/80 text-zinc-700 dark:text-zinc-300 text-xs font-semibold border border-zinc-200/60 dark:border-zinc-700/60 transition-colors cursor-pointer"
                                     >
+                                        <Sparkles className="w-3.5 h-3.5 text-indigo-500"/>
+                                        <span>{activeModel.name}</span>
+                                        <ChevronDown className="w-3 h-3 opacity-60 ml-0.5"/>
+                                    </button>
+
+                                    {isModelMenuOpen && (
+                                        <div className="absolute bottom-full mb-2 left-0 z-50 w-56 p-1.5 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-xl backdrop-blur-md flex flex-col gap-0.5 animate-in fade-in zoom-in-95 duration-100">
+                                            <div className="px-2 py-1 text-[10px] font-mono uppercase tracking-wider text-zinc-400">Select Model</div>
+                                            {MODELS.map((m) => (
+                                                <button
+                                                    key={m.id}
+                                                    type="button"
+                                                    onClick={() => { setSelectedModel(m.id); setIsModelMenuOpen(false); }}
+                                                    className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors text-left ${
+                                                        selectedModel === m.id
+                                                            ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400'
+                                                            : 'text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800'
+                                                    }`}
+                                                >
+                                                    <div className="flex items-center gap-2">
+                                                        <span>{m.name}</span>
+                                                        {m.badge && <span className="text-[9px] px-1.5 py-0.2 bg-zinc-200 dark:bg-zinc-700 rounded text-zinc-650 dark:text-zinc-300">{m.badge}</span>}
+                                                    </div>
+                                                    {selectedModel === m.id && <Check className="w-3.5 h-3.5 text-indigo-500"/>}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                                
+                                {/* Segmented Control inside toolbar for Study Mode */}
+                                {isStudyMode && (
+                                    <div className="flex items-center ml-1 gap-1">
                                         <button
                                             onClick={() => setMode('sprint')}
-                                            className={`flex items-center gap-1 px-2.5 py-1 rounded-md font-semibold transition-all duration-200 ${
-                                                mode === 'sprint'
-                                                    ? (theme === 'dark' ? 'bg-[#2a1a06] text-amber-400 border border-amber-500/20 shadow-sm' : 'bg-amber-100 text-amber-800 border border-amber-200/50 shadow-sm')
-                                                    : 'text-zinc-500 hover:text-zinc-300'
-                                            }`}
+                                            className={`flex items-center gap-1 px-2 py-1 rounded text-[10px] font-semibold transition-all ${mode === 'sprint' ? 'bg-amber-100 text-amber-800 dark:bg-[#2a1a06] dark:text-amber-400' : 'text-zinc-500 hover:text-zinc-700'}`}
                                         >
-                                            <Zap size={9} />
-                                            Sprint
+                                            <Zap size={10} /> Sprint
                                         </button>
                                         <button
                                             onClick={() => setMode('deep-dive')}
-                                            className={`flex items-center gap-1 px-2.5 py-1 rounded-md font-semibold transition-all duration-200 ${
-                                                mode === 'deep-dive'
-                                                    ? (theme === 'dark' ? 'bg-[#1a2a4a] text-blue-400 border border-blue-500/20 shadow-sm' : 'bg-blue-100 text-blue-800 border border-blue-200/50 shadow-sm')
-                                                    : 'text-zinc-500 hover:text-zinc-300'
-                                            }`}
+                                            className={`flex items-center gap-1 px-2 py-1 rounded text-[10px] font-semibold transition-all ${mode === 'deep-dive' ? 'bg-blue-100 text-blue-800 dark:bg-[#1a2a4a] dark:text-blue-400' : 'text-zinc-500 hover:text-zinc-700'}`}
                                         >
-                                            <BookOpen size={9} />
-                                            Deep Dive
+                                            <BookOpen size={10} /> Deep Dive
                                         </button>
                                     </div>
-                                </div>
-                            )}
+                                )}
+                            </div>
 
-                            {/* Input Area */}
-                            <div className="flex items-end gap-3 w-full">
+                            {/* Right Side — Execution Controls */}
+                            <div className="flex items-center gap-1.5 shrink-0">
                                 <button
+                                    onClick={toggleListening}
                                     type="button"
-                                    onClick={() => fileInputRef.current?.click()}
-                                    className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 mb-0.5"
-                                    style={{ 
-                                        background: theme === 'dark' ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.05)', 
-                                        color: '#8e8ea0' 
-                                    }}
-                                    title="Attach materials"
+                                    className={`p-2 rounded-xl flex items-center justify-center transition-all relative ${
+                                        isListening
+                                            ? 'text-red-500 animate-pulse bg-red-500/10 before:absolute before:inset-0 before:rounded-xl before:bg-red-500/20 before:animate-ping'
+                                            : 'text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800'
+                                    }`}
+                                    title={isListening ? 'Stop Listening' : 'Start Voice Mode'}
                                 >
-                                    <Paperclip size={14} />
+                                    <Mic size={16} />
+                                    {isListening && (
+                                        <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse border-2 border-zinc-900" />
+                                    )}
                                 </button>
 
-                                <textarea
-                                    ref={inputRef}
-                                    value={inputValue}
-                                    onChange={(e) => setInputValue(e.target.value)}
-                                    onKeyDown={handleKeyDown}
-                                    placeholder={
-                                        isListening
-                                            ? 'Listening... Speak now...'
-                                            : !isStudyMode
-                                                ? 'Ask a question or request help...'
-                                                : mode === 'sprint'
-                                                    ? 'Ask for a quick summary, formula, or cram tip...'
-                                                    : 'Ask for a full explanation, proof, or derivation...'
-                                    }
-                                    rows={1}
-                                    className="flex-1 bg-transparent text-sm resize-none focus:outline-none leading-relaxed placeholder:text-zinc-500"
-                                    style={{
-                                        color: theme === 'dark' ? '#ffffff' : '#000000',
-                                        minHeight: '24px',
-                                        maxHeight: '140px',
-                                    }}
-                                />
-
-                                <div className="flex items-center gap-1.5 shrink-0">
-                                    <button
-                                        onClick={toggleListening}
-                                        type="button"
-                                        className={`p-2 rounded-xl flex items-center justify-center transition-all relative ${
-                                            isListening
-                                                ? 'text-red-500 animate-pulse bg-red-500/10 before:absolute before:inset-0 before:rounded-xl before:bg-red-500/20 before:animate-ping'
-                                                : 'text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800'
-                                        }`}
-                                        title={isListening ? 'Stop Listening' : 'Start Voice Mode'}
-                                    >
-                                        <Mic size={16} />
-                                        {isListening && (
-                                            <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse border-2 border-zinc-900" />
-                                        )}
-                                    </button>
-
-                                    <button
-                                        onClick={() => handleSend()}
-                                        disabled={!inputValue.trim() || isStreaming}
-                                        className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 transition-all duration-150 active:scale-95 disabled:opacity-20 disabled:cursor-not-allowed"
-                                        style={{
-                                            background:
-                                                inputValue.trim() && !isStreaming ? (theme === 'dark' ? '#ffffff' : '#000000') : (theme === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'),
-                                        }}
-                                        aria-label={isStreaming ? 'Stop generation' : 'Send message'}
-                                    >
-                                        {isStreaming ? (
-                                            <Square size={12} style={{ color: '#000000' }} />
-                                        ) : (
-                                            <Send
-                                                size={14}
-                                                style={{
-                                                    color: inputValue.trim() && !isStreaming ? (theme === 'dark' ? '#000000' : '#ffffff') : '#4a4a4a',
-                                                }}
-                                            />
-                                        )}
-                                    </button>
-                                </div>
+                                <button
+                                    onClick={() => isStreaming ? setIsStreaming(false) : handleSend()}
+                                    disabled={!isStreaming && !inputValue.trim()}
+                                    className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 transition-all duration-150 active:scale-95 disabled:opacity-20 disabled:cursor-not-allowed bg-slate-900 text-white hover:bg-black p-2.5"
+                                    aria-label={isStreaming ? 'Stop generation' : 'Send message'}
+                                >
+                                    {isStreaming ? (
+                                        <Square size={12} className="fill-current text-white" />
+                                    ) : (
+                                        <Send size={14} className="text-white" />
+                                    )}
+                                </button>
                             </div>
                         </div>
                         <p className="text-[11px] text-center mt-2" style={{ color: '#3a3a3a' }}>

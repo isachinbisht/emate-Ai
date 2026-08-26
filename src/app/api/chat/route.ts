@@ -1,27 +1,38 @@
-import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
+
+// Ultra-fast primary model (TTFT ~200-400ms via Nitro routing)
+const PRIMARY_MODEL = 'google/gemini-2.0-flash-001';
+
+export const runtime = 'edge'; // Edge runtime for lowest cold-start latency
+
+/** Parse a specific cookie value from a raw Cookie header string */
+function getCookie(cookieHeader: string | null, name: string): string | undefined {
+  if (!cookieHeader) return undefined;
+  const match = cookieHeader.split(';').find((c) => c.trim().startsWith(`${name}=`));
+  return match ? decodeURIComponent(match.trim().slice(name.length + 1)) : undefined;
+}
 
 export async function POST(req: Request) {
   try {
-    const { messages, mode, subject, unit, model, notebookContext, isGeneralChat } = await req.json();
+    const { messages, mode, subject, unit, model, notebookContext, isGeneralChat, attachments } = await req.json();
 
-    const cookieStore = await cookies();
-    const userKey = cookieStore.get('user_openrouter_key')?.value;
+    const cookieHeader = req.headers.get('cookie');
+    const userKey = getCookie(cookieHeader, 'user_openrouter_key');
     const apiKey = userKey || process.env.OPENROUTER_SERVER_FREE_KEY || process.env.OPENROUTER_API_KEY;
 
+
     if (!apiKey || apiKey === 'your-openrouter-api-key-here') {
-      return NextResponse.json(
-        {
-          error:
-            'OpenRouter API key is missing. Please connect your OpenRouter account to unlock unlimited access.',
-        },
-        { status: 400 }
+      return new Response(
+        JSON.stringify({
+          error: 'OpenRouter API key is missing. Please connect your OpenRouter account to unlock unlimited access.',
+        }),
+        { status: 400, headers: { 'Content-Type': 'application/json' } }
       );
     }
 
-    // Default to popular OpenRouter model if not specified
-    const selectedModel = model || 'meta-llama/llama-3.3-70b-instruct';
+    // Prefer user-chosen model, fall back to ultra-fast primary
+    const selectedModel = model || PRIMARY_MODEL;
 
+    // ── System prompt ────────────────────────────────────────────────────────
     let systemPrompt = '';
     if (isGeneralChat) {
       systemPrompt =
@@ -31,9 +42,13 @@ export async function POST(req: Request) {
         `- Use standard Markdown for formatting.\n` +
         `- Avoid references to syllabus scope, exams, study notebooks, or academic copilot instructions.`;
     } else {
-      // Build personalised system prompt — inject notebook context when available
-      const notebookSection = notebookContext
-        ? `\n\n## Student's Personal Notebook for ${subject} (USE THIS to personalise answers — these are the student's saved notes and key insights):\n${notebookContext}\n\nAlways reference relevant notebook entries when answering to make answers feel personalised.`
+      // Smart Payload & Context Trimming:
+      // Bypass heavy notebook context if the user's input is very short (e.g., "hi", "hello")
+      const lastMessageContent = messages.length > 0 ? messages[messages.length - 1].content : '';
+      const isShortGreeting = lastMessageContent.trim().split(/\s+/).length < 5;
+      
+      const notebookSection = (notebookContext && !isShortGreeting)
+        ? `\n\n## Student's Personal Notebook for ${subject} (USE THIS to personalise answers):\n${notebookContext}\n\nAlways reference relevant notebook entries when answering to make answers feel personalised.`
         : '';
 
       const modeInstruction =
@@ -58,42 +73,135 @@ export async function POST(req: Request) {
         notebookSection;
     }
 
+    // Conversation History Capping: Keep only the last 6 messages
+    const cappedMessages = messages.slice(-6);
+
     const formattedMessages = [
       { role: 'system', content: systemPrompt },
-      ...messages.map((m: any) => ({
-        role: m.role,
-        content: m.content,
-      })),
+      ...cappedMessages.map((m: any, index: number) => {
+        // If this is the last message and we have attachments, format as multimodal array
+        if (index === cappedMessages.length - 1 && attachments && attachments.length > 0) {
+            const contentArray: any[] = [{ type: 'text', text: m.content }];
+            attachments.forEach((att: any) => {
+                if (att.mimeType?.startsWith('image/')) {
+                    contentArray.push({
+                        type: 'image_url',
+                        image_url: { url: `data:${att.mimeType};base64,${att.data}` }
+                    });
+                }
+            });
+            return { role: m.role, content: contentArray };
+        }
+        
+        return {
+          role: m.role,
+          content: m.content,
+        };
+      }),
     ];
 
-    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+    // ── OpenRouter fetch with Nitro provider routing ──────────────────────────
+    const upstreamRes = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${apiKey}`,
-        'HTTP-Referer': process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
-        'X-Title': 'e-Mate AI',
         'Content-Type': 'application/json',
+        'HTTP-Referer': 'https://emate-ai.vercel.app',
+        'X-Title': 'e-Mate AI',
       },
       body: JSON.stringify({
         model: selectedModel,
         messages: formattedMessages,
+        stream: true,
+        max_tokens: 1200,       // Cap to minimise latency & cost
         temperature: 0.7,
+        transforms: [],          // Skip OpenRouter post-processing for zero added latency
+        provider: {
+          order: ['Nitro', 'Together', 'Groq'], // Highest TPS providers first
+          allow_fallbacks: true,
+        },
       }),
     });
 
-    if (!response.ok) {
-      const errData = await response.json().catch(() => ({}));
-      return NextResponse.json(
-        { error: errData?.error?.message || `OpenRouter API error: ${response.statusText}` },
-        { status: response.status }
-      );
+    if (!upstreamRes.ok || !upstreamRes.body) {
+      const errData = await upstreamRes.json().catch(() => ({}));
+      const errMsg = (errData as any)?.error?.message || `OpenRouter API error: ${upstreamRes.statusText}`;
+      return new Response(JSON.stringify({ error: errMsg }), {
+        status: upstreamRes.status,
+        headers: { 'Content-Type': 'application/json' },
+      });
     }
 
-    const data = await response.json();
-    const reply = data.choices?.[0]?.message?.content || 'No response returned from model.';
+    // ── SSE pipe: forward upstream stream straight to the client ─────────────
+    // Transforms OpenRouter's raw NDJSON SSE lines into `data: "<delta>"\n\n`
+    // so the client receives plain text deltas with no heavy parsing.
+    const encoder = new TextEncoder();
+    const decoder = new TextDecoder();
 
-    return NextResponse.json({ reply });
+    const { readable, writable } = new TransformStream<Uint8Array, Uint8Array>();
+    const writer = writable.getWriter();
+
+    (async () => {
+      const reader = upstreamRes.body!.getReader();
+      let buffer = '';
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop() ?? '';
+
+          for (const line of lines) {
+            const trimmed = line.trim();
+            if (!trimmed || trimmed === 'data: [DONE]') continue;
+            if (!trimmed.startsWith('data: ')) continue;
+
+            try {
+              const json = JSON.parse(trimmed.slice(6));
+              const delta = json?.choices?.[0]?.delta?.content;
+              if (typeof delta === 'string' && delta.length > 0) {
+                await writer.write(encoder.encode(`data: ${JSON.stringify(delta)}\n\n`));
+              }
+            } catch {
+              // Malformed chunk — skip silently
+            }
+          }
+        }
+
+        // Flush any remaining buffer content
+        if (buffer.trim() && buffer.trim() !== 'data: [DONE]') {
+          try {
+            const json = JSON.parse(buffer.trim().slice(6));
+            const delta = json?.choices?.[0]?.delta?.content;
+            if (typeof delta === 'string' && delta.length > 0) {
+              await writer.write(encoder.encode(`data: ${JSON.stringify(delta)}\n\n`));
+            }
+          } catch { /* ignore */ }
+        }
+
+        await writer.write(encoder.encode('data: [DONE]\n\n'));
+      } catch (err) {
+        await writer.write(encoder.encode(`data: ${JSON.stringify({ error: String(err) })}\n\n`));
+      } finally {
+        await writer.close();
+      }
+    })();
+
+    return new Response(readable, {
+      headers: {
+        'Content-Type': 'text/event-stream; charset=utf-8',
+        'Cache-Control': 'no-cache, no-transform',
+        'Connection': 'keep-alive',
+        'X-Accel-Buffering': 'no',       // Disable Nginx/Vercel proxy buffering
+        'X-Content-Type-Options': 'nosniff', // Prevent browser content-sniffing delays
+      },
+    });
   } catch (err: any) {
-    return NextResponse.json({ error: err.message || 'Internal Server Error' }, { status: 500 });
+    return new Response(JSON.stringify({ error: err.message || 'Internal Server Error' }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' },
+    });
   }
 }

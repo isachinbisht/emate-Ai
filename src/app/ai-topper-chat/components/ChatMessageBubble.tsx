@@ -1,21 +1,40 @@
 'use client';
 
-import React, { useState } from 'react';
-import { Copy, Check, Zap, BookOpen, RotateCcw, BookMarked, Sparkles } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Copy, Check, RotateCcw, BookMarked, Sparkles, Loader2 } from 'lucide-react';
 import type { ChatMessage } from './AITopperChatScreen';
 import { appendToNotebook } from '@/lib/notebook';
 import { toast } from 'sonner';
 
+// ─── Process step definitions ────────────────────────────────────────────────
+const PROCESS_STEPS = [
+  'Loaded subject notebook settings',
+  'Injected personal context summary',
+  'Sent request to model',
+  'Streaming response…',
+  'Thought process finished',
+] as const;
+
 interface ChatMessageBubbleProps {
   message: ChatMessage;
   theme?: 'light' | 'dark';
+  /** When provided, shows an active Regenerate button that calls this handler */
+  onRegenerate?: () => void;
+  /**
+   * -1  = no process tracking (general chat or old message)
+   *  1  = step 1 done
+   *  …
+   *  5  = all steps done (stream complete)
+   */
+  processStep?: number;
 }
+
+// ─── Markdown renderer ────────────────────────────────────────────────────────
 
 function renderMarkdown(text: string, theme: 'light' | 'dark' = 'dark'): React.ReactNode[] {
   const lines = text.split('\n');
   const result: React.ReactNode[] = [];
   let i = 0;
-
   const isDark = theme === 'dark';
 
   while (i < lines.length) {
@@ -64,13 +83,13 @@ function renderMarkdown(text: string, theme: 'light' | 'dark' = 'dark'): React.R
         i++;
       }
       const rows = tableLines
-          .filter((l) => !l.match(/^\|[-\s|]+\|$/))
-          .map((l) =>
-            l
-              .split('|')
-              .filter((_, idx, arr) => idx > 0 && idx < arr.length - 1)
-              .map((cell) => cell.trim())
-          );
+        .filter((l) => !l.match(/^\|[-\s|]+\|$/))
+        .map((l) =>
+          l
+            .split('|')
+            .filter((_, idx, arr) => idx > 0 && idx < arr.length - 1)
+            .map((cell) => cell.trim())
+        );
       if (rows.length > 0) {
         result.push(
           <div
@@ -116,11 +135,7 @@ function renderMarkdown(text: string, theme: 'light' | 'dark' = 'dark'): React.R
 
     if (line.startsWith('## ')) {
       result.push(
-        <h2
-          key={`h2-${i}`}
-          className="text-base font-semibold mt-4 mb-2"
-          style={{ color: isDark ? '#ececec' : '#000000' }}
-        >
+        <h2 key={`h2-${i}`} className="text-base font-semibold mt-4 mb-2" style={{ color: isDark ? '#ececec' : '#000000' }}>
           {line.slice(3)}
         </h2>
       );
@@ -130,11 +145,7 @@ function renderMarkdown(text: string, theme: 'light' | 'dark' = 'dark'): React.R
 
     if (line.startsWith('### ')) {
       result.push(
-        <h3
-          key={`h3-${i}`}
-          className="text-sm font-semibold mt-3 mb-1.5"
-          style={{ color: isDark ? '#ececec' : '#000000' }}
-        >
+        <h3 key={`h3-${i}`} className="text-sm font-semibold mt-3 mb-1.5" style={{ color: isDark ? '#ececec' : '#000000' }}>
           {line.slice(4)}
         </h3>
       );
@@ -156,10 +167,7 @@ function renderMarkdown(text: string, theme: 'light' | 'dark' = 'dark'): React.R
               className="text-sm leading-relaxed flex items-start gap-2"
               style={{ color: isDark ? '#b4b4b4' : '#27272a' }}
             >
-              <span
-                className="w-1 h-1 rounded-full mt-2.5 shrink-0"
-                style={{ background: '#10a37f' }}
-              />
+              <span className="w-1 h-1 rounded-full mt-2.5 shrink-0" style={{ background: '#10a37f' }} />
               <span dangerouslySetInnerHTML={{ __html: formatInline(b, theme) }} />
             </li>
           ))}
@@ -227,7 +235,171 @@ function formatInline(text: string, theme: 'light' | 'dark' = 'dark'): string {
     );
 }
 
-export default function ChatMessageBubble({ message, theme = 'dark' }: ChatMessageBubbleProps) {
+// ─── Process Accordion ────────────────────────────────────────────────────────
+
+interface ProcessAccordionProps {
+  processStep: number; // 1–5, or -1 for none
+  theme: 'light' | 'dark';
+}
+
+function ProcessAccordion({ processStep, theme }: ProcessAccordionProps) {
+  const isDone = processStep >= 5;
+  const isActive = processStep >= 1 && processStep < 5;
+
+  // Start expanded when active; auto-collapse once streaming starts (step 4)
+  const [isExpanded, setIsExpanded] = useState(true);
+  const [bodyHeight, setBodyHeight] = useState<number | undefined>(undefined);
+  const bodyRef = useRef<HTMLDivElement>(null);
+
+  // Measure real body height whenever steps change
+  useEffect(() => {
+    if (bodyRef.current) {
+      setBodyHeight(bodyRef.current.scrollHeight);
+    }
+  }, [processStep]);
+
+  // Auto-collapse 1.5 s after streaming kicks in (step 4)
+  useEffect(() => {
+    if (processStep === 4) {
+      const t = setTimeout(() => setIsExpanded(false), 1500);
+      return () => clearTimeout(t);
+    }
+  }, [processStep]);
+
+  const isDark = theme === 'dark';
+
+  return (
+    <div className="my-1">
+      {/* Accordion header */}
+      <button
+        onClick={() => setIsExpanded((v) => !v)}
+        className="flex items-center gap-2 text-xs font-medium transition-colors py-1 focus:outline-none"
+        style={{ color: isDark ? '#71717a' : '#71717a' }}
+      >
+        {/* Dot: pulses while active, solid once done */}
+        <span className="relative flex items-center justify-center w-2 h-2">
+          <span
+            className={`absolute inset-0 rounded-full ${isActive ? 'animate-ping opacity-60' : ''}`}
+            style={{
+              background: isDone ? '#10b981' : isActive ? '#10b981' : '#71717a',
+            }}
+          />
+          <span
+            className="relative rounded-full w-1.5 h-1.5"
+            style={{
+              background: isDone ? '#10b981' : isActive ? '#10b981' : '#71717a',
+            }}
+          />
+        </span>
+
+        <span
+          style={{
+            color: isDone
+              ? isDark ? '#34d399' : '#059669'
+              : isActive
+              ? isDark ? '#a1a1aa' : '#71717a'
+              : isDark ? '#52525b' : '#a1a1aa',
+          }}
+        >
+          {isDone ? 'Thought process finished' : isActive ? 'Thinking…' : 'Processing…'}
+        </span>
+
+        {/* Chevron */}
+        <svg
+          width="11"
+          height="11"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className="transform transition-transform duration-200"
+          style={{ transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)' }}
+        >
+          <polyline points="6 9 12 15 18 9" />
+        </svg>
+      </button>
+
+      {/* Accordion body — smooth height transition */}
+      <div
+        className="overflow-hidden transition-all duration-300 ease-in-out"
+        style={{
+          maxHeight: isExpanded ? (bodyHeight ?? 500) + 'px' : '0px',
+          opacity: isExpanded ? 1 : 0,
+        }}
+      >
+        <div
+          ref={bodyRef}
+          className="mt-1.5 pl-3 space-y-1.5 pb-1"
+          style={{
+            borderLeft: `2px solid ${isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'}`,
+          }}
+        >
+          {PROCESS_STEPS.map((label, idx) => {
+            const stepNum = idx + 1; // 1–5
+            const isStepDone = processStep >= stepNum;
+            const isStepActive = processStep === stepNum - 1 && stepNum <= 4;
+
+            return (
+              <div
+                key={label}
+                className="flex items-center gap-2 transition-all duration-300"
+                style={{
+                  opacity: processStep >= stepNum - 1 ? 1 : 0.3,
+                  transform: processStep >= stepNum - 1 ? 'translateX(0)' : 'translateX(-4px)',
+                }}
+              >
+                {/* Icon: spinner if in-progress, check if done */}
+                <span className="w-3.5 h-3.5 flex items-center justify-center shrink-0">
+                  {isStepDone ? (
+                    <Check
+                      size={11}
+                      className="transition-transform duration-300 scale-100"
+                      style={{ color: '#10b981' }}
+                    />
+                  ) : isStepActive ? (
+                    <Loader2
+                      size={11}
+                      className="animate-spin"
+                      style={{ color: isDark ? '#71717a' : '#a1a1aa' }}
+                    />
+                  ) : (
+                    <span
+                      className="w-1 h-1 rounded-full"
+                      style={{ background: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.1)' }}
+                    />
+                  )}
+                </span>
+                <span
+                  className="text-[11px] font-mono transition-colors duration-300"
+                  style={{
+                    color: isStepDone
+                      ? isDark ? '#52525b' : '#a1a1aa'
+                      : isStepActive
+                      ? isDark ? '#a1a1aa' : '#71717a'
+                      : isDark ? '#3f3f46' : '#d4d4d8',
+                  }}
+                >
+                  {label}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Main export ──────────────────────────────────────────────────────────────
+
+export default function ChatMessageBubble({
+  message,
+  theme = 'dark',
+  onRegenerate,
+  processStep = -1,
+}: ChatMessageBubbleProps) {
   const [copied, setCopied] = useState(false);
   const [saved, setSaved] = useState(false);
   const isUser = message.role === 'user';
@@ -248,8 +420,6 @@ export default function ChatMessageBubble({ message, theme = 'dark' }: ChatMessa
     setTimeout(() => setSaved(false), 2000);
   };
 
-  const [isProcessExpanded, setIsProcessExpanded] = useState(false);
-
   if (isUser) {
     return (
       <div className="flex justify-end w-full fade-in-up">
@@ -259,6 +429,8 @@ export default function ChatMessageBubble({ message, theme = 'dark' }: ChatMessa
       </div>
     );
   }
+
+  const showProcessAccordion = !message.isGeneralChat && processStep >= 1;
 
   return (
     <div className="w-full fade-in-up group transition-colors flex flex-col gap-2">
@@ -286,42 +458,21 @@ export default function ChatMessageBubble({ message, theme = 'dark' }: ChatMessa
         </div>
       )}
 
-      {/* Accordion process indicator */}
-      {!message.isGeneralChat && (
-        <div className="my-1">
-          <button
-            onClick={() => setIsProcessExpanded(!isProcessExpanded)}
-            className="flex items-center gap-2 text-xs font-medium text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 transition-colors py-1 focus:outline-none"
-          >
-            <span className="flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
-            <span>Thought process finished</span>
-            <svg
-              width="12"
-              height="12"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className={`transform transition-transform duration-200 ${isProcessExpanded ? 'rotate-180' : ''}`}
-            >
-              <polyline points="6 9 12 15 18 9" />
-            </svg>
-          </button>
-          {isProcessExpanded && (
-            <div className="mt-1.5 pl-3 border-l-2 border-zinc-200 dark:border-zinc-800 text-xs text-zinc-500 space-y-1 font-mono">
-              <div>✓ Loaded subject notebook settings</div>
-              <div>✓ Injected personal context summary</div>
-              <div>✓ Sent request to model</div>
-              <div>✓ Completed stream response successfully</div>
-            </div>
-          )}
-        </div>
+      {/* Animated process accordion — only for study mode with active tracking */}
+      {showProcessAccordion && (
+        <ProcessAccordion processStep={processStep} theme={theme} />
+      )}
+
+      {/* Fallback static accordion for old messages with no tracking */}
+      {!message.isGeneralChat && !showProcessAccordion && (
+        <StaticProcessAccordion theme={theme} />
       )}
 
       {/* Message content */}
-      <div className="prose prose-zinc dark:prose-invert max-w-none text-sm leading-relaxed font-normal" style={{ color: isDark ? '#d4d4d8' : '#27272a' }}>
+      <div
+        className="prose prose-zinc dark:prose-invert max-w-none text-sm leading-relaxed font-normal"
+        style={{ color: isDark ? '#d4d4d8' : '#27272a' }}
+      >
         {renderMarkdown(message.content, theme)}
       </div>
 
@@ -349,12 +500,70 @@ export default function ChatMessageBubble({ message, theme = 'dark' }: ChatMessa
         )}
         <button
           title="Regenerate"
-          className="flex items-center gap-1 px-2 py-1 rounded-md text-xs transition-all duration-150 hover:bg-black/5 dark:hover:bg-white/5"
+          onClick={onRegenerate}
+          disabled={!onRegenerate}
+          className={`flex items-center gap-1 px-2 py-1 rounded-md text-xs transition-all duration-150 ${
+            onRegenerate
+              ? 'hover:bg-black/5 dark:hover:bg-white/5 cursor-pointer'
+              : 'opacity-40 cursor-not-allowed'
+          }`}
           style={{ color: '#8e8ea0' }}
         >
           <RotateCcw size={12} />
           <span>Regenerate</span>
         </button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Static fallback accordion (for messages loaded from history) ─────────────
+
+function StaticProcessAccordion({ theme }: { theme: 'light' | 'dark' }) {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const isDark = theme === 'dark';
+
+  return (
+    <div className="my-1">
+      <button
+        onClick={() => setIsExpanded((v) => !v)}
+        className="flex items-center gap-2 text-xs font-medium py-1 focus:outline-none transition-colors"
+        style={{ color: isDark ? '#52525b' : '#a1a1aa' }}
+      >
+        <span className="w-1.5 h-1.5 rounded-full" style={{ background: '#10b981' }} />
+        <span style={{ color: isDark ? '#34d399' : '#059669' }}>Thought process finished</span>
+        <svg
+          width="11"
+          height="11"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className="transition-transform duration-200"
+          style={{ transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)' }}
+        >
+          <polyline points="6 9 12 15 18 9" />
+        </svg>
+      </button>
+      <div
+        className="overflow-hidden transition-all duration-300 ease-in-out"
+        style={{ maxHeight: isExpanded ? '200px' : '0px', opacity: isExpanded ? 1 : 0 }}
+      >
+        <div
+          className="mt-1.5 pl-3 space-y-1.5 pb-1"
+          style={{ borderLeft: `2px solid ${isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'}` }}
+        >
+          {PROCESS_STEPS.map((label) => (
+            <div key={label} className="flex items-center gap-2">
+              <Check size={11} style={{ color: '#10b981' }} className="shrink-0" />
+              <span className="text-[11px] font-mono" style={{ color: isDark ? '#52525b' : '#a1a1aa' }}>
+                {label}
+              </span>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );

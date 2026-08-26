@@ -3,6 +3,8 @@
 import React, { useState, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import Sidebar from './Sidebar';
+import SettingsPage from './SettingsPage';
+import NotebookOverlay from './NotebookOverlay';
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -10,10 +12,12 @@ interface AppLayoutProps {
 
 export default function AppLayout({ children }: AppLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [sidebarWidth, setSidebarWidth] = useState(248); // server-safe default
+  const [sidebarWidth, setSidebarWidth] = useState(248);
   const [isResizing, setIsResizing] = useState(false);
-  const [theme, setTheme] = useState<'light' | 'dark'>('light'); // server-safe default
+  const [theme, setTheme] = useState<'light' | 'dark'>('light');
   const [isMobile, setIsMobile] = useState(false);
+  const [activeModalView, setActiveModalView] = useState<'none' | 'settings' | 'notebook'>('none');
+  const [activeNotebookId, setActiveNotebookId] = useState<string | null>(null);
 
   const pathname = usePathname();
 
@@ -32,6 +36,27 @@ export default function AppLayout({ children }: AppLayoutProps) {
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+
+  // Sync sidebar open state with children and other tabs
+  useEffect(() => {
+    const savedSidebar = localStorage.getItem('nk-sidebar-open');
+    if (savedSidebar !== null) {
+      setSidebarOpen(savedSidebar === 'true');
+    }
+
+    const handleSidebarEvent = () => {
+      const saved = localStorage.getItem('nk-sidebar-open');
+      if (saved !== null) setSidebarOpen(saved === 'true');
+    };
+    window.addEventListener('nk-sidebar-change', handleSidebarEvent);
+    return () => window.removeEventListener('nk-sidebar-change', handleSidebarEvent);
+  }, []);
+
+  const toggleSidebar = (open: boolean) => {
+    setSidebarOpen(open);
+    localStorage.setItem('nk-sidebar-open', String(open));
+    window.dispatchEvent(new Event('nk-sidebar-change'));
+  };
 
   useEffect(() => {
     // Sync theme and sidebar width from localStorage after hydration
@@ -83,11 +108,22 @@ export default function AppLayout({ children }: AppLayoutProps) {
     };
   }, [isResizing]);
 
+  // Escape key global listener
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setActiveModalView('none');
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
   return (
-    <div 
-      className="flex min-h-screen transition-colors duration-300 relative" 
-      style={{ 
-        background: theme === 'dark' ? '#000000' : '#ffffff', 
+    <div
+      className="flex h-screen overflow-hidden transition-colors duration-300"
+      style={{
+        background: theme === 'dark' ? '#000000' : '#ffffff',
         color: theme === 'dark' ? '#ffffff' : '#000000',
         paddingTop: 'env(safe-area-inset-top)',
         paddingBottom: 'env(safe-area-inset-bottom)',
@@ -95,59 +131,78 @@ export default function AppLayout({ children }: AppLayoutProps) {
         paddingRight: 'env(safe-area-inset-right)',
       }}
     >
-      {/* Sidebar drawer container */}
+      {/* ── Sidebar ─────────────────────────────────────────────────────────
+           Desktop (md+): static inline panel — always in the flex row,
+                          sized by sidebarWidth, never overlays content.
+           Mobile (<md):  off-canvas fixed drawer that slides in from the left
+                          via CSS transform so the GPU handles the animation.
+      ──────────────────────────────────────────────────────────────────── */}
       <div
-        className={`${
-          isMobile
-            ? 'fixed inset-y-0 left-0 z-50 transform transition-transform duration-300 ease-in-out'
-            : 'relative'
-        } ${sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}
-        style={{
-          width: isMobile ? '280px' : `${sidebarWidth}px`,
-          display: isMobile && !sidebarOpen ? 'none' : 'block',
+        className={[
+          // Mobile: fixed off-canvas drawer
+          'fixed inset-y-0 left-0 z-50 will-change-transform transition-all duration-300 ease-in-out overflow-hidden',
+          // Desktop: static inline panel that smoothly shrinks its width
+          'md:relative md:inset-auto md:z-auto md:flex-shrink-0 md:h-full',
+          // Transform for mobile slide-in
+          sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0',
+        ].join(' ')}
+        style={{ 
+          width: isMobile ? '288px' : (sidebarOpen ? `${sidebarWidth}px` : '0px'),
+          opacity: sidebarOpen ? 1 : 0
         }}
       >
-        <Sidebar width={isMobile ? 280 : sidebarWidth} onToggle={() => setSidebarOpen(false)} />
+        <Sidebar
+          width={isMobile ? 288 : sidebarWidth}
+          onToggle={() => toggleSidebar(false)}
+          onOpenSettings={() => setActiveModalView('settings')}
+          onOpenNotebook={(subjName) => {
+            setActiveNotebookId(subjName);
+            setActiveModalView('notebook');
+          }}
+        />
       </div>
 
-      {/* Translucent overlay background backdrop on mobile */}
-      {isMobile && sidebarOpen && (
+      {/* Mobile-only backdrop — never shown on desktop */}
+      {sidebarOpen && (
         <div
-          onClick={() => setSidebarOpen(false)}
-          className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40 transition-opacity"
+          onClick={() => toggleSidebar(false)}
+          className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40 md:hidden transition-opacity"
+          aria-hidden="true"
         />
       )}
 
-      {/* Resize handle bar (only on desktop) */}
+      {/* Desktop-only resize handle between sidebar and main */}
       {!isMobile && sidebarOpen && (
         <div
           onMouseDown={startResizing}
-          className="w-1 select-none cursor-col-resize hover:bg-sky-500/50 active:bg-sky-500 shrink-0 h-screen transition-colors z-40"
-          style={{
-            background: isResizing ? '#0284c7' : 'transparent',
-          }}
+          className="w-1 shrink-0 h-full select-none cursor-col-resize z-40 transition-colors hover:bg-sky-500/50 active:bg-sky-500"
+          style={{ background: isResizing ? '#0284c7' : 'transparent' }}
         />
       )}
 
-      <main className="flex-1 min-w-0 h-screen flex flex-col overflow-hidden" style={{ background: theme === 'dark' ? '#000000' : '#ffffff' }}>
-        {(!sidebarOpen || isMobile) && (
-          <button
-            onClick={() => setSidebarOpen(true)}
-            className="fixed left-4 top-4 z-40 p-2 rounded-xl border transition"
-            style={{ 
-              borderColor: theme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)', 
-              background: theme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)',
-              color: theme === 'dark' ? '#ffffff' : '#000000' 
-            }}
-            title="Open sidebar"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-            </svg>
-          </button>
-        )}
+      {/* ── Main content column ─────────────────────────────────────────── */}
+      <main
+        className="flex-1 flex flex-col h-full overflow-hidden min-w-0 w-full"
+        style={{ background: theme === 'dark' ? '#000000' : '#ffffff' }}
+      >
         {children}
       </main>
+
+      {/* ── Full-Screen Settings Overlay ─────────────────────────────────── */}
+      {activeModalView === 'settings' && (
+        <div className="fixed inset-0 z-50 flex flex-col bg-white/95 dark:bg-zinc-950/95 backdrop-blur-xl animate-in fade-in zoom-in-95 duration-150">
+          <SettingsPage onBack={() => setActiveModalView('none')} />
+        </div>
+      )}
+
+      {/* ── Full-Screen Notebook Overlay ─────────────────────────────────── */}
+      {activeModalView === 'notebook' && activeNotebookId && (
+        <NotebookOverlay 
+          subjectName={activeNotebookId} 
+          onClose={() => setActiveModalView('none')} 
+          theme={theme} 
+        />
+      )}
     </div>
   );
 }

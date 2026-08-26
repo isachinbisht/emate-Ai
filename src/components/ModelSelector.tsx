@@ -21,13 +21,15 @@ interface ModelSelectorProps {
   currentModel: string;
   onSelectModel: (modelId: string) => void;
   theme?: 'light' | 'dark';
+  variant?: 'default' | 'minimal';
 }
 
-export function ModelSelector({ currentModel, onSelectModel, theme = 'dark' }: ModelSelectorProps) {
+export function ModelSelector({ currentModel, onSelectModel, theme = 'dark', variant = 'default' }: ModelSelectorProps) {
   const [models, setModels] = useState<ModelOption[]>(STATIC_FREE_MODELS);
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const isDark = theme === 'dark';
+  const isMinimal = variant === 'minimal';
 
   useEffect(() => {
     async function fetchFreeModels() {
@@ -63,16 +65,21 @@ export function ModelSelector({ currentModel, onSelectModel, theme = 'dark' }: M
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-medium transition-all duration-200 hover:opacity-90 active:scale-95 border shadow-sm"
-        style={{
+        className={isMinimal 
+          ? "flex items-center gap-1 text-[11px] font-medium transition-all duration-200 hover:opacity-80 active:scale-95 focus:outline-none h-8"
+          : "flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-medium transition-all duration-200 hover:opacity-90 active:scale-95 border shadow-sm"
+        }
+        style={isMinimal ? {
+          color: isDark ? '#d4d4d8' : '#3f3f46',
+        } : {
           background: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
           borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.12)',
           color: isDark ? '#f4f4f5' : '#18181b',
         }}
       >
-        <Cpu size={13} className={isDark ? 'text-zinc-400' : 'text-zinc-500'} />
-        <span className="truncate max-w-[130px] sm:max-w-[170px]">{selectedModelObj.name}</span>
-        <ChevronDown size={12} className={`transition-transform duration-200 opacity-60 ${isOpen ? 'rotate-180' : ''}`} />
+        <Cpu size={12} className={isDark ? 'text-zinc-400' : 'text-zinc-500'} />
+        <span className="truncate max-w-[80px] sm:max-w-[120px]">{selectedModelObj.name}</span>
+        <ChevronDown size={10} className={`transition-transform duration-200 opacity-60 ${isOpen ? 'rotate-180' : ''}`} />
       </button>
 
       {isOpen && (
