@@ -14,9 +14,5 @@ export function generateCodeVerifier(): string {
 export function generateCodeChallenge(verifier: string): string {
   // SHA-256 hash of the code_verifier, base64url encoded
   const hash = crypto.createHash('sha256').update(verifier).digest();
-  return hash
-    .toString('base64')
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_')
-    .replace(/=/g, '');
+  return hash.toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
 }

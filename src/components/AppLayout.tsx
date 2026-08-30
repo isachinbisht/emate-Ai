@@ -146,9 +146,9 @@ export default function AppLayout({ children }: AppLayoutProps) {
           // Transform for mobile slide-in
           sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0',
         ].join(' ')}
-        style={{ 
-          width: isMobile ? '288px' : (sidebarOpen ? `${sidebarWidth}px` : '0px'),
-          opacity: sidebarOpen ? 1 : 0
+        style={{
+          width: isMobile ? '288px' : sidebarOpen ? `${sidebarWidth}px` : '0px',
+          opacity: sidebarOpen ? 1 : 0,
         }}
       >
         <Sidebar
@@ -197,10 +197,10 @@ export default function AppLayout({ children }: AppLayoutProps) {
 
       {/* ── Full-Screen Notebook Overlay ─────────────────────────────────── */}
       {activeModalView === 'notebook' && activeNotebookId && (
-        <NotebookOverlay 
-          subjectName={activeNotebookId} 
-          onClose={() => setActiveModalView('none')} 
-          theme={theme} 
+        <NotebookOverlay
+          subjectName={activeNotebookId}
+          onClose={() => setActiveModalView('none')}
+          theme={theme}
         />
       )}
     </div>

@@ -2,28 +2,28 @@
 
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import {
-    Zap,
-    BookOpen,
-    Square,
-    Plus,
-    ChevronDown,
-    ChevronUp,
-    Brain,
-    FileText,
-    Lightbulb,
-    Sparkles,
-    Check,
-    Compass,
-    BookMarked,
-    Code2,
-    PenLine,
-    MessageSquare,
-    GraduationCap,
-    Volume2,
-    X,
-    Key,
-    ImagePlus,
-    Menu,
+  Zap,
+  BookOpen,
+  Square,
+  Plus,
+  ChevronDown,
+  ChevronUp,
+  Brain,
+  FileText,
+  Lightbulb,
+  Sparkles,
+  Check,
+  Compass,
+  BookMarked,
+  Code2,
+  PenLine,
+  MessageSquare,
+  GraduationCap,
+  Volume2,
+  X,
+  Key,
+  ImagePlus,
+  Menu,
 } from 'lucide-react';
 import ChatMessageBubble from './ChatMessageBubble';
 import StreamingIndicator from './StreamingIndicator';
@@ -37,688 +37,745 @@ import { saveChatSession } from '@/lib/chatHistory';
 // Study quick actions are built dynamically inside the component from selectedContext.
 
 const GENERAL_QUICK_ACTIONS = [
-    {
-        icon: Code2,
-        label: 'Write & debug code',
-        prompt: 'Help me write and debug code for: ',
-    },
-    {
-        icon: PenLine,
-        label: 'Draft & edit text',
-        prompt: 'Help me draft and improve this text: ',
-    },
-    {
-        icon: Brain,
-        label: 'Brainstorm ideas',
-        prompt: 'Help me brainstorm ideas for: ',
-    },
-    {
-        icon: Compass,
-        label: 'Explain a complex topic',
-        prompt: 'Explain this topic clearly and simply: ',
-    },
+  {
+    icon: Code2,
+    label: 'Write & debug code',
+    prompt: 'Help me write and debug code for: ',
+  },
+  {
+    icon: PenLine,
+    label: 'Draft & edit text',
+    prompt: 'Help me draft and improve this text: ',
+  },
+  {
+    icon: Brain,
+    label: 'Brainstorm ideas',
+    prompt: 'Help me brainstorm ideas for: ',
+  },
+  {
+    icon: Compass,
+    label: 'Explain a complex topic',
+    prompt: 'Explain this topic clearly and simply: ',
+  },
 ];
 
 interface ChatMainAreaProps {
-    messages: ChatMessage[];
-    setMessages: React.Dispatch<React.SetStateAction<ChatMessage[]>>;
-    mode: StudyMode;
-    setMode: (m: StudyMode) => void;
-    selectedContext: SelectedContext;
-    selectedModel: string;
-    setSelectedModel: (m: string) => void;
+  messages: ChatMessage[];
+  setMessages: React.Dispatch<React.SetStateAction<ChatMessage[]>>;
+  mode: StudyMode;
+  setMode: (m: StudyMode) => void;
+  selectedContext: SelectedContext;
+  selectedModel: string;
+  setSelectedModel: (m: string) => void;
 }
 
 let msgCounter = 1;
 
 const getTimeGreeting = (date = new Date()) => {
-    const hour = date.getHours();
+  const hour = date.getHours();
 
-    if (hour >= 5 && hour < 12) return 'Good morning';
-    if (hour >= 12 && hour < 14) return 'Good noon';
-    if (hour >= 14 && hour < 17) return 'Good afternoon';
-    if (hour >= 17 && hour < 21) return 'Good evening';
-    return 'Good night';
+  if (hour >= 5 && hour < 12) return 'Good morning';
+  if (hour >= 12 && hour < 14) return 'Good noon';
+  if (hour >= 14 && hour < 17) return 'Good afternoon';
+  if (hour >= 17 && hour < 21) return 'Good evening';
+  return 'Good night';
 };
 
 export default function ChatMainArea({
-    messages,
-    setMessages,
-    mode,
-    setMode,
-    selectedContext,
-    selectedModel,
-    setSelectedModel,
+  messages,
+  setMessages,
+  mode,
+  setMode,
+  selectedContext,
+  selectedModel,
+  setSelectedModel,
 }: ChatMainAreaProps) {
-    const [inputValue, setInputValue] = useState('');
-    const [isStreaming, setIsStreaming] = useState(false);
-    const [showFeatureModal, setShowFeatureModal] = useState(false);
-    const [isStudyMode, setIsStudyMode] = useState(true); // server-safe default — synced from localStorage in useEffect
-    const [isOpenRouterConnected, setIsOpenRouterConnected] = useState(true); // default to true, check in client mount
-    const [showConnectModal, setShowConnectModal] = useState(false);
-    const [isConnectingOpenRouter, setIsConnectingOpenRouter] = useState(false);
-    const [showSuccessToast, setShowSuccessToast] = useState(false);
-    const popupRef = useRef<Window | null>(null);
+  const [inputValue, setInputValue] = useState('');
+  const [isStreaming, setIsStreaming] = useState(false);
+  const [showFeatureModal, setShowFeatureModal] = useState(false);
+  const [isStudyMode, setIsStudyMode] = useState(true); // server-safe default — synced from localStorage in useEffect
+  const [isOpenRouterConnected, setIsOpenRouterConnected] = useState(true); // default to true, check in client mount
+  const [showConnectModal, setShowConnectModal] = useState(false);
+  const [isConnectingOpenRouter, setIsConnectingOpenRouter] = useState(false);
+  const [showSuccessToast, setShowSuccessToast] = useState(false);
+  const popupRef = useRef<Window | null>(null);
 
-    // Build study action tiles dynamically from the active notebook context
-    const studyQuickActions = useMemo(() => [
-        {
-            icon: BookOpen,
-            label: 'Generate exam questions',
-            prompt: `Generate 5 high-probability exam questions for ${selectedContext.subject} — ${selectedContext.unit} with model answers`,
-        },
-        {
-            icon: Sparkles,
-            label: 'Last-minute revision',
-            prompt: `Give me a concise last-minute revision summary for ${selectedContext.subject} — ${selectedContext.unit}`,
-        },
-        {
-            icon: Brain,
-            label: 'Step-by-step explanation',
-            prompt: `Explain ${selectedContext.unit} (${selectedContext.subject}) step-by-step with examples and exam tips`,
-        },
-        {
-            icon: Compass,
-            label: 'Key formulas & rules',
-            prompt: `List all key formulas, rules, and definitions for ${selectedContext.subject} — ${selectedContext.unit} for my exam sprint`,
-        },
-    ], [selectedContext.subject, selectedContext.unit]);
-    // Open OAuth in a popup window
-    const handleOpenRouterConnect = () => {
-        setShowConnectModal(false);
-        const w = 600, h = 700;
-        const left = window.screenX + (window.outerWidth - w) / 2;
-        const top = window.screenY + (window.outerHeight - h) / 2;
-        const popup = window.open(
-            '/api/auth/openrouter/connect',
-            'OpenRouter Auth',
-            `width=${w},height=${h},left=${left},top=${top},toolbar=no,menubar=no`
-        );
-        popupRef.current = popup;
-        setIsConnectingOpenRouter(true);
+  // Build study action tiles dynamically from the active notebook context
+  const studyQuickActions = useMemo(
+    () => [
+      {
+        icon: BookOpen,
+        label: 'Generate exam questions',
+        prompt: `Generate 5 high-probability exam questions for ${selectedContext.subject} — ${selectedContext.unit} with model answers`,
+      },
+      {
+        icon: Sparkles,
+        label: 'Last-minute revision',
+        prompt: `Give me a concise last-minute revision summary for ${selectedContext.subject} — ${selectedContext.unit}`,
+      },
+      {
+        icon: Brain,
+        label: 'Step-by-step explanation',
+        prompt: `Explain ${selectedContext.unit} (${selectedContext.subject}) step-by-step with examples and exam tips`,
+      },
+      {
+        icon: Compass,
+        label: 'Key formulas & rules',
+        prompt: `List all key formulas, rules, and definitions for ${selectedContext.subject} — ${selectedContext.unit} for my exam sprint`,
+      },
+    ],
+    [selectedContext.subject, selectedContext.unit]
+  );
+  // Open OAuth in a popup window
+  const handleOpenRouterConnect = () => {
+    setShowConnectModal(false);
+    const w = 600,
+      h = 700;
+    const left = window.screenX + (window.outerWidth - w) / 2;
+    const top = window.screenY + (window.outerHeight - h) / 2;
+    const popup = window.open(
+      '/api/auth/openrouter/connect',
+      'OpenRouter Auth',
+      `width=${w},height=${h},left=${left},top=${top},toolbar=no,menubar=no`
+    );
+    popupRef.current = popup;
+    setIsConnectingOpenRouter(true);
 
-        // Poll to detect if the user manually closed the popup
-        const pollTimer = setInterval(() => {
-            if (popup && popup.closed) {
-                clearInterval(pollTimer);
-                setIsConnectingOpenRouter(false);
-                popupRef.current = null;
-            }
-        }, 500);
-    };
+    // Poll to detect if the user manually closed the popup
+    const pollTimer = setInterval(() => {
+      if (popup && popup.closed) {
+        clearInterval(pollTimer);
+        setIsConnectingOpenRouter(false);
+        popupRef.current = null;
+      }
+    }, 500);
+  };
 
-    const [guestQueryCount, setGuestQueryCount] = useState(0);
+  const [guestQueryCount, setGuestQueryCount] = useState(0);
 
-    useEffect(() => {
-        if (typeof window !== 'undefined') {
-            // Sync study mode from localStorage after hydration
-            const saved = localStorage.getItem('nk-study-mode-active');
-            if (saved !== null) setIsStudyMode(saved !== 'false');
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      // Sync study mode from localStorage after hydration
+      const saved = localStorage.getItem('nk-study-mode-active');
+      if (saved !== null) setIsStudyMode(saved !== 'false');
 
-            // Sync free limit credit count
-            const count = parseInt(localStorage.getItem('guest_query_count') || '0', 10);
-            setGuestQueryCount(count);
+      // Sync free limit credit count
+      const count = parseInt(localStorage.getItem('guest_query_count') || '0', 10);
+      setGuestQueryCount(count);
 
-            // Check if redirected from OAuth callback with ?connected=true
-            const params = new URLSearchParams(window.location.search);
-            if (params.get('connected') === 'true') {
-                setIsOpenRouterConnected(true);
-                // Clean up the URL param without reloading
-                window.history.replaceState({}, '', window.location.pathname);
-            } else {
-                // Check server-side cookie via API (HTTP-only cookies aren't readable from JS)
-                fetch('/api/auth/openrouter/status')
-                    .then(res => res.json())
-                    .then(data => setIsOpenRouterConnected(!!data.connected))
-                    .catch(() => setIsOpenRouterConnected(false));
-            }
-        }
+      // Check if redirected from OAuth callback with ?connected=true
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('connected') === 'true') {
+        setIsOpenRouterConnected(true);
+        // Clean up the URL param without reloading
+        window.history.replaceState({}, '', window.location.pathname);
+      } else {
+        // Check server-side cookie via API (HTTP-only cookies aren't readable from JS)
+        fetch('/api/auth/openrouter/status')
+          .then((res) => res.json())
+          .then((data) => setIsOpenRouterConnected(!!data.connected))
+          .catch(() => setIsOpenRouterConnected(false));
+      }
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []); // runs once on mount
+  }, []); // runs once on mount
 
-    // Listen for postMessage from OAuth popup callback
-    useEffect(() => {
-        const handleMessage = (event: MessageEvent) => {
-            if (event.data?.type === 'OPENROUTER_AUTH_SUCCESS') {
-                setIsConnectingOpenRouter(false);
-                setIsOpenRouterConnected(true);
-                popupRef.current = null;
-                // Show success toast
-                setShowSuccessToast(true);
-                setTimeout(() => setShowSuccessToast(false), 4000);
-            }
-        };
-        window.addEventListener('message', handleMessage);
-        return () => window.removeEventListener('message', handleMessage);
-    }, []);
+  // Listen for postMessage from OAuth popup callback
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data?.type === 'OPENROUTER_AUTH_SUCCESS') {
+        setIsConnectingOpenRouter(false);
+        setIsOpenRouterConnected(true);
+        popupRef.current = null;
+        // Show success toast
+        setShowSuccessToast(true);
+        setTimeout(() => setShowSuccessToast(false), 4000);
+      }
+    };
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, []);
 
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      // Persist the mode choice so it survives page reloads and new chats
+      localStorage.setItem('nk-study-mode-active', String(isStudyMode));
+      localStorage.setItem('nk-general-chat-active', String(!isStudyMode));
+      window.dispatchEvent(new Event('nk-general-chat-change'));
+    }
+  }, [isStudyMode]);
+  const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
+  const [previewUrls, setPreviewUrls] = useState<string[]>([]);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isModelMenuOpen, setIsModelMenuOpen] = useState(false);
+  const modelMenuRef = useRef<HTMLDivElement>(null);
 
-    useEffect(() => {
-        if (typeof window !== 'undefined') {
-            // Persist the mode choice so it survives page reloads and new chats
-            localStorage.setItem('nk-study-mode-active', String(isStudyMode));
-            localStorage.setItem('nk-general-chat-active', String(!isStudyMode));
-            window.dispatchEvent(new Event('nk-general-chat-change'));
-        }
-    }, [isStudyMode]);
-    const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
-    const [previewUrls, setPreviewUrls] = useState<string[]>([]);
-    const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-    const [isModelMenuOpen, setIsModelMenuOpen] = useState(false);
-    const modelMenuRef = useRef<HTMLDivElement>(null);
+  const MODELS = [
+    { id: 'google/gemini-2.0-flash-001', name: 'Gemini 2.0 Flash', badge: 'Fastest' },
+    { id: 'google/gemini-2.5-flash', name: 'Gemini 2.5 Flash', badge: 'Latest' },
+    { id: 'openai/gpt-4o-mini', name: 'GPT-4o Mini', badge: 'Efficient' },
+    { id: 'anthropic/claude-3.5-sonnet', name: 'Claude 3.5 Sonnet', badge: 'Smartest' },
+  ];
 
-    const MODELS = [
-        { id: 'google/gemini-2.0-flash-001', name: 'Gemini 2.0 Flash', badge: 'Fastest' },
-        { id: 'google/gemini-2.5-flash', name: 'Gemini 2.5 Flash', badge: 'Latest' },
-        { id: 'openai/gpt-4o-mini', name: 'GPT-4o Mini', badge: 'Efficient' },
-        { id: 'anthropic/claude-3.5-sonnet', name: 'Claude 3.5 Sonnet', badge: 'Smartest' },
-    ];
+  const activeModel = MODELS.find((m) => m.id === selectedModel) || MODELS[0];
 
-    const activeModel = MODELS.find(m => m.id === selectedModel) || MODELS[0];
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (modelMenuRef.current && !modelMenuRef.current.contains(event.target as Node)) {
+        setIsModelMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
-    useEffect(() => {
-        const handleClickOutside = (event: MouseEvent) => {
-            if (modelMenuRef.current && !modelMenuRef.current.contains(event.target as Node)) {
-                setIsModelMenuOpen(false);
-            }
-        };
-        document.addEventListener('mousedown', handleClickOutside);
-        return () => document.removeEventListener('mousedown', handleClickOutside);
-    }, []);
+  useEffect(() => {
+    const saved = localStorage.getItem('nk-sidebar-open');
+    if (saved !== null) {
+      setIsSidebarOpen(saved === 'true');
+    }
 
-    useEffect(() => {
-        const saved = localStorage.getItem('nk-sidebar-open');
-        if (saved !== null) {
-            setIsSidebarOpen(saved === 'true');
-        }
-
-        const handleSidebarChange = () => {
-            const current = localStorage.getItem('nk-sidebar-open');
-            if (current !== null) {
-                setIsSidebarOpen(current === 'true');
-            }
-        };
-
-        window.addEventListener('nk-sidebar-change', handleSidebarChange);
-        return () => window.removeEventListener('nk-sidebar-change', handleSidebarChange);
-    }, []);
-
-    const messagesEndRef = useRef<HTMLDivElement>(null);
-    const centerInputRef = useRef<HTMLTextAreaElement>(null);
-    // Stable session id — created once per component mount
-    const sessionIdRef = useRef<string>(`chat-${Date.now()}`);
-    const fileInputRef = useRef<HTMLInputElement>(null);
-
-    useEffect(() => {
-        if (!messages.length) {
-            setTimeout(() => centerInputRef.current?.focus(), 50);
-        }
-    }, [messages.length]);
-
-    // Sync theme state with localStorage — server-safe: start with 'light', read localStorage after mount
-    const [theme, setTheme] = useState<'light' | 'dark'>('light');
-    useEffect(() => {
-        const updateTheme = () => {
-            const savedTheme = localStorage.getItem('nk-theme') as 'light' | 'dark' | null;
-            const t = savedTheme || 'light';
-            setTheme(t);
-            applyTheme(t);
-        };
-
-        updateTheme();
-        window.addEventListener('storage', updateTheme);
-        return () => window.removeEventListener('storage', updateTheme);
-    }, []);
-
-    // Voice + attachments are handled by the PromptInput composer itself.
-    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (e.target.files) {
-            const files = Array.from(e.target.files);
-            setAttachedFiles((prev) => [...prev, ...files]);
-            
-            // Create preview URLs
-            const newPreviews = files.map(f => {
-                if (f.type.startsWith('image/')) return URL.createObjectURL(f);
-                return 'doc'; // placeholder for non-images
-            });
-            setPreviewUrls((prev) => [...prev, ...newPreviews]);
-        }
+    const handleSidebarChange = () => {
+      const current = localStorage.getItem('nk-sidebar-open');
+      if (current !== null) {
+        setIsSidebarOpen(current === 'true');
+      }
     };
 
-    const removeAttachment = (index: number) => {
-        setAttachedFiles((prev) => prev.filter((_, i) => i !== index));
-        setPreviewUrls((prev) => {
-            const newUrls = [...prev];
-            if (newUrls[index] !== 'doc') URL.revokeObjectURL(newUrls[index]);
-            newUrls.splice(index, 1);
-            return newUrls;
+    window.addEventListener('nk-sidebar-change', handleSidebarChange);
+    return () => window.removeEventListener('nk-sidebar-change', handleSidebarChange);
+  }, []);
+
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const centerInputRef = useRef<HTMLTextAreaElement>(null);
+  // Stable session id — created once per component mount
+  const sessionIdRef = useRef<string>(`chat-${Date.now()}`);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!messages.length) {
+      setTimeout(() => centerInputRef.current?.focus(), 50);
+    }
+  }, [messages.length]);
+
+  // Sync theme state with localStorage — server-safe: start with 'light', read localStorage after mount
+  const [theme, setTheme] = useState<'light' | 'dark'>('light');
+  useEffect(() => {
+    const updateTheme = () => {
+      const savedTheme = localStorage.getItem('nk-theme') as 'light' | 'dark' | null;
+      const t = savedTheme || 'light';
+      setTheme(t);
+      applyTheme(t);
+    };
+
+    updateTheme();
+    window.addEventListener('storage', updateTheme);
+    return () => window.removeEventListener('storage', updateTheme);
+  }, []);
+
+  // Voice + attachments are handled by the PromptInput composer itself.
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      const files = Array.from(e.target.files);
+      setAttachedFiles((prev) => [...prev, ...files]);
+
+      // Create preview URLs
+      const newPreviews = files.map((f) => {
+        if (f.type.startsWith('image/')) return URL.createObjectURL(f);
+        return 'doc'; // placeholder for non-images
+      });
+      setPreviewUrls((prev) => [...prev, ...newPreviews]);
+    }
+  };
+
+  const removeAttachment = (index: number) => {
+    setAttachedFiles((prev) => prev.filter((_, i) => i !== index));
+    setPreviewUrls((prev) => {
+      const newUrls = [...prev];
+      if (newUrls[index] !== 'doc') URL.revokeObjectURL(newUrls[index]);
+      newUrls.splice(index, 1);
+      return newUrls;
+    });
+  };
+
+  const convertFilesToBase64 = async (
+    files: File[]
+  ): Promise<{ data: string; mimeType: string }[]> => {
+    return Promise.all(
+      files.map((file) => {
+        return new Promise<{ data: string; mimeType: string }>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => {
+            const result = reader.result as string;
+            // Strip the "data:image/jpeg;base64," prefix
+            const base64Data = result.split(',')[1];
+            resolve({ data: base64Data, mimeType: file.type });
+          };
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
         });
+      })
+    );
+  };
+
+  const handleSend = async (text?: string, attachmentOverride?: File[]) => {
+    const content = (text ?? inputValue).trim();
+    if (!content || isStreaming) return;
+
+    // Guard: if no API key is connected, check guest freemium credit limit
+    if (!isOpenRouterConnected) {
+      const currentCount = parseInt(localStorage.getItem('guest_query_count') || '0', 10);
+      if (currentCount >= 5) {
+        setShowConnectModal(true);
+        return;
+      }
+      // Increment guest query count
+      const newCount = currentCount + 1;
+      localStorage.setItem('guest_query_count', String(newCount));
+      setGuestQueryCount(newCount);
+    }
+
+    const formatTimestamp = () => {
+      try {
+        return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      } catch (_) {
+        const now = new Date();
+        return `${now.getHours()}:${String(now.getMinutes()).padStart(2, '0')}`;
+      }
     };
 
-    const convertFilesToBase64 = async (files: File[]): Promise<{ data: string, mimeType: string }[]> => {
-        return Promise.all(
-            files.map(file => {
-                return new Promise<{ data: string, mimeType: string }>((resolve, reject) => {
-                    const reader = new FileReader();
-                    reader.onload = () => {
-                        const result = reader.result as string;
-                        // Strip the "data:image/jpeg;base64," prefix
-                        const base64Data = result.split(',')[1];
-                        resolve({ data: base64Data, mimeType: file.type });
-                    };
-                    reader.onerror = reject;
-                    reader.readAsDataURL(file);
-                });
-            })
-        );
+    const userMsg: ChatMessage = {
+      id: `msg-${String(msgCounter++).padStart(3, '0')}`,
+      role: 'user',
+      content,
+      mode,
+      timestamp: formatTimestamp(),
+      subject: selectedContext.subject,
+      isGeneralChat: !isStudyMode,
     };
 
-    const handleSend = async (text?: string, attachmentOverride?: File[]) => {
-        const content = (text ?? inputValue).trim();
-        if (!content || isStreaming) return;
+    const newMessages = [...messages, userMsg];
+    setMessages(newMessages);
+    setInputValue('');
+    setIsStreaming(true);
 
-        // Guard: if no API key is connected, check guest freemium credit limit
-        if (!isOpenRouterConnected) {
-            const currentCount = parseInt(localStorage.getItem('guest_query_count') || '0', 10);
-            if (currentCount >= 5) {
-                setShowConnectModal(true);
-                return;
-            }
-            // Increment guest query count
-            const newCount = currentCount + 1;
-            localStorage.setItem('guest_query_count', String(newCount));
-            setGuestQueryCount(newCount);
-        }
+    // Persist to recent chats (real-time sidebar sync)
+    saveChatSession({
+      id: sessionIdRef.current,
+      title: content.length > 60 ? content.slice(0, 57) + '…' : content,
+      subject: selectedContext.subject,
+      unit: selectedContext.unit,
+      mode,
+      timestamp: Date.now(),
+    });
 
-        const formatTimestamp = () => {
+    try {
+      const notebookContext = isStudyMode ? buildNotebookContext(selectedContext.subject) : '';
+      // attachmentOverride lets the PromptInput pass fresh attachments that haven't
+      // flushed to React state yet when handleSend is called synchronously.
+      const sendAttachments = attachmentOverride ?? attachedFiles;
+      const base64Attachments =
+        sendAttachments.length > 0 ? await convertFilesToBase64(sendAttachments) : [];
+      const finalPayloadMessages = [...newMessages];
+
+      // If we have attachments, modify the last user message to include them
+      if (base64Attachments.length > 0) {
+        const lastMsg = finalPayloadMessages[finalPayloadMessages.length - 1];
+        // Store original string for UI, but payload will have array format
+        (lastMsg as any)._attachments = base64Attachments;
+      }
+
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          messages: finalPayloadMessages,
+          mode,
+          subject: isStudyMode ? selectedContext.subject : undefined,
+          unit: isStudyMode ? selectedContext.unit : undefined,
+          model: selectedModel,
+          notebookContext,
+          isGeneralChat: !isStudyMode,
+          attachments: base64Attachments,
+        }),
+      });
+
+      // Clear attachments immediately after sending
+      setAttachedFiles([]);
+      setPreviewUrls([]);
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || `Request failed with status ${res.status}`);
+      }
+
+      const assistantMsgId = `msg-${String(msgCounter++).padStart(3, '0')}`;
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: assistantMsgId,
+          role: 'assistant',
+          content: '',
+          mode,
+          timestamp: formatTimestamp(),
+          subject: selectedContext.subject,
+          isGeneralChat: !isStudyMode,
+        },
+      ]);
+
+      const reader = res.body?.getReader();
+      if (!reader) throw new Error('No response body stream available.');
+
+      const decoder = new TextDecoder();
+      let accumulatedText = '';
+
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value, { stream: true });
+        const lines = chunk.split('\n\n');
+
+        for (let line of lines) {
+          line = line.trim();
+          if (line.startsWith('data: ')) {
+            const dataStr = line.replace('data: ', '');
+            if (dataStr === '[DONE]') continue;
             try {
-                return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-            } catch (_) {
-                const now = new Date();
-                return `${now.getHours()}:${String(now.getMinutes()).padStart(2, '0')}`;
+              const parsed = JSON.parse(dataStr);
+              if (parsed.error) {
+                accumulatedText += `\n\n⚠️ **Notice:** ${parsed.error}`;
+              } else {
+                accumulatedText += parsed.text || parsed;
+              }
+              setMessages((prev) =>
+                prev.map((m) => (m.id === assistantMsgId ? { ...m, content: accumulatedText } : m))
+              );
+            } catch (e) {
+              // Fallback for raw text chunks
+              accumulatedText += dataStr;
+              setMessages((prev) =>
+                prev.map((m) => (m.id === assistantMsgId ? { ...m, content: accumulatedText } : m))
+              );
             }
-        };
-
-        const userMsg: ChatMessage = {
-            id: `msg-${String(msgCounter++).padStart(3, '0')}`,
-            role: 'user',
-            content,
-            mode,
-            timestamp: formatTimestamp(),
-            subject: selectedContext.subject,
-            isGeneralChat: !isStudyMode,
-        };
-
-        const newMessages = [...messages, userMsg];
-        setMessages(newMessages);
-        setInputValue('');
-        setIsStreaming(true);
-
-        // Persist to recent chats (real-time sidebar sync)
-        saveChatSession({
-            id: sessionIdRef.current,
-            title: content.length > 60 ? content.slice(0, 57) + '…' : content,
-            subject: selectedContext.subject,
-            unit: selectedContext.unit,
-            mode,
-            timestamp: Date.now(),
-        });
-
-        try {
-            const notebookContext = isStudyMode ? buildNotebookContext(selectedContext.subject) : '';
-            // attachmentOverride lets the PromptInput pass fresh attachments that haven't
-            // flushed to React state yet when handleSend is called synchronously.
-            const sendAttachments = attachmentOverride ?? attachedFiles;
-            const base64Attachments = sendAttachments.length > 0 ? await convertFilesToBase64(sendAttachments) : [];
-            const finalPayloadMessages = [...newMessages];
-            
-            // If we have attachments, modify the last user message to include them
-            if (base64Attachments.length > 0) {
-                const lastMsg = finalPayloadMessages[finalPayloadMessages.length - 1];
-                // Store original string for UI, but payload will have array format
-                (lastMsg as any)._attachments = base64Attachments;
-            }
-
-            const res = await fetch('/api/chat', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    messages: finalPayloadMessages,
-                    mode,
-                    subject: isStudyMode ? selectedContext.subject : undefined,
-                    unit: isStudyMode ? selectedContext.unit : undefined,
-                    model: selectedModel,
-                    notebookContext,
-                    isGeneralChat: !isStudyMode,
-                    attachments: base64Attachments,
-                }),
-            });
-
-            // Clear attachments immediately after sending
-            setAttachedFiles([]);
-            setPreviewUrls([]);
-
-            if (!res.ok) {
-                const data = await res.json().catch(() => ({}));
-                throw new Error(data.error || `Request failed with status ${res.status}`);
-            }
-
-            const assistantMsgId = `msg-${String(msgCounter++).padStart(3, '0')}`;
-            setMessages((prev) => [
-                ...prev,
-                {
-                    id: assistantMsgId,
-                    role: 'assistant',
-                    content: '',
-                    mode,
-                    timestamp: formatTimestamp(),
-                    subject: selectedContext.subject,
-                    isGeneralChat: !isStudyMode,
-                },
-            ]);
-
-            const reader = res.body?.getReader();
-            if (!reader) throw new Error("No response body stream available.");
-
-            const decoder = new TextDecoder();
-            let accumulatedText = "";
-
-            while (true) {
-                const { value, done } = await reader.read();
-                if (done) break;
-                
-                const chunk = decoder.decode(value, { stream: true });
-                const lines = chunk.split('\n\n');
-                
-                for (let line of lines) {
-                    line = line.trim();
-                    if (line.startsWith('data: ')) {
-                        const dataStr = line.replace('data: ', '');
-                        if (dataStr === '[DONE]') continue;
-                        try {
-                            const parsed = JSON.parse(dataStr);
-                            if (parsed.error) {
-                                accumulatedText += `\n\n⚠️ **Notice:** ${parsed.error}`;
-                            } else {
-                                accumulatedText += parsed.text || parsed;
-                            }
-                            setMessages((prev) => 
-                                prev.map(m => m.id === assistantMsgId ? { ...m, content: accumulatedText } : m)
-                            );
-                        } catch (e) {
-                            // Fallback for raw text chunks
-                            accumulatedText += dataStr;
-                            setMessages((prev) => 
-                                prev.map(m => m.id === assistantMsgId ? { ...m, content: accumulatedText } : m)
-                            );
-                        }
-                    }
-                }
-            }
-
-            if (isStudyMode && accumulatedText) {
-                appendToNotebook(
-                    selectedContext.subject,
-                    `Struggling/Interested in: ${content.slice(0, 150)}${content.length > 150 ? '...' : ''}`,
-                    'user'
-                );
-            }
-        } catch (err: any) {
-            const errorMsg = `Error generating response: ${err.message || 'Failed to connect to server.'}`;
-            const assistantMsg: ChatMessage = {
-                id: `msg-${String(msgCounter++).padStart(3, '0')}`,
-                role: 'assistant',
-                content: errorMsg,
-                mode,
-                timestamp: formatTimestamp(),
-                subject: selectedContext.subject,
-                isGeneralChat: !isStudyMode,
-            };
-            setMessages((prev) => [...prev, assistantMsg]);
-        } finally {
-            setIsStreaming(false);
+          }
         }
-    };
+      }
 
-    const hasMessages = messages.length > 0;
-    const greetingLabel = getTimeGreeting();
-    const greetingText = greetingLabel;
+      if (isStudyMode && accumulatedText) {
+        appendToNotebook(
+          selectedContext.subject,
+          `Struggling/Interested in: ${content.slice(0, 150)}${content.length > 150 ? '...' : ''}`,
+          'user'
+        );
+      }
+    } catch (err: any) {
+      const errorMsg = `Error generating response: ${err.message || 'Failed to connect to server.'}`;
+      const assistantMsg: ChatMessage = {
+        id: `msg-${String(msgCounter++).padStart(3, '0')}`,
+        role: 'assistant',
+        content: errorMsg,
+        mode,
+        timestamp: formatTimestamp(),
+        subject: selectedContext.subject,
+        isGeneralChat: !isStudyMode,
+      };
+      setMessages((prev) => [...prev, assistantMsg]);
+    } finally {
+      setIsStreaming(false);
+    }
+  };
 
-    return (
-        <div
-            className="flex-1 flex flex-col min-w-0 h-full overflow-hidden relative transition-colors duration-500"
-            style={{
-              background: theme === 'dark' ? '#080809' : '#f9f9fb',
-              color: theme === 'dark' ? '#ffffff' : '#000000',
-              fontFamily: "'Inter', sans-serif"
-            }}
-        >
-            <link
-                rel="stylesheet"
-                href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap"
-            />
-            <style>{`
+  const hasMessages = messages.length > 0;
+  const greetingLabel = getTimeGreeting();
+  const greetingText = greetingLabel;
+
+  return (
+    <div
+      className="flex-1 flex flex-col min-w-0 h-full overflow-hidden relative transition-colors duration-500"
+      style={{
+        background: theme === 'dark' ? '#080809' : '#f9f9fb',
+        color: theme === 'dark' ? '#ffffff' : '#000000',
+        fontFamily: "'Inter', sans-serif",
+      }}
+    >
+      <link
+        rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap"
+      />
+      <style>{`
                 button { cursor: pointer; }
                 button:disabled { cursor: not-allowed; }
                 @media (prefers-reduced-motion: reduce){ *,*::before,*::after { animation:none !important; transition:none !important } }
             `}</style>
-            {showFeatureModal && (
-                <div className="absolute inset-0 z-50 flex items-center justify-center px-4 py-6">
-                    <div
-                        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-                        onClick={() => setShowFeatureModal(false)}
-                    />
-                    <div className="relative w-full max-w-md rounded-3xl border p-6 shadow-2xl" style={{ background: theme === 'dark' ? 'rgba(17,17,17,0.95)' : 'rgba(255,255,255,0.97)', borderColor: theme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' }}>
-                        <div className="flex items-start justify-between gap-4">
-                            <div>
-                                <p className="text-[11px] uppercase tracking-[0.24em] text-zinc-500">
-                                    Extra features
-                                </p>
-                                <h3 className="mt-2 text-lg font-semibold" style={{ color: theme === 'dark' ? '#ffffff' : '#000000' }}>
-                                    Unlock smarter study tools
-                                </h3>
-                                <p className="mt-2 text-sm text-zinc-400">
-                                    Open quick study helpers without leaving your chat flow.
-                                </p>
-                            </div>
-                            <button
-                                type="button"
-                                onClick={() => setShowFeatureModal(false)}
-                                className="rounded-full p-2 transition-colors hover:bg-black/5 hover:text-zinc-900 dark:hover:bg-white/10 dark:hover:text-white"
-                                aria-label="Close features"
-                            >
-                                <X size={18} />
-                            </button>
-                        </div>
+      {showFeatureModal && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center px-4 py-6">
+          <div
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            onClick={() => setShowFeatureModal(false)}
+          />
+          <div
+            className="relative w-full max-w-md rounded-3xl border p-6 shadow-2xl"
+            style={{
+              background: theme === 'dark' ? 'rgba(17,17,17,0.95)' : 'rgba(255,255,255,0.97)',
+              borderColor: theme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
+            }}
+          >
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-[11px] uppercase tracking-[0.24em] text-zinc-500">
+                  Extra features
+                </p>
+                <h3
+                  className="mt-2 text-lg font-semibold"
+                  style={{ color: theme === 'dark' ? '#ffffff' : '#000000' }}
+                >
+                  Unlock smarter study tools
+                </h3>
+                <p className="mt-2 text-sm text-zinc-400">
+                  Open quick study helpers without leaving your chat flow.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowFeatureModal(false)}
+                className="rounded-full p-2 transition-colors hover:bg-black/5 hover:text-zinc-900 dark:hover:bg-white/10 dark:hover:text-white"
+                aria-label="Close features"
+              >
+                <X size={18} />
+              </button>
+            </div>
 
-                        <div className="mt-5 grid gap-3">
-                            {[
-                                {
-                                    title: 'Flashcards',
-                                    desc: 'Turn any topic into bite-sized revision cards.',
-                                },
-                                {
-                                    title: 'Practice Quiz',
-                                    desc: 'Generate exam-style questions and instant answers.',
-                                },
-                                {
-                                    title: 'Study Planner',
-                                    desc: 'Build a focused plan for your next study sprint.',
-                                },
-                            ].map((item) => (
-                                <button
-                                    key={item.title}
-                                    type="button"
-                                    className="rounded-2xl border p-4 text-left transition-colors hover:border-zinc-300 dark:hover:border-zinc-700"
-                                    style={{ background: theme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)', borderColor: theme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)' }}
-                                >
-                                    <p className="text-sm font-semibold" style={{ color: theme === 'dark' ? '#ffffff' : '#000000' }}>{item.title}</p>
-                                    <p className="mt-1 text-sm text-zinc-400">{item.desc}</p>
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-                </div>
-            )}
+            <div className="mt-5 grid gap-3">
+              {[
+                {
+                  title: 'Flashcards',
+                  desc: 'Turn any topic into bite-sized revision cards.',
+                },
+                {
+                  title: 'Practice Quiz',
+                  desc: 'Generate exam-style questions and instant answers.',
+                },
+                {
+                  title: 'Study Planner',
+                  desc: 'Build a focused plan for your next study sprint.',
+                },
+              ].map((item) => (
+                <button
+                  key={item.title}
+                  type="button"
+                  className="rounded-2xl border p-4 text-left transition-colors hover:border-zinc-300 dark:hover:border-zinc-700"
+                  style={{
+                    background: theme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)',
+                    borderColor: theme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)',
+                  }}
+                >
+                  <p
+                    className="text-sm font-semibold"
+                    style={{ color: theme === 'dark' ? '#ffffff' : '#000000' }}
+                  >
+                    {item.title}
+                  </p>
+                  <p className="mt-1 text-sm text-zinc-400">{item.desc}</p>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
-            {/* Top bar — sticky header scoped inside <main>, not full-viewport */}
-            <header className="sticky top-0 z-40 w-full flex items-center justify-between px-8 py-4 gap-4"
-                style={{
-                    background: theme === 'dark' ? 'rgba(8,8,9,0.7)' : 'rgba(249,249,251,0.7)',
-                    backdropFilter: 'blur(14px)', WebkitBackdropFilter: 'blur(14px)',
-                    borderBottom: theme === 'dark' ? '1px solid rgba(255,255,255,0.06)' : '1px solid rgba(31,81,255,0.06)',
-                }}
+      {/* Top bar — sticky header scoped inside <main>, not full-viewport */}
+      <header
+        className="sticky top-0 z-40 w-full flex items-center justify-between px-8 py-4 gap-4"
+        style={{
+          background: theme === 'dark' ? 'rgba(8,8,9,0.7)' : 'rgba(249,249,251,0.7)',
+          backdropFilter: 'blur(14px)',
+          WebkitBackdropFilter: 'blur(14px)',
+          borderBottom:
+            theme === 'dark'
+              ? '1px solid rgba(255,255,255,0.06)'
+              : '1px solid rgba(31,81,255,0.06)',
+        }}
+      >
+        {/* Left Group: Toggle + Mode Switcher compact segmented pill */}
+        <div className="flex items-center gap-3">
+          {!isSidebarOpen && (
+            <button
+              onClick={() => {
+                localStorage.setItem('nk-sidebar-open', 'true');
+                window.dispatchEvent(new Event('nk-sidebar-change'));
+              }}
+              className="p-1.5 rounded-xl border hover:bg-gray-500/10 dark:hover:bg-zinc-800/80 transition-colors"
+              style={{
+                borderColor: theme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
+                background: theme === 'dark' ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
+                color: theme === 'dark' ? '#ffffff' : '#000000',
+              }}
+              title="Open sidebar"
             >
+              <Menu size={16} />
+            </button>
+          )}
 
-                {/* Left Group: Toggle + Mode Switcher compact segmented pill */}
-                <div className="flex items-center gap-3">
-                    {!isSidebarOpen && (
-                        <button
-                            onClick={() => {
-                                localStorage.setItem('nk-sidebar-open', 'true');
-                                window.dispatchEvent(new Event('nk-sidebar-change'));
-                            }}
-                            className="p-1.5 rounded-xl border hover:bg-gray-500/10 dark:hover:bg-zinc-800/80 transition-colors"
-                            style={{
-                                borderColor: theme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
-                                background: theme === 'dark' ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
-                                color: theme === 'dark' ? '#ffffff' : '#000000',
-                            }}
-                            title="Open sidebar"
-                        >
-                            <Menu size={16} />
-                        </button>
-                    )}
+          <div className="inline-flex p-1 rounded-full bg-white/80 dark:bg-zinc-800/80 backdrop-blur-md border border-gray-200/60 dark:border-zinc-700/60 items-center gap-0.5 shadow-sm">
+            <button
+              onClick={() => setIsStudyMode(true)}
+              aria-pressed={isStudyMode}
+              className={`flex items-center gap-1.5 transition-all rounded-full px-3.5 py-1.5 text-xs ${
+                isStudyMode
+                  ? 'bg-white dark:bg-zinc-700 text-gray-900 dark:text-zinc-100 font-semibold shadow-sm ring-1 ring-black/5 dark:ring-white/10'
+                  : 'text-gray-500 hover:text-gray-800 dark:text-zinc-400 dark:hover:text-zinc-200'
+              }`}
+            >
+              <GraduationCap
+                size={13}
+                className={
+                  isStudyMode
+                    ? 'text-gray-900 dark:text-zinc-100'
+                    : 'text-zinc-400 dark:text-zinc-500'
+                }
+              />
+              Study
+            </button>
+            <button
+              onClick={() => setIsStudyMode(false)}
+              aria-pressed={!isStudyMode}
+              className={`flex items-center gap-1.5 transition-all rounded-full px-3.5 py-1.5 text-xs ${
+                !isStudyMode
+                  ? 'bg-white dark:bg-zinc-700 text-gray-900 dark:text-zinc-100 font-semibold shadow-sm ring-1 ring-black/5 dark:ring-white/10'
+                  : 'text-gray-500 hover:text-gray-800 dark:text-zinc-400 dark:hover:text-zinc-200'
+              }`}
+            >
+              <MessageSquare
+                size={13}
+                className={
+                  !isStudyMode
+                    ? 'text-gray-900 dark:text-zinc-100'
+                    : 'text-zinc-400 dark:text-zinc-500'
+                }
+              />
+              General
+            </button>
+          </div>
+        </div>
 
-                    <div
-                        className="inline-flex p-1 rounded-full bg-white/80 dark:bg-zinc-800/80 backdrop-blur-md border border-gray-200/60 dark:border-zinc-700/60 items-center gap-0.5 shadow-sm"
-                    >
-                        <button
-                            onClick={() => setIsStudyMode(true)}
-                            aria-pressed={isStudyMode}
-                            className={`flex items-center gap-1.5 transition-all rounded-full px-3.5 py-1.5 text-xs ${
-                                isStudyMode
-                                    ? 'bg-white dark:bg-zinc-700 text-gray-900 dark:text-zinc-100 font-semibold shadow-sm ring-1 ring-black/5 dark:ring-white/10'
-                                    : 'text-gray-500 hover:text-gray-800 dark:text-zinc-400 dark:hover:text-zinc-200'
-                            }`}
-                        >
-                            <GraduationCap size={13} className={isStudyMode ? 'text-gray-900 dark:text-zinc-100' : 'text-zinc-400 dark:text-zinc-500'} />
-                            Study
-                        </button>
-                        <button
-                            onClick={() => setIsStudyMode(false)}
-                            aria-pressed={!isStudyMode}
-                            className={`flex items-center gap-1.5 transition-all rounded-full px-3.5 py-1.5 text-xs ${
-                                !isStudyMode
-                                    ? 'bg-white dark:bg-zinc-700 text-gray-900 dark:text-zinc-100 font-semibold shadow-sm ring-1 ring-black/5 dark:ring-white/10'
-                                    : 'text-gray-500 hover:text-gray-800 dark:text-zinc-400 dark:hover:text-zinc-200'
-                            }`}
-                        >
-                            <MessageSquare size={13} className={!isStudyMode ? 'text-gray-900 dark:text-zinc-100' : 'text-zinc-400 dark:text-zinc-500'} />
-                            General
-                        </button>
-                    </div>
-                </div>
+        {/* Right Group: high-contrast Connect / Connected status only */}
+        <div className="ml-auto flex items-center">
+          {isOpenRouterConnected ? (
+            <div className="h-8 flex items-center gap-1.5 select-none text-[11px] text-gray-500 dark:text-zinc-400 px-2">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+              </span>
+              Connected
+            </div>
+          ) : (
+            <button
+              onClick={handleOpenRouterConnect}
+              className="h-8 flex items-center gap-1 px-3 rounded-full bg-[#1f51ff] dark:bg-[#8aa2ff] text-white dark:text-[#0b0b0d] text-[11px] font-medium hover:opacity-90 transition-opacity shadow-sm"
+            >
+              <Key size={11} />
+              Connect
+            </button>
+          )}
+        </div>
+      </header>
 
-                {/* Right Group: high-contrast Connect / Connected status only */}
-                <div className="ml-auto flex items-center">
-                    {isOpenRouterConnected ? (
-                        <div className="h-8 flex items-center gap-1.5 select-none text-[11px] text-gray-500 dark:text-zinc-400 px-2">
-                            <span className="relative flex h-2 w-2">
-                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-                            </span>
-                            Connected
-                        </div>
-                    ) : (
-                        <button
-                            onClick={handleOpenRouterConnect}
-                            className="h-8 flex items-center gap-1 px-3 rounded-full bg-[#1f51ff] dark:bg-[#8aa2ff] text-white dark:text-[#0b0b0d] text-[11px] font-medium hover:opacity-90 transition-opacity shadow-sm"
-                        >
-                            <Key size={11} />
-                            Connect
-                        </button>
-                    )}
-                </div>
-            </header>
+      {/* Glassmorphic Connect Modal / Paywall Modal */}
+      {showConnectModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center"
+          style={{
+            background: 'rgba(0,0,0,0.5)',
+            backdropFilter: 'blur(8px)',
+            WebkitBackdropFilter: 'blur(8px)',
+          }}
+          onClick={() => setShowConnectModal(false)}
+        >
+          <div
+            className="relative w-full max-w-sm mx-4 rounded-2xl p-6 flex flex-col items-center text-center gap-4"
+            style={{
+              background: theme === 'dark' ? 'rgba(24, 24, 27, 0.92)' : 'rgba(255, 255, 255, 0.95)',
+              border:
+                theme === 'dark'
+                  ? '1px solid rgba(255,255,255,0.08)'
+                  : '1px solid rgba(0,0,0,0.08)',
+              boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              onClick={() => setShowConnectModal(false)}
+              className="absolute top-3 right-3 p-1 rounded-lg transition-colors"
+              style={{ color: theme === 'dark' ? '#71717a' : '#a1a1aa' }}
+            >
+              <X size={16} />
+            </button>
 
-            {/* Glassmorphic Connect Modal / Paywall Modal */}
-            {showConnectModal && (
-                <div
-                    className="fixed inset-0 z-50 flex items-center justify-center"
-                    style={{ background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}
-                    onClick={() => setShowConnectModal(false)}
-                >
-                    <div
-                        className="relative w-full max-w-sm mx-4 rounded-2xl p-6 flex flex-col items-center text-center gap-4"
-                        style={{
-                            background: theme === 'dark' ? 'rgba(24, 24, 27, 0.92)' : 'rgba(255, 255, 255, 0.95)',
-                            border: theme === 'dark' ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(0,0,0,0.08)',
-                            boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)',
-                        }}
-                        onClick={(e) => e.stopPropagation()}
-                    >
-                        <button
-                            onClick={() => setShowConnectModal(false)}
-                            className="absolute top-3 right-3 p-1 rounded-lg transition-colors"
-                            style={{ color: theme === 'dark' ? '#71717a' : '#a1a1aa' }}
-                        >
-                            <X size={16} />
-                        </button>
+            <div
+              className="w-12 h-12 rounded-full flex items-center justify-center"
+              style={{
+                background: theme === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
+              }}
+            >
+              <Key size={22} style={{ color: theme === 'dark' ? '#a1a1aa' : '#52525b' }} />
+            </div>
 
-                        <div
-                            className="w-12 h-12 rounded-full flex items-center justify-center"
-                            style={{
-                                background: theme === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
-                            }}
-                        >
-                            <Key size={22} style={{ color: theme === 'dark' ? '#a1a1aa' : '#52525b' }} />
-                        </div>
+            <div>
+              <h3
+                className="text-base font-semibold mb-1"
+                style={{ color: theme === 'dark' ? '#fafafa' : '#09090b' }}
+              >
+                {guestQueryCount >= 5
+                  ? "You've reached your 5 free searches"
+                  : 'Connect Your API Key'}
+              </h3>
+              <p
+                className="text-xs leading-relaxed"
+                style={{ color: theme === 'dark' ? '#71717a' : '#a1a1aa' }}
+              >
+                {guestQueryCount >= 5
+                  ? 'Connect your OpenRouter account to unlock unlimited AI processing with full model access.'
+                  : 'Link your OpenRouter account to unlock AI processing. It takes one click and is completely free.'}
+              </p>
+            </div>
 
-                        <div>
-                            <h3
-                                className="text-base font-semibold mb-1"
-                                style={{ color: theme === 'dark' ? '#fafafa' : '#09090b' }}
-                            >
-                                {guestQueryCount >= 5 ? "You've reached your 5 free searches" : "Connect Your API Key"}
-                            </h3>
-                            <p className="text-xs leading-relaxed" style={{ color: theme === 'dark' ? '#71717a' : '#a1a1aa' }}>
-                                {guestQueryCount >= 5
-                                    ? "Connect your OpenRouter account to unlock unlimited AI processing with full model access."
-                                    : "Link your OpenRouter account to unlock AI processing. It takes one click and is completely free."}
-                            </p>
-                        </div>
+            <button
+              onClick={handleOpenRouterConnect}
+              className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all hover:opacity-90 active:scale-[0.98]"
+              style={{
+                background: theme === 'dark' ? '#8aa2ff' : '#1f51ff',
+                color: theme === 'dark' ? '#0b0b0d' : '#ffffff',
+              }}
+            >
+              <Key size={14} />
+              Connect OpenRouter (1-Click)
+            </button>
 
-                        <button
-                            onClick={handleOpenRouterConnect}
-                            className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all hover:opacity-90 active:scale-[0.98]"
-                            style={{
-                                background: theme === 'dark' ? '#8aa2ff' : '#1f51ff',
-                                color: theme === 'dark' ? '#0b0b0d' : '#ffffff',
-                            }}
-                        >
-                            <Key size={14} />
-                            Connect OpenRouter (1-Click)
-                        </button>
+            <button
+              onClick={() => setShowConnectModal(false)}
+              className="text-[11px] font-medium transition-colors"
+              style={{ color: theme === 'dark' ? '#52525b' : '#a1a1aa' }}
+            >
+              Maybe later
+            </button>
+          </div>
+        </div>
+      )}
 
-                        <button
-                            onClick={() => setShowConnectModal(false)}
-                            className="text-[11px] font-medium transition-colors"
-                            style={{ color: theme === 'dark' ? '#52525b' : '#a1a1aa' }}
-                        >
-                            Maybe later
-                        </button>
-                    </div>
-                </div>
-            )}
-
-            {/* Linking OpenRouter — Glassmorphic Connecting Modal */}
-            {isConnectingOpenRouter && (
-                <div
-                    className="fixed inset-0 z-[100] flex items-center justify-center"
-                    style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)' }}
-                >
-                    <style dangerouslySetInnerHTML={{ __html: `
+      {/* Linking OpenRouter — Glassmorphic Connecting Modal */}
+      {isConnectingOpenRouter && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center"
+          style={{
+            background: 'rgba(0,0,0,0.6)',
+            backdropFilter: 'blur(12px)',
+            WebkitBackdropFilter: 'blur(12px)',
+          }}
+        >
+          <style
+            dangerouslySetInnerHTML={{
+              __html: `
                         @keyframes or-pulse-ring {
                             0% { transform: scale(0.85); opacity: 0.6; }
                             50% { transform: scale(1.15); opacity: 0.2; }
@@ -732,235 +789,278 @@ export default function ChatMainArea({
                             0%, 80%, 100% { opacity: 0.2; }
                             40% { opacity: 1; }
                         }
-                    `}} />
-                    <div
-                        className="relative w-full max-w-sm mx-4 rounded-3xl p-8 flex flex-col items-center text-center gap-5"
-                        style={{
-                            background: theme === 'dark' ? 'rgba(14, 14, 16, 0.92)' : 'rgba(255, 255, 255, 0.95)',
-                            border: theme === 'dark' ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(0,0,0,0.06)',
-                            boxShadow: '0 32px 64px -12px rgba(0,0,0,0.6)',
-                        }}
-                    >
-                        {/* Animated pulsing icon area */}
-                        <div className="relative w-20 h-20 flex items-center justify-center">
-                            {/* Pulse rings */}
-                            <div
-                                className="absolute inset-0 rounded-full"
-                                style={{
-                                    border: theme === 'dark' ? '2px solid rgba(255, 255, 255, 0.18)' : '2px solid rgba(0, 0, 0, 0.14)',
-                                    animation: 'or-pulse-ring 2s ease-in-out infinite',
-                                }}
-                            />
-                            <div
-                                className="absolute rounded-full"
-                                style={{
-                                    inset: '-8px',
-                                    border: theme === 'dark' ? '1px solid rgba(255, 255, 255, 0.10)' : '1px solid rgba(0, 0, 0, 0.08)',
-                                    animation: 'or-pulse-ring 2s ease-in-out 0.5s infinite',
-                                }}
-                            />
-                            {/* Icon container */}
-                            <div
-                                className="relative z-10 w-14 h-14 rounded-2xl flex items-center justify-center"
-                                style={{
-                                    background: theme === 'dark'
-                                        ? 'linear-gradient(135deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02))'
-                                        : 'linear-gradient(135deg, rgba(0, 0, 0, 0.04), rgba(0, 0, 0, 0.02))',
-                                    border: theme === 'dark' ? '1px solid rgba(255, 255, 255, 0.12)' : '1px solid rgba(0, 0, 0, 0.10)',
-                                    animation: 'or-icon-float 3s ease-in-out infinite',
-                                }}
-                            >
-                                <Sparkles size={24} style={{ color: theme === 'dark' ? '#e4e4e7' : '#52525b' }} />
-                            </div>
-                        </div>
-
-                        {/* Text */}
-                        <div>
-                            <h3
-                                className="text-lg font-bold tracking-tight mb-1.5"
-                                style={{ color: theme === 'dark' ? '#fafafa' : '#09090b' }}
-                            >
-                                Linking OpenRouter Account
-                            </h3>
-                            <p className="text-sm leading-relaxed" style={{ color: theme === 'dark' ? '#71717a' : '#a1a1aa' }}>
-                                Please complete authorization in the popup window
-                                <span style={{ animation: 'or-dots 1.4s infinite 0s', display: 'inline-block' }}>.</span>
-                                <span style={{ animation: 'or-dots 1.4s infinite 0.2s', display: 'inline-block' }}>.</span>
-                                <span style={{ animation: 'or-dots 1.4s infinite 0.4s', display: 'inline-block' }}>.</span>
-                            </p>
-                        </div>
-
-                        {/* Cancel button */}
-                        <button
-                            onClick={() => {
-                                if (popupRef.current && !popupRef.current.closed) {
-                                    popupRef.current.close();
-                                }
-                                popupRef.current = null;
-                                setIsConnectingOpenRouter(false);
-                            }}
-                            className="px-5 py-2 rounded-xl text-xs font-semibold transition-all hover:opacity-80 active:scale-[0.97]"
-                            style={{
-                                background: theme === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
-                                border: theme === 'dark' ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.08)',
-                                color: theme === 'dark' ? '#a1a1aa' : '#52525b',
-                            }}
-                        >
-                            Cancel
-                        </button>
-                    </div>
-                </div>
-            )}
-
-            {/* Success Toast */}
-            {showSuccessToast && (
-                <div
-                    className="fixed top-6 left-1/2 -translate-x-1/2 z-[200] flex items-center gap-2.5 px-5 py-3 rounded-2xl shadow-2xl"
-                    style={{
-                        background: theme === 'dark' ? '#0f1d15' : '#ecfdf5',
-                        border: theme === 'dark' ? '1px solid rgba(16, 185, 129, 0.2)' : '1px solid rgba(16, 185, 129, 0.3)',
-                        animation: 'guide-scale-up 0.3s ease-out',
-                    }}
-                >
-                    <div
-                        className="w-6 h-6 rounded-full flex items-center justify-center"
-                        style={{ background: 'rgba(16, 185, 129, 0.15)' }}
-                    >
-                        <Check size={13} style={{ color: '#10b981' }} />
-                    </div>
-                    <span className="text-sm font-semibold" style={{ color: theme === 'dark' ? '#34d399' : '#059669' }}>
-                        OpenRouter connected successfully!
-                    </span>
-                    <button
-                        onClick={() => setShowSuccessToast(false)}
-                        className="ml-1 p-0.5 rounded transition-colors hover:bg-black/10"
-                        style={{ color: theme === 'dark' ? '#34d399' : '#059669' }}
-                    >
-                        <X size={12} />
-                    </button>
-                </div>
-            )}
-
-            {/* Messages area — no pt-20 needed since header is no longer absolute */}
-            <div className="flex-1 overflow-y-auto min-h-0 flex flex-col">
-
-                {!hasMessages ? (
-                    <div className="min-h-[75vh] flex flex-col justify-center items-center text-center max-w-2xl mx-auto w-full px-4">
-                        {/* Hidden File Input */}
-                        <input
-                            type="file"
-                            ref={fileInputRef}
-                            className="hidden"
-                            onChange={(e) => {
-                                if (e.target.files && e.target.files[0]) {
-                                    setInputValue((prev) => `${prev} Attached: ${e.target.files![0].name} `);
-                                    setTimeout(() => centerInputRef.current?.focus(), 50);
-                                }
-                            }}
-                        />
-
-                        {/* Heading */}
-                        <h1
-                            className="text-3xl font-bold tracking-tight text-center mb-2"
-                            style={{ color: theme === 'dark' ? '#ffffff' : '#09090b' }}
-                        >
-                            {isStudyMode ? 'Level up your studying' : 'What can I help you with?'}
-                        </h1>
-                        <p className="text-sm text-center mb-0 max-w-md leading-relaxed" style={{ color: theme === 'dark' ? '#9ca0ab' : '#71717a' }}>
-                            {isStudyMode
-                                ? 'Ask anything, paste notes, or trigger a study workflow below.'
-                                : 'Ask anything — code, writing, analysis, or just a question.'}
-                        </p>
-
-                        {/* Elevated Command Input — new PromptInput composer */}
-                        <PromptInput
-                            value={inputValue}
-                            onChange={setInputValue}
-                            onSubmit={(text, meta) => {
-                                // Map the display name back to a real model id for the API
-                                const model = MODELS.find((m) => m.name === meta.model);
-                                if (model) setSelectedModel(model.id);
-                                if (meta.attachments.length) {
-                                    setAttachedFiles(meta.attachments);
-                                    setPreviewUrls(meta.attachments.map((f) => URL.createObjectURL(f)));
-                                }
-                                handleSend(text, meta.attachments);
-                            }}
-                            models={MODELS.map((m) => m.name)}
-                            efforts={["Quick", "Balanced", "Deep"]}
-                            placeholder="Ask anything or type / for commands..."
-                            className="mx-auto w-full max-w-2xl mt-6 mb-2"
-                        />
-
-                        {/* Compact prompt chips — swaps per mode */}
-                        <div className="flex flex-wrap items-center justify-center gap-2 mt-6 max-w-xl mx-auto">
-                            {(isStudyMode ? studyQuickActions : GENERAL_QUICK_ACTIONS).map((action) => (
-                                <button
-                                    key={action.label}
-                                    type="button"
-                                    onClick={() => {
-                                        if (action.prompt) {
-                                            setInputValue(action.prompt);
-                                            setTimeout(() => centerInputRef.current?.focus(), 50);
-                                        }
-                                    }}
-                                    className="px-3 py-1.5 rounded-full border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 text-xs font-medium text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer flex items-center gap-1.5"
-                                >
-                                    <action.icon size={13} className="text-zinc-400 dark:text-zinc-500" />
-                                    {action.label}
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-                ) : (
-                    <div className="max-w-3xl mx-auto w-full px-4 py-6 space-y-6">
-                        {messages.map((msg) => (
-                            <ChatMessageBubble key={msg.id} message={msg} theme={theme} />
-                        ))}
-                        {isStreaming && <StreamingIndicator />}
-                        <div ref={messagesEndRef} />
-                    </div>
-                )}
+                    `,
+            }}
+          />
+          <div
+            className="relative w-full max-w-sm mx-4 rounded-3xl p-8 flex flex-col items-center text-center gap-5"
+            style={{
+              background: theme === 'dark' ? 'rgba(14, 14, 16, 0.92)' : 'rgba(255, 255, 255, 0.95)',
+              border:
+                theme === 'dark'
+                  ? '1px solid rgba(255,255,255,0.08)'
+                  : '1px solid rgba(0,0,0,0.06)',
+              boxShadow: '0 32px 64px -12px rgba(0,0,0,0.6)',
+            }}
+          >
+            {/* Animated pulsing icon area */}
+            <div className="relative w-20 h-20 flex items-center justify-center">
+              {/* Pulse rings */}
+              <div
+                className="absolute inset-0 rounded-full"
+                style={{
+                  border:
+                    theme === 'dark'
+                      ? '2px solid rgba(255, 255, 255, 0.18)'
+                      : '2px solid rgba(0, 0, 0, 0.14)',
+                  animation: 'or-pulse-ring 2s ease-in-out infinite',
+                }}
+              />
+              <div
+                className="absolute rounded-full"
+                style={{
+                  inset: '-8px',
+                  border:
+                    theme === 'dark'
+                      ? '1px solid rgba(255, 255, 255, 0.10)'
+                      : '1px solid rgba(0, 0, 0, 0.08)',
+                  animation: 'or-pulse-ring 2s ease-in-out 0.5s infinite',
+                }}
+              />
+              {/* Icon container */}
+              <div
+                className="relative z-10 w-14 h-14 rounded-2xl flex items-center justify-center"
+                style={{
+                  background:
+                    theme === 'dark'
+                      ? 'linear-gradient(135deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02))'
+                      : 'linear-gradient(135deg, rgba(0, 0, 0, 0.04), rgba(0, 0, 0, 0.02))',
+                  border:
+                    theme === 'dark'
+                      ? '1px solid rgba(255, 255, 255, 0.12)'
+                      : '1px solid rgba(0, 0, 0, 0.10)',
+                  animation: 'or-icon-float 3s ease-in-out infinite',
+                }}
+              >
+                <Sparkles size={24} style={{ color: theme === 'dark' ? '#e4e4e7' : '#52525b' }} />
+              </div>
             </div>
 
-            {/* Input bar — shown at bottom only when conversation is active */}
-            {hasMessages && (
-                <div className="sticky bottom-0 w-full max-w-3xl mx-auto z-10 px-4 pb-4"
-                    style={{
-                        background: theme === 'dark' ? 'rgba(8,8,9,0.7)' : 'rgba(249,249,251,0.7)',
-                        backdropFilter: 'blur(14px)', WebkitBackdropFilter: 'blur(14px)',
-                        borderTop: theme === 'dark' ? '1px solid rgba(255,255,255,0.06)' : '1px solid rgba(31,81,255,0.06)',
-                    }}
-                >
-                    <PromptInput
-                        onSubmit={(text, meta) => {
-                            // Map the display name back to a real model id for the API
-                            const model = MODELS.find((m) => m.name === meta.model);
-                            if (model) setSelectedModel(model.id);
-                            // Pass attachments explicitly so /api/chat gets them even before
-                            // the state update flushes; also sync hero/state preview.
-                            if (meta.attachments.length) {
-                                setAttachedFiles(meta.attachments);
-                                setPreviewUrls(meta.attachments.map((f) => URL.createObjectURL(f)));
-                            }
-                            handleSend(text, meta.attachments);
-                        }}
-                        models={MODELS.map((m) => m.name)}
-                        efforts={["Quick", "Balanced", "Deep"]}
-                        placeholder={
-                            !isStudyMode
-                                ? 'Ask a question or request help...'
-                                : mode === 'sprint'
-                                    ? 'Ask for a quick summary, formula, or cram tip...'
-                                    : 'Ask for a full explanation, proof, or derivation...'
-                        }
-                        className="mx-auto w-full max-w-3xl mt-3"
-                    />
-                    <p className="text-[11px] text-center mt-2" style={{ color: theme === 'dark' ? '#71717a' : '#a1a1aa' }}>
-                        e-Mate can make mistakes. Verify important exam answers.
-                    </p>
-                </div>
-            )}
+            {/* Text */}
+            <div>
+              <h3
+                className="text-lg font-bold tracking-tight mb-1.5"
+                style={{ color: theme === 'dark' ? '#fafafa' : '#09090b' }}
+              >
+                Linking OpenRouter Account
+              </h3>
+              <p
+                className="text-sm leading-relaxed"
+                style={{ color: theme === 'dark' ? '#71717a' : '#a1a1aa' }}
+              >
+                Please complete authorization in the popup window
+                <span style={{ animation: 'or-dots 1.4s infinite 0s', display: 'inline-block' }}>
+                  .
+                </span>
+                <span style={{ animation: 'or-dots 1.4s infinite 0.2s', display: 'inline-block' }}>
+                  .
+                </span>
+                <span style={{ animation: 'or-dots 1.4s infinite 0.4s', display: 'inline-block' }}>
+                  .
+                </span>
+              </p>
+            </div>
+
+            {/* Cancel button */}
+            <button
+              onClick={() => {
+                if (popupRef.current && !popupRef.current.closed) {
+                  popupRef.current.close();
+                }
+                popupRef.current = null;
+                setIsConnectingOpenRouter(false);
+              }}
+              className="px-5 py-2 rounded-xl text-xs font-semibold transition-all hover:opacity-80 active:scale-[0.97]"
+              style={{
+                background: theme === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
+                border:
+                  theme === 'dark'
+                    ? '1px solid rgba(255,255,255,0.1)'
+                    : '1px solid rgba(0,0,0,0.08)',
+                color: theme === 'dark' ? '#a1a1aa' : '#52525b',
+              }}
+            >
+              Cancel
+            </button>
+          </div>
         </div>
-    );
+      )}
+
+      {/* Success Toast */}
+      {showSuccessToast && (
+        <div
+          className="fixed top-6 left-1/2 -translate-x-1/2 z-[200] flex items-center gap-2.5 px-5 py-3 rounded-2xl shadow-2xl"
+          style={{
+            background: theme === 'dark' ? '#0f1d15' : '#ecfdf5',
+            border:
+              theme === 'dark'
+                ? '1px solid rgba(16, 185, 129, 0.2)'
+                : '1px solid rgba(16, 185, 129, 0.3)',
+            animation: 'guide-scale-up 0.3s ease-out',
+          }}
+        >
+          <div
+            className="w-6 h-6 rounded-full flex items-center justify-center"
+            style={{ background: 'rgba(16, 185, 129, 0.15)' }}
+          >
+            <Check size={13} style={{ color: '#10b981' }} />
+          </div>
+          <span
+            className="text-sm font-semibold"
+            style={{ color: theme === 'dark' ? '#34d399' : '#059669' }}
+          >
+            OpenRouter connected successfully!
+          </span>
+          <button
+            onClick={() => setShowSuccessToast(false)}
+            className="ml-1 p-0.5 rounded transition-colors hover:bg-black/10"
+            style={{ color: theme === 'dark' ? '#34d399' : '#059669' }}
+          >
+            <X size={12} />
+          </button>
+        </div>
+      )}
+
+      {/* Messages area — no pt-20 needed since header is no longer absolute */}
+      <div className="flex-1 overflow-y-auto min-h-0 flex flex-col">
+        {!hasMessages ? (
+          <div className="min-h-[75vh] flex flex-col justify-center items-center text-center max-w-2xl mx-auto w-full px-4">
+            {/* Hidden File Input */}
+            <input
+              type="file"
+              ref={fileInputRef}
+              className="hidden"
+              onChange={(e) => {
+                if (e.target.files && e.target.files[0]) {
+                  setInputValue((prev) => `${prev} Attached: ${e.target.files![0].name} `);
+                  setTimeout(() => centerInputRef.current?.focus(), 50);
+                }
+              }}
+            />
+
+            {/* Heading */}
+            <h1
+              className="text-3xl font-bold tracking-tight text-center mb-2"
+              style={{ color: theme === 'dark' ? '#ffffff' : '#09090b' }}
+            >
+              {isStudyMode ? 'Level up your studying' : 'What can I help you with?'}
+            </h1>
+            <p
+              className="text-sm text-center mb-0 max-w-md leading-relaxed"
+              style={{ color: theme === 'dark' ? '#9ca0ab' : '#71717a' }}
+            >
+              {isStudyMode
+                ? 'Ask anything, paste notes, or trigger a study workflow below.'
+                : 'Ask anything — code, writing, analysis, or just a question.'}
+            </p>
+
+            {/* Elevated Command Input — new PromptInput composer */}
+            <PromptInput
+              value={inputValue}
+              onChange={setInputValue}
+              onSubmit={(text, meta) => {
+                // Map the display name back to a real model id for the API
+                const model = MODELS.find((m) => m.name === meta.model);
+                if (model) setSelectedModel(model.id);
+                if (meta.attachments.length) {
+                  setAttachedFiles(meta.attachments);
+                  setPreviewUrls(meta.attachments.map((f) => URL.createObjectURL(f)));
+                }
+                handleSend(text, meta.attachments);
+              }}
+              models={MODELS.map((m) => m.name)}
+              efforts={['Quick', 'Balanced', 'Deep']}
+              placeholder="Ask anything or type / for commands..."
+              className="mx-auto w-full max-w-2xl mt-6 mb-2"
+            />
+
+            {/* Compact prompt chips — swaps per mode */}
+            <div className="flex flex-wrap items-center justify-center gap-2 mt-6 max-w-xl mx-auto">
+              {(isStudyMode ? studyQuickActions : GENERAL_QUICK_ACTIONS).map((action) => (
+                <button
+                  key={action.label}
+                  type="button"
+                  onClick={() => {
+                    if (action.prompt) {
+                      setInputValue(action.prompt);
+                      setTimeout(() => centerInputRef.current?.focus(), 50);
+                    }
+                  }}
+                  className="px-3 py-1.5 rounded-full border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 text-xs font-medium text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer flex items-center gap-1.5"
+                >
+                  <action.icon size={13} className="text-zinc-400 dark:text-zinc-500" />
+                  {action.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div className="max-w-3xl mx-auto w-full px-4 py-6 space-y-6">
+            {messages.map((msg) => (
+              <ChatMessageBubble key={msg.id} message={msg} theme={theme} />
+            ))}
+            {isStreaming && <StreamingIndicator />}
+            <div ref={messagesEndRef} />
+          </div>
+        )}
+      </div>
+
+      {/* Input bar — shown at bottom only when conversation is active */}
+      {hasMessages && (
+        <div
+          className="sticky bottom-0 w-full max-w-3xl mx-auto z-10 px-4 pb-4"
+          style={{
+            background: theme === 'dark' ? 'rgba(8,8,9,0.7)' : 'rgba(249,249,251,0.7)',
+            backdropFilter: 'blur(14px)',
+            WebkitBackdropFilter: 'blur(14px)',
+            borderTop:
+              theme === 'dark'
+                ? '1px solid rgba(255,255,255,0.06)'
+                : '1px solid rgba(31,81,255,0.06)',
+          }}
+        >
+          <PromptInput
+            onSubmit={(text, meta) => {
+              // Map the display name back to a real model id for the API
+              const model = MODELS.find((m) => m.name === meta.model);
+              if (model) setSelectedModel(model.id);
+              // Pass attachments explicitly so /api/chat gets them even before
+              // the state update flushes; also sync hero/state preview.
+              if (meta.attachments.length) {
+                setAttachedFiles(meta.attachments);
+                setPreviewUrls(meta.attachments.map((f) => URL.createObjectURL(f)));
+              }
+              handleSend(text, meta.attachments);
+            }}
+            models={MODELS.map((m) => m.name)}
+            efforts={['Quick', 'Balanced', 'Deep']}
+            placeholder={
+              !isStudyMode
+                ? 'Ask a question or request help...'
+                : mode === 'sprint'
+                  ? 'Ask for a quick summary, formula, or cram tip...'
+                  : 'Ask for a full explanation, proof, or derivation...'
+            }
+            className="mx-auto w-full max-w-3xl mt-3"
+          />
+          <p
+            className="text-[11px] text-center mt-2"
+            style={{ color: theme === 'dark' ? '#71717a' : '#a1a1aa' }}
+          >
+            e-Mate can make mistakes. Verify important exam answers.
+          </p>
+        </div>
+      )}
+    </div>
+  );
 }

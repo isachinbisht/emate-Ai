@@ -42,7 +42,7 @@ export function saveChatSession(item: ChatHistoryItem): void {
   if (typeof window === 'undefined') return;
   try {
     const list = getChatHistory();
-    const existingIdx = list.findIndex(c => c.id === item.id);
+    const existingIdx = list.findIndex((c) => c.id === item.id);
     let updated: ChatHistoryItem[];
     if (existingIdx >= 0) {
       // update title / timestamp if the session already exists
@@ -62,10 +62,12 @@ export function saveChatSession(item: ChatHistoryItem): void {
 export function deleteChatSession(id: string): void {
   if (typeof window === 'undefined') return;
   try {
-    const updated = getChatHistory().filter(c => c.id !== id);
+    const updated = getChatHistory().filter((c) => c.id !== id);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
     dispatch();
-  } catch { /* empty */ }
+  } catch {
+    /* empty */
+  }
 }
 
 export function clearChatHistory(): void {

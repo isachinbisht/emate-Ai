@@ -1,4 +1,3 @@
-
 // Ultra-fast primary model (TTFT ~200-400ms via Nitro routing)
 const PRIMARY_MODEL = 'google/gemini-2.0-flash-001';
 
@@ -13,17 +12,19 @@ function getCookie(cookieHeader: string | null, name: string): string | undefine
 
 export async function POST(req: Request) {
   try {
-    const { messages, mode, subject, unit, model, notebookContext, isGeneralChat, attachments } = await req.json();
+    const { messages, mode, subject, unit, model, notebookContext, isGeneralChat, attachments } =
+      await req.json();
 
     const cookieHeader = req.headers.get('cookie');
     const userKey = getCookie(cookieHeader, 'user_openrouter_key');
-    const apiKey = userKey || process.env.OPENROUTER_SERVER_FREE_KEY || process.env.OPENROUTER_API_KEY;
-
+    const apiKey =
+      userKey || process.env.OPENROUTER_SERVER_FREE_KEY || process.env.OPENROUTER_API_KEY;
 
     if (!apiKey || apiKey === 'your-openrouter-api-key-here') {
       return new Response(
         JSON.stringify({
-          error: 'OpenRouter API key is missing. Please connect your OpenRouter account to unlock unlimited access.',
+          error:
+            'OpenRouter API key is missing. Please connect your OpenRouter account to unlock unlimited access.',
         }),
         { status: 400, headers: { 'Content-Type': 'application/json' } }
       );
@@ -46,10 +47,11 @@ export async function POST(req: Request) {
       // Bypass heavy notebook context if the user's input is very short (e.g., "hi", "hello")
       const lastMessageContent = messages.length > 0 ? messages[messages.length - 1].content : '';
       const isShortGreeting = lastMessageContent.trim().split(/\s+/).length < 5;
-      
-      const notebookSection = (notebookContext && !isShortGreeting)
-        ? `\n\n## Student's Personal Notebook for ${subject} (USE THIS to personalise answers):\n${notebookContext}\n\nAlways reference relevant notebook entries when answering to make answers feel personalised.`
-        : '';
+
+      const notebookSection =
+        notebookContext && !isShortGreeting
+          ? `\n\n## Student's Personal Notebook for ${subject} (USE THIS to personalise answers):\n${notebookContext}\n\nAlways reference relevant notebook entries when answering to make answers feel personalised.`
+          : '';
 
       const modeInstruction =
         mode === 'sprint'
@@ -81,18 +83,18 @@ export async function POST(req: Request) {
       ...cappedMessages.map((m: any, index: number) => {
         // If this is the last message and we have attachments, format as multimodal array
         if (index === cappedMessages.length - 1 && attachments && attachments.length > 0) {
-            const contentArray: any[] = [{ type: 'text', text: m.content }];
-            attachments.forEach((att: any) => {
-                if (att.mimeType?.startsWith('image/')) {
-                    contentArray.push({
-                        type: 'image_url',
-                        image_url: { url: `data:${att.mimeType};base64,${att.data}` }
-                    });
-                }
-            });
-            return { role: m.role, content: contentArray };
+          const contentArray: any[] = [{ type: 'text', text: m.content }];
+          attachments.forEach((att: any) => {
+            if (att.mimeType?.startsWith('image/')) {
+              contentArray.push({
+                type: 'image_url',
+                image_url: { url: `data:${att.mimeType};base64,${att.data}` },
+              });
+            }
+          });
+          return { role: m.role, content: contentArray };
         }
-        
+
         return {
           role: m.role,
           content: m.content,
@@ -104,7 +106,7 @@ export async function POST(req: Request) {
     const upstreamRes = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${apiKey}`,
+        Authorization: `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
         'HTTP-Referer': 'https://emate-ai.vercel.app',
         'X-Title': 'e-Mate AI',
@@ -113,9 +115,9 @@ export async function POST(req: Request) {
         model: selectedModel,
         messages: formattedMessages,
         stream: true,
-        max_tokens: 1200,       // Cap to minimise latency & cost
+        max_tokens: 1200, // Cap to minimise latency & cost
         temperature: 0.7,
-        transforms: [],          // Skip OpenRouter post-processing for zero added latency
+        transforms: [], // Skip OpenRouter post-processing for zero added latency
         provider: {
           order: ['Nitro', 'Together', 'Groq'], // Highest TPS providers first
           allow_fallbacks: true,
@@ -125,7 +127,8 @@ export async function POST(req: Request) {
 
     if (!upstreamRes.ok || !upstreamRes.body) {
       const errData = await upstreamRes.json().catch(() => ({}));
-      const errMsg = (errData as any)?.error?.message || `OpenRouter API error: ${upstreamRes.statusText}`;
+      const errMsg =
+        (errData as any)?.error?.message || `OpenRouter API error: ${upstreamRes.statusText}`;
       return new Response(JSON.stringify({ error: errMsg }), {
         status: upstreamRes.status,
         headers: { 'Content-Type': 'application/json' },
@@ -178,7 +181,9 @@ export async function POST(req: Request) {
             if (typeof delta === 'string' && delta.length > 0) {
               await writer.write(encoder.encode(`data: ${JSON.stringify(delta)}\n\n`));
             }
-          } catch { /* ignore */ }
+          } catch {
+            /* ignore */
+          }
         }
 
         await writer.write(encoder.encode('data: [DONE]\n\n'));
@@ -193,8 +198,8 @@ export async function POST(req: Request) {
       headers: {
         'Content-Type': 'text/event-stream; charset=utf-8',
         'Cache-Control': 'no-cache, no-transform',
-        'Connection': 'keep-alive',
-        'X-Accel-Buffering': 'no',       // Disable Nginx/Vercel proxy buffering
+        Connection: 'keep-alive',
+        'X-Accel-Buffering': 'no', // Disable Nginx/Vercel proxy buffering
         'X-Content-Type-Options': 'nosniff', // Prevent browser content-sniffing delays
       },
     });

@@ -16,8 +16,7 @@ export interface SubjectNotebook {
   updatedAt: string;
 }
 
-const storageKey = (subject: string) =>
-  `nk-notebook-${subject.toLowerCase().replace(/\s+/g, '-')}`;
+const storageKey = (subject: string) => `nk-notebook-${subject.toLowerCase().replace(/\s+/g, '-')}`;
 
 /**
  * Load the notebook for a given subject from localStorage.
@@ -41,7 +40,10 @@ export function getNotebook(subject: string): SubjectNotebook {
 export function saveNotebook(subject: string, notebook: SubjectNotebook): void {
   if (typeof window === 'undefined') return;
   try {
-    localStorage.setItem(storageKey(subject), JSON.stringify({ ...notebook, updatedAt: new Date().toISOString() }));
+    localStorage.setItem(
+      storageKey(subject),
+      JSON.stringify({ ...notebook, updatedAt: new Date().toISOString() })
+    );
     window.dispatchEvent(new CustomEvent('nk-notebook-change', { detail: { subject } }));
   } catch {
     // storage quota exceeded — silently ignore
@@ -51,7 +53,11 @@ export function saveNotebook(subject: string, notebook: SubjectNotebook): void {
 /**
  * Append a single entry to the subject's notebook.
  */
-export function appendToNotebook(subject: string, content: string, source: 'ai' | 'user' = 'ai'): void {
+export function appendToNotebook(
+  subject: string,
+  content: string,
+  source: 'ai' | 'user' = 'ai'
+): void {
   const nb = getNotebook(subject);
   const entry: NotebookEntry = {
     id: `note-${Date.now()}`,
@@ -92,12 +98,13 @@ export function buildNotebookContext(subject: string): string {
     .slice(-10) // only last 10 entries for token efficiency
     .map((e) => `- ${e.content}`)
     .join('\n');
-  return `\n\n## ${subject} — Your Personal Notebook (use this to personalise answers):\n${lines}`;}
+  return `\n\n## ${subject} — Your Personal Notebook (use this to personalise answers):\n${lines}`;
+}
 
 export interface Subject {
   id: string;
   name: string;
-  units: { id: string; name: string; }[];
+  units: { id: string; name: string }[];
 }
 
 const STATIC_SUBJECTS: Subject[] = [];
@@ -118,11 +125,11 @@ export function getSubjects(): Subject[] {
 
 export function addSubject(name: string): Subject[] {
   const list = getSubjects();
-  if (list.some(s => s.name.toLowerCase() === name.toLowerCase())) return list;
+  if (list.some((s) => s.name.toLowerCase() === name.toLowerCase())) return list;
   const newSubj: Subject = {
     id: `subj-${Date.now()}`,
     name,
-    units: [{ id: `unit-${Date.now()}-1`, name: 'Introduction & Context Setup' }]
+    units: [{ id: `unit-${Date.now()}-1`, name: 'Introduction & Context Setup' }],
   };
   const updated = [...list, newSubj];
   localStorage.setItem('nk-custom-subjects', JSON.stringify(updated));
@@ -135,13 +142,13 @@ export function addSubject(name: string): Subject[] {
  */
 export function deleteSubject(subjectId: string): Subject[] {
   const list = getSubjects();
-  const subjectToDelete = list.find(s => s.id === subjectId);
+  const subjectToDelete = list.find((s) => s.id === subjectId);
   if (subjectToDelete) {
     // Also clear notes stored for this subject
     const key = `nk-notebook-${subjectToDelete.name.toLowerCase().replace(/\s+/g, '-')}`;
     if (typeof window !== 'undefined') localStorage.removeItem(key);
   }
-  const updated = list.filter(s => s.id !== subjectId);
+  const updated = list.filter((s) => s.id !== subjectId);
   if (typeof window !== 'undefined') {
     localStorage.setItem('nk-custom-subjects', JSON.stringify(updated));
     window.dispatchEvent(new Event('nk-subjects-changed'));
@@ -154,14 +161,13 @@ export function deleteSubject(subjectId: string): Subject[] {
  */
 export function renameSubject(subjectId: string, newName: string): Subject[] {
   const list = getSubjects();
-  if (list.some(s => s.name.toLowerCase() === newName.toLowerCase() && s.id !== subjectId)) {
+  if (list.some((s) => s.name.toLowerCase() === newName.toLowerCase() && s.id !== subjectId)) {
     return list; // name collision
   }
-  const updated = list.map(s => s.id === subjectId ? { ...s, name: newName } : s);
+  const updated = list.map((s) => (s.id === subjectId ? { ...s, name: newName } : s));
   if (typeof window !== 'undefined') {
     localStorage.setItem('nk-custom-subjects', JSON.stringify(updated));
     window.dispatchEvent(new Event('nk-subjects-changed'));
   }
   return updated;
 }
-

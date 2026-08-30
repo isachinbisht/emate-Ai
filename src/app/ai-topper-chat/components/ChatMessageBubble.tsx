@@ -101,7 +101,9 @@ function renderMarkdown(text: string, theme: 'light' | 'dark' = 'dark'): React.R
           <div
             key={`table-${i}`}
             className="my-3 overflow-x-auto rounded-xl"
-            style={{ border: isDark ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.08)' }}
+            style={{
+              border: isDark ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.08)',
+            }}
           >
             <table className="w-full text-xs">
               <thead>
@@ -110,7 +112,12 @@ function renderMarkdown(text: string, theme: 'light' | 'dark' = 'dark'): React.R
                     <th
                       key={`th-${ci}`}
                       className="px-3 py-2 text-left font-semibold"
-                      style={{ color: isDark ? '#ececec' : '#000000', borderBottom: isDark ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(0,0,0,0.06)' }}
+                      style={{
+                        color: isDark ? '#ececec' : '#000000',
+                        borderBottom: isDark
+                          ? '1px solid rgba(255,255,255,0.08)'
+                          : '1px solid rgba(0,0,0,0.06)',
+                      }}
                     >
                       {cell}
                     </th>
@@ -121,11 +128,19 @@ function renderMarkdown(text: string, theme: 'light' | 'dark' = 'dark'): React.R
                 {rows.slice(1).map((row, ri) => (
                   <tr
                     key={`tr-${ri}`}
-                    style={{ borderBottom: isDark ? '1px solid rgba(255,255,255,0.06)' : '1px solid rgba(0,0,0,0.04)' }}
+                    style={{
+                      borderBottom: isDark
+                        ? '1px solid rgba(255,255,255,0.06)'
+                        : '1px solid rgba(0,0,0,0.04)',
+                    }}
                     className="last:border-0"
                   >
                     {row.map((cell, ci) => (
-                      <td key={`td-${ri}-${ci}`} className="px-3 py-2" style={{ color: isDark ? '#b4b4b4' : '#27272a' }}>
+                      <td
+                        key={`td-${ri}-${ci}`}
+                        className="px-3 py-2"
+                        style={{ color: isDark ? '#b4b4b4' : '#27272a' }}
+                      >
                         {cell}
                       </td>
                     ))}
@@ -141,7 +156,11 @@ function renderMarkdown(text: string, theme: 'light' | 'dark' = 'dark'): React.R
 
     if (line.startsWith('## ')) {
       result.push(
-        <h2 key={`h2-${i}`} className="text-base font-semibold mt-4 mb-2" style={{ color: isDark ? '#ececec' : '#000000' }}>
+        <h2
+          key={`h2-${i}`}
+          className="text-base font-semibold mt-4 mb-2"
+          style={{ color: isDark ? '#ececec' : '#000000' }}
+        >
           {line.slice(3)}
         </h2>
       );
@@ -151,7 +170,11 @@ function renderMarkdown(text: string, theme: 'light' | 'dark' = 'dark'): React.R
 
     if (line.startsWith('### ')) {
       result.push(
-        <h3 key={`h3-${i}`} className="text-sm font-semibold mt-3 mb-1.5" style={{ color: isDark ? '#ececec' : '#000000' }}>
+        <h3
+          key={`h3-${i}`}
+          className="text-sm font-semibold mt-3 mb-1.5"
+          style={{ color: isDark ? '#ececec' : '#000000' }}
+        >
           {line.slice(4)}
         </h3>
       );
@@ -173,7 +196,10 @@ function renderMarkdown(text: string, theme: 'light' | 'dark' = 'dark'): React.R
               className="text-sm leading-relaxed flex items-start gap-2"
               style={{ color: isDark ? '#b4b4b4' : '#27272a' }}
             >
-              <span className="w-1 h-1 rounded-full mt-2.5 shrink-0" style={{ background: '#1f51ff' }} />
+              <span
+                className="w-1 h-1 rounded-full mt-2.5 shrink-0"
+                style={{ background: '#1f51ff' }}
+              />
               <span dangerouslySetInnerHTML={{ __html: formatInline(b, theme) }} />
             </li>
           ))}
@@ -233,7 +259,10 @@ function formatInline(text: string, theme: 'light' | 'dark' = 'dark'): string {
   const chipBorder = isDark ? 'rgba(138,162,255,0.18)' : 'rgba(31,81,255,0.12)';
 
   return text
-    .replace(/\*\*(.+?)\*\*/g, `<strong style="font-weight:600;color:${strongColor};background:${chipBg};border:1px solid ${chipBorder};padding:1px 5px;border-radius:4px;font-size:0.95em;margin:0 1px;">$1</strong>`)
+    .replace(
+      /\*\*(.+?)\*\*/g,
+      `<strong style="font-weight:600;color:${strongColor};background:${chipBg};border:1px solid ${chipBorder};padding:1px 5px;border-radius:4px;font-size:0.95em;margin:0 1px;">$1</strong>`
+    )
     .replace(/\*(.+?)\*/g, `<em style="font-style:italic;color:${emColor}">$1</em>`)
     .replace(
       /`(.+?)`/g,
@@ -301,10 +330,16 @@ function ProcessAccordion({ processStep, theme }: ProcessAccordionProps) {
         <span
           style={{
             color: isDone
-              ? isDark ? '#8aa2ff' : '#1f51ff'
+              ? isDark
+                ? '#8aa2ff'
+                : '#1f51ff'
               : isActive
-              ? isDark ? '#a1a1aa' : '#71717a'
-              : isDark ? '#52525b' : '#a1a1aa',
+                ? isDark
+                  ? '#a1a1aa'
+                  : '#71717a'
+                : isDark
+                  ? '#52525b'
+                  : '#a1a1aa',
           }}
         >
           {isDone ? 'Thought process finished' : isActive ? 'Thinking…' : 'Processing…'}
@@ -381,10 +416,16 @@ function ProcessAccordion({ processStep, theme }: ProcessAccordionProps) {
                   className="text-[11px] font-mono transition-colors duration-300"
                   style={{
                     color: isStepDone
-                      ? isDark ? '#52525b' : '#a1a1aa'
+                      ? isDark
+                        ? '#52525b'
+                        : '#a1a1aa'
                       : isStepActive
-                      ? isDark ? '#a1a1aa' : '#71717a'
-                      : isDark ? '#3f3f46' : '#d4d4d8',
+                        ? isDark
+                          ? '#a1a1aa'
+                          : '#71717a'
+                        : isDark
+                          ? '#3f3f46'
+                          : '#d4d4d8',
                   }}
                 >
                   {label}
@@ -420,7 +461,11 @@ export default function ChatMessageBubble({
   const handleSaveToNotebook = () => {
     const activeSubj = typeof window !== 'undefined' ? localStorage.getItem('nk-subject') : null;
     const subj = message.subject || activeSubj || 'DBMS';
-    appendToNotebook(subj, `Key concept: ${message.content.slice(0, 300)}${message.content.length > 300 ? '...' : ''}`, 'ai');
+    appendToNotebook(
+      subj,
+      `Key concept: ${message.content.slice(0, 300)}${message.content.length > 300 ? '...' : ''}`,
+      'ai'
+    );
     setSaved(true);
     toast.success(`Saved to ${subj} Notebook!`);
     setTimeout(() => setSaved(false), 2000);
@@ -458,21 +503,15 @@ export default function ChatMessageBubble({
               Deep Dive
             </span>
           )}
-          <span className="text-[11px] text-zinc-400 font-normal ml-auto">
-            {message.timestamp}
-          </span>
+          <span className="text-[11px] text-zinc-400 font-normal ml-auto">{message.timestamp}</span>
         </div>
       )}
 
       {/* Animated process accordion — only for study mode with active tracking */}
-      {showProcessAccordion && (
-        <ProcessAccordion processStep={processStep} theme={theme} />
-      )}
+      {showProcessAccordion && <ProcessAccordion processStep={processStep} theme={theme} />}
 
       {/* Fallback static accordion for old messages with no tracking */}
-      {!message.isGeneralChat && !showProcessAccordion && (
-        <StaticProcessAccordion theme={theme} />
-      )}
+      {!message.isGeneralChat && !showProcessAccordion && <StaticProcessAccordion theme={theme} />}
 
       {/* Message content */}
       <div
@@ -501,7 +540,9 @@ export default function ChatMessageBubble({
             style={{ color: '#8e8ea0' }}
           >
             {saved ? <Check size={12} className="text-emerald-500" /> : <BookMarked size={12} />}
-            <span className={saved ? 'text-emerald-500 font-medium' : ''}>{saved ? 'Saved to Notebook' : 'Save to Notebook'}</span>
+            <span className={saved ? 'text-emerald-500 font-medium' : ''}>
+              {saved ? 'Saved to Notebook' : 'Save to Notebook'}
+            </span>
           </button>
         )}
         <button
@@ -559,12 +600,17 @@ function StaticProcessAccordion({ theme }: { theme: 'light' | 'dark' }) {
       >
         <div
           className="mt-1.5 pl-3 space-y-1.5 pb-1"
-          style={{ borderLeft: `2px solid ${isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'}` }}
+          style={{
+            borderLeft: `2px solid ${isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'}`,
+          }}
         >
           {PROCESS_STEPS.map((label) => (
             <div key={label} className="flex items-center gap-2">
               <Check size={11} style={{ color: '#10b981' }} className="shrink-0" />
-              <span className="text-[11px] font-mono" style={{ color: isDark ? '#52525b' : '#a1a1aa' }}>
+              <span
+                className="text-[11px] font-mono"
+                style={{ color: isDark ? '#52525b' : '#a1a1aa' }}
+              >
                 {label}
               </span>
             </div>

@@ -24,7 +24,12 @@ interface ModelSelectorProps {
   variant?: 'default' | 'minimal';
 }
 
-export function ModelSelector({ currentModel, onSelectModel, theme = 'dark', variant = 'default' }: ModelSelectorProps) {
+export function ModelSelector({
+  currentModel,
+  onSelectModel,
+  theme = 'dark',
+  variant = 'default',
+}: ModelSelectorProps) {
   const [models, setModels] = useState<ModelOption[]>(STATIC_FREE_MODELS);
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -65,21 +70,29 @@ export function ModelSelector({ currentModel, onSelectModel, theme = 'dark', var
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className={isMinimal 
-          ? "flex items-center gap-1 text-[11px] font-medium transition-all duration-200 hover:opacity-80 active:scale-95 focus:outline-none h-8"
-          : "flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-medium transition-all duration-200 hover:opacity-90 active:scale-95 border shadow-sm"
+        className={
+          isMinimal
+            ? 'flex items-center gap-1 text-[11px] font-medium transition-all duration-200 hover:opacity-80 active:scale-95 focus:outline-none h-8'
+            : 'flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-medium transition-all duration-200 hover:opacity-90 active:scale-95 border shadow-sm'
         }
-        style={isMinimal ? {
-          color: isDark ? '#d4d4d8' : '#3f3f46',
-        } : {
-          background: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
-          borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.12)',
-          color: isDark ? '#f4f4f5' : '#18181b',
-        }}
+        style={
+          isMinimal
+            ? {
+                color: isDark ? '#d4d4d8' : '#3f3f46',
+              }
+            : {
+                background: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
+                borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.12)',
+                color: isDark ? '#f4f4f5' : '#18181b',
+              }
+        }
       >
         <Cpu size={12} className={isDark ? 'text-zinc-400' : 'text-zinc-500'} />
         <span className="truncate max-w-[80px] sm:max-w-[120px]">{selectedModelObj.name}</span>
-        <ChevronDown size={10} className={`transition-transform duration-200 opacity-60 ${isOpen ? 'rotate-180' : ''}`} />
+        <ChevronDown
+          size={10}
+          className={`transition-transform duration-200 opacity-60 ${isOpen ? 'rotate-180' : ''}`}
+        />
       </button>
 
       {isOpen && (
@@ -90,8 +103,13 @@ export function ModelSelector({ currentModel, onSelectModel, theme = 'dark', var
             borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.12)',
           }}
         >
-          <div className="px-3 py-1.5 mb-1 border-b" style={{ borderColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)' }}>
-            <p className="text-[10px] uppercase font-semibold tracking-wider text-zinc-400">Select AI Model</p>
+          <div
+            className="px-3 py-1.5 mb-1 border-b"
+            style={{ borderColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)' }}
+          >
+            <p className="text-[10px] uppercase font-semibold tracking-wider text-zinc-400">
+              Select AI Model
+            </p>
           </div>
           <div className="max-h-60 overflow-y-auto space-y-0.5 px-1">
             {models.map((m) => {
@@ -116,13 +134,9 @@ export function ModelSelector({ currentModel, onSelectModel, theme = 'dark', var
                 >
                   <div className="flex flex-col min-w-0 pr-2">
                     <span className="font-medium truncate">{m.name}</span>
-                    {m.tag && (
-                      <span className="text-[10px] text-zinc-400 mt-0.5">{m.tag}</span>
-                    )}
+                    {m.tag && <span className="text-[10px] text-zinc-400 mt-0.5">{m.tag}</span>}
                   </div>
-                  {isSelected && (
-                    <Check size={14} className="text-blue-500 shrink-0" />
-                  )}
+                  {isSelected && <Check size={14} className="text-blue-500 shrink-0" />}
                 </button>
               );
             })}
@@ -132,4 +146,3 @@ export function ModelSelector({ currentModel, onSelectModel, theme = 'dark', var
     </div>
   );
 }
-

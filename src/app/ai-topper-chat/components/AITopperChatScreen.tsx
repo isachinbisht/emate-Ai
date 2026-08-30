@@ -2,15 +2,15 @@
 
 import React, { useState, useEffect } from 'react';
 import ChatMainArea from './ChatMainArea';
-import { 
-  Sparkles, 
-  BookOpen, 
-  PanelLeft, 
-  Compass, 
-  Clock, 
-  ArrowRight, 
-  ChevronLeft, 
-  X 
+import {
+  Sparkles,
+  BookOpen,
+  PanelLeft,
+  Compass,
+  Clock,
+  ArrowRight,
+  ChevronLeft,
+  X,
 } from 'lucide-react';
 
 export type StudyMode = 'deep-dive' | 'sprint';
@@ -38,7 +38,7 @@ export default function AITopperChatScreen() {
     unit: 'Normalization (3NF/BCNF)',
   });
   const [selectedModel, setSelectedModel] = useState('openrouter/auto');
-  
+
   // Onboarding Guide State
   const [showGuide, setShowGuide] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
@@ -49,7 +49,7 @@ export default function AITopperChatScreen() {
     if (typeof window !== 'undefined') {
       const savedTheme = localStorage.getItem('nk-theme');
       setTheme(savedTheme === 'dark' ? 'dark' : 'light');
-      
+
       // Auto-trigger guide for new users
       const guideCompleted = localStorage.getItem('nk-guide-completed');
       if (!guideCompleted) {
@@ -71,7 +71,7 @@ export default function AITopperChatScreen() {
     };
     syncContext();
     window.addEventListener('nk-context-change', syncContext);
-    
+
     // Listen to theme changes for dynamic guide themes
     const syncTheme = () => {
       const savedTheme = localStorage.getItem('nk-theme');
@@ -114,40 +114,45 @@ export default function AITopperChatScreen() {
 
   const steps = [
     {
-      title: "Welcome to e-Mate AI",
-      description: "Your advanced AI Academic Copilot. e-Mate is designed to customize its explanations based on your active syllabus subject, context unit, and notes.",
+      title: 'Welcome to e-Mate AI',
+      description:
+        'Your advanced AI Academic Copilot. e-Mate is designed to customize its explanations based on your active syllabus subject, context unit, and notes.',
       icon: Sparkles,
-      color: "#1f51ff",
-      badge: "Getting Started"
+      color: '#1f51ff',
+      badge: 'Getting Started',
     },
     {
-      title: "Dynamic Subject Notebooks",
-      description: "Each subject gets an isolated notebook. e-Mate automatically remembers key points from your chat history to personalize answers. Manage your notebooks from the sidebar using '+ New notebook' and the 'Manage' panel.",
+      title: 'Dynamic Subject Notebooks',
+      description:
+        "Each subject gets an isolated notebook. e-Mate automatically remembers key points from your chat history to personalize answers. Manage your notebooks from the sidebar using '+ New notebook' and the 'Manage' panel.",
       icon: BookOpen,
-      color: "#365aff",
-      badge: "Personalization"
+      color: '#365aff',
+      badge: 'Personalization',
     },
     {
-      title: "Real-time Resizable Sidebar",
-      description: "Need more screen space? Drag the divider line on the right side of the sidebar to dynamically resize it to your perfect working width.",
+      title: 'Real-time Resizable Sidebar',
+      description:
+        'Need more screen space? Drag the divider line on the right side of the sidebar to dynamically resize it to your perfect working width.',
       icon: PanelLeft,
-      color: "#5470ff",
-      badge: "Interface"
+      color: '#5470ff',
+      badge: 'Interface',
     },
     {
-      title: "Locked Study Context",
-      description: "Ensure precise replies by selecting your subject and unit from the 'Study Context' panel. e-Mate will base its knowledge on your syllabus constraints.",
+      title: 'Locked Study Context',
+      description:
+        "Ensure precise replies by selecting your subject and unit from the 'Study Context' panel. e-Mate will base its knowledge on your syllabus constraints.",
       icon: Compass,
-      color: "#6f86ff",
-      badge: "Exam Precision"
+      color: '#6f86ff',
+      badge: 'Exam Precision',
     },
     {
-      title: "Real-time Recent Chats",
-      description: "Your conversations are saved and synced in real-time in the sidebar, allowing you to instantly rename, delete, or resume previous chats.",
+      title: 'Real-time Recent Chats',
+      description:
+        'Your conversations are saved and synced in real-time in the sidebar, allowing you to instantly rename, delete, or resume previous chats.',
       icon: Clock,
-      color: "#8aa2ff",
-      badge: "Productivity"
-    }
+      color: '#8aa2ff',
+      badge: 'Productivity',
+    },
   ];
 
   const ActiveIcon = steps[currentStep].icon;
@@ -175,7 +180,9 @@ export default function AITopperChatScreen() {
           style={{ background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(16px)' }}
         >
           {/* Keyframe Animations */}
-          <style dangerouslySetInnerHTML={{ __html: `
+          <style
+            dangerouslySetInnerHTML={{
+              __html: `
             @keyframes guide-scale-up {
               0% { transform: scale(0.95); opacity: 0; }
               100% { transform: scale(1); opacity: 1; }
@@ -193,19 +200,24 @@ export default function AITopperChatScreen() {
             button { cursor: pointer; }
             button:disabled { cursor: not-allowed; }
             @media (prefers-reduced-motion: reduce){ *,*::before,*::after { animation:none !important; transition:none !important } }
-          `}} />
+          `,
+            }}
+          />
 
           <div
             className="relative w-full max-w-lg rounded-[32px] overflow-hidden transition-all duration-500 guide-modal-glow animate-[guide-scale-up_0.35s_ease-out]"
             style={{
               background: theme === 'dark' ? '#141417' : '#ffffff',
-              border: theme === 'dark' ? '1px solid rgba(138,162,255,0.18)' : '1px solid rgba(31,81,255,0.16)',
+              border:
+                theme === 'dark'
+                  ? '1px solid rgba(138,162,255,0.18)'
+                  : '1px solid rgba(31,81,255,0.16)',
               fontFamily: "'Inter', sans-serif",
             }}
           >
             {/* Glowing background accent behind the icon */}
-            <div 
-              className="absolute -top-12 -left-12 w-48 h-48 rounded-full blur-[80px]" 
+            <div
+              className="absolute -top-12 -left-12 w-48 h-48 rounded-full blur-[80px]"
               style={{ background: steps[currentStep].color + '15' }}
             />
 
@@ -214,25 +226,35 @@ export default function AITopperChatScreen() {
               className="h-36 flex items-center justify-center relative mesh-grad border-b"
               style={{
                 borderColor: theme === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)',
-                background: `linear-gradient(180deg, ${steps[currentStep].color}18 0%, transparent 100%)`
+                background: `linear-gradient(180deg, ${steps[currentStep].color}18 0%, transparent 100%)`,
               }}
             >
-              <div 
+              <div
                 className="h-20 w-20 rounded-[24px] flex items-center justify-center shadow-2xl transition-all duration-300 transform scale-110 relative"
-                style={{ 
+                style={{
                   background: theme === 'dark' ? '#1b1b20' : '#f4f5fb',
-                  border: theme === 'dark' ? '1px solid rgba(138,162,255,0.12)' : '1px solid rgba(31,81,255,0.10)'
+                  border:
+                    theme === 'dark'
+                      ? '1px solid rgba(138,162,255,0.12)'
+                      : '1px solid rgba(31,81,255,0.10)',
                 }}
               >
-                <div className="absolute inset-0 rounded-[24px] blur-md opacity-40" style={{ background: steps[currentStep].color }} />
-                <ActiveIcon size={36} className="relative z-10" style={{ color: steps[currentStep].color }} />
+                <div
+                  className="absolute inset-0 rounded-[24px] blur-md opacity-40"
+                  style={{ background: steps[currentStep].color }}
+                />
+                <ActiveIcon
+                  size={36}
+                  className="relative z-10"
+                  style={{ color: steps[currentStep].color }}
+                />
               </div>
               <button
                 onClick={handleCloseGuide}
                 className="absolute top-5 right-5 w-8 h-8 rounded-full flex items-center justify-center border transition-all hover:bg-black/5 dark:hover:bg-white/5 active:scale-95 z-20"
-                style={{ 
-                  borderColor: theme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)', 
-                  color: theme === 'dark' ? '#a1a1aa' : '#71717a' 
+                style={{
+                  borderColor: theme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
+                  color: theme === 'dark' ? '#a1a1aa' : '#71717a',
                 }}
               >
                 <X size={14} />
@@ -242,20 +264,29 @@ export default function AITopperChatScreen() {
             {/* Modal Body */}
             <div className="px-8 py-8 space-y-8 relative z-10">
               <div className="space-y-3 text-center animate-[content-slide-in_0.4s_ease-out]">
-                <span 
+                <span
                   className="text-[10px] font-bold uppercase tracking-[0.25em] px-3.5 py-1.5 rounded-full inline-block"
-                  style={{ 
+                  style={{
                     background: theme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)',
                     color: theme === 'dark' ? '#ffffff' : '#000000',
-                    border: theme === 'dark' ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(0,0,0,0.08)'
+                    border:
+                      theme === 'dark'
+                        ? '1px solid rgba(255,255,255,0.08)'
+                        : '1px solid rgba(0,0,0,0.08)',
                   }}
                 >
                   {steps[currentStep].badge}
                 </span>
-                <h3 className="text-2xl font-black tracking-tight mt-2" style={{ color: theme === 'dark' ? '#ffffff' : '#000000' }}>
+                <h3
+                  className="text-2xl font-black tracking-tight mt-2"
+                  style={{ color: theme === 'dark' ? '#ffffff' : '#000000' }}
+                >
                   {steps[currentStep].title}
                 </h3>
-                <p className="text-sm leading-relaxed max-w-sm mx-auto" style={{ color: theme === 'dark' ? '#a1a1aa' : '#52525b' }}>
+                <p
+                  className="text-sm leading-relaxed max-w-sm mx-auto"
+                  style={{ color: theme === 'dark' ? '#a1a1aa' : '#52525b' }}
+                >
                   {steps[currentStep].description}
                 </p>
               </div>
@@ -268,9 +299,14 @@ export default function AITopperChatScreen() {
                     className="h-1.5 rounded-full transition-all duration-500"
                     style={{
                       width: currentStep === idx ? '28px' : '6px',
-                      background: currentStep === idx
-                        ? (theme === 'dark' ? '#8aa2ff' : '#1f51ff')
-                        : (theme === 'dark' ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.15)'),
+                      background:
+                        currentStep === idx
+                          ? theme === 'dark'
+                            ? '#8aa2ff'
+                            : '#1f51ff'
+                          : theme === 'dark'
+                            ? 'rgba(255,255,255,0.15)'
+                            : 'rgba(0,0,0,0.15)',
                     }}
                   />
                 ))}
@@ -282,9 +318,9 @@ export default function AITopperChatScreen() {
                   onClick={handlePrev}
                   disabled={currentStep === 0}
                   className="flex items-center gap-1.5 text-xs font-semibold px-4 py-2.5 rounded-2xl border transition-all duration-200 disabled:opacity-20 disabled:cursor-not-allowed hover:bg-black/5 dark:hover:bg-white/5 active:scale-95"
-                  style={{ 
+                  style={{
                     borderColor: theme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
-                    color: theme === 'dark' ? '#ffffff' : '#000000' 
+                    color: theme === 'dark' ? '#ffffff' : '#000000',
                   }}
                 >
                   <ChevronLeft size={14} />
@@ -297,7 +333,10 @@ export default function AITopperChatScreen() {
                   style={{
                     background: theme === 'dark' ? '#8aa2ff' : '#1f51ff',
                     color: theme === 'dark' ? '#0b0b0d' : '#ffffff',
-                    boxShadow: theme === 'dark' ? '0 8px 24px rgba(31,81,255,0.35)' : '0 8px 24px rgba(31,81,255,0.28)'
+                    boxShadow:
+                      theme === 'dark'
+                        ? '0 8px 24px rgba(31,81,255,0.35)'
+                        : '0 8px 24px rgba(31,81,255,0.28)',
                   }}
                 >
                   <span>{currentStep === steps.length - 1 ? 'Start Learning' : 'Continue'}</span>

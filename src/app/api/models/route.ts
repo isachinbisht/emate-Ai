@@ -15,15 +15,12 @@ export async function GET() {
     }
 
     const data = await res.json();
-    
+
     // Filter models that cost 0 for both prompt (input) and completion (output)
     const freeModels = (data.data || [])
       .filter((model: any) => {
         const pricing = model.pricing || {};
-        return (
-          pricing.prompt === '0' &&
-          pricing.completion === '0'
-        );
+        return pricing.prompt === '0' && pricing.completion === '0';
       })
       .map((m: any) => ({
         id: m.id,
@@ -50,7 +47,7 @@ export async function GET() {
         { id: 'meta-llama/llama-3.1-8b-instruct:free', name: 'Meta Llama 3.1 8B (Fast Chat)' },
         { id: 'qwen/qwen-2.5-7b-instruct:free', name: 'Qwen 2.5 7B (Coding & Math)' },
         { id: 'mistralai/mistral-7b-instruct:free', name: 'Mistral 7B Instruct (Logic & Writing)' },
-      ]
+      ],
     });
   }
 }

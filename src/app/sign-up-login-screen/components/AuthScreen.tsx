@@ -1,15 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import {
-  Eye,
-  EyeOff,
-  Loader2,
-  X,
-  ArrowLeft,
-  Mail,
-  CheckCircle2,
-} from 'lucide-react';
+import { Eye, EyeOff, Loader2, X, ArrowLeft, Mail, CheckCircle2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { createClient } from '@/lib/supabase/client';
 import { clearGuestModeEnabled, setGuestModeEnabled } from '@/lib/guest-mode';
@@ -67,8 +59,14 @@ export default function AuthScreen() {
   const handleEmailSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const trimmed = email.trim();
-    if (!trimmed) { setError('Email address is required'); return; }
-    if (!/^\S+@\S+\.\S+$/.test(trimmed)) { setError('Please enter a valid email address'); return; }
+    if (!trimmed) {
+      setError('Email address is required');
+      return;
+    }
+    if (!/^\S+@\S+\.\S+$/.test(trimmed)) {
+      setError('Please enter a valid email address');
+      return;
+    }
     setError(null);
     setEmail(trimmed);
     setStep('password');
@@ -84,8 +82,14 @@ export default function AuthScreen() {
   /* ── Password / signup step ── */
   const handlePasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!password) { setError('Password is required'); return; }
-    if (isSignUp && password.length < 6) { setError('Password must be at least 6 characters'); return; }
+    if (!password) {
+      setError('Password is required');
+      return;
+    }
+    if (isSignUp && password.length < 6) {
+      setError('Password must be at least 6 characters');
+      return;
+    }
 
     setIsLoading(true);
     setError(null);
@@ -145,21 +149,30 @@ export default function AuthScreen() {
 
   /* ── Forgot password ── */
   const handleForgotPassword = async () => {
-    if (!email) { toast.error('Enter your email first'); return; }
+    if (!email) {
+      toast.error('Enter your email first');
+      return;
+    }
     const supabase = createClient();
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: `${getRedirectUrl()}?next=/`,
     });
-    if (error) { toast.error(error.message); }
-    else { toast.success('Password reset email sent! Check your inbox.'); }
+    if (error) {
+      toast.error(error.message);
+    } else {
+      toast.success('Password reset email sent! Check your inbox.');
+    }
   };
 
   /* ── Resend confirmation ── */
   const handleResendConfirmation = async () => {
     const supabase = createClient();
     const { error } = await supabase.auth.resend({ type: 'signup', email });
-    if (error) { toast.error(error.message); }
-    else { toast.success('Confirmation email resent!'); }
+    if (error) {
+      toast.error(error.message);
+    } else {
+      toast.success('Confirmation email resent!');
+    }
   };
 
   /* ─────── Styles (e-Mate blue/system theme) ─────── */
@@ -201,7 +214,10 @@ export default function AuthScreen() {
       className="min-h-screen w-full flex flex-col justify-between items-center px-4 py-6 sm:py-10 relative font-sans transition-colors duration-500"
       style={rootStyle}
     >
-      <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" />
+      <link
+        rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap"
+      />
 
       <style>{`
         button { cursor: pointer; }
@@ -228,17 +244,35 @@ export default function AuthScreen() {
       {/* Logo bar */}
       <div className="w-full flex justify-between items-center max-w-[440px] z-10 mb-4">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-2xl border" style={{ borderColor: 'rgba(15,23,42,0.08)', background: '#f8f9fa' }}>
-            <img src="/asset/images/e.svg" alt="e-Mate AI" className="h-full w-full object-contain" />
+          <div
+            className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-2xl border"
+            style={{ borderColor: 'rgba(15,23,42,0.08)', background: '#f8f9fa' }}
+          >
+            <img
+              src="/asset/images/e.svg"
+              alt="e-Mate AI"
+              className="h-full w-full object-contain"
+            />
           </div>
-          <p className="text-xs font-semibold uppercase tracking-[0.3em]" style={{ color: mutedFg }}>e-Mate AI</p>
+          <p
+            className="text-xs font-semibold uppercase tracking-[0.3em]"
+            style={{ color: mutedFg }}
+          >
+            e-Mate AI
+          </p>
         </div>
       </div>
 
       {/* Card */}
       <div
         className="w-full max-w-[440px] border rounded-3xl p-6 sm:p-10 shadow-2xl relative z-10 my-auto transition-all"
-        style={{ background: cardBg, borderColor: cardBorder, boxShadow: isDark ? '0 24px 80px -24px rgba(31,81,255,0.30)' : '0 24px 80px -28px rgba(31,81,255,0.22)' }}
+        style={{
+          background: cardBg,
+          borderColor: cardBorder,
+          boxShadow: isDark
+            ? '0 24px 80px -24px rgba(31,81,255,0.30)'
+            : '0 24px 80px -28px rgba(31,81,255,0.22)',
+        }}
       >
         {/* Close */}
         <button
@@ -253,37 +287,53 @@ export default function AuthScreen() {
         {/* ── Confirm screen ── */}
         {step === 'confirm' ? (
           <div className="space-y-6 text-center py-4">
-            <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto" style={{ background: accentSoft }}>
+            <div
+              className="w-16 h-16 rounded-full flex items-center justify-center mx-auto"
+              style={{ background: accentSoft }}
+            >
               <CheckCircle2 size={32} style={{ color: accentText }} />
             </div>
             <div className="space-y-2">
-              <h2 className="text-xl sm:text-2xl font-bold tracking-tight" style={{ color: fg }}>Check your email</h2>
+              <h2 className="text-xl sm:text-2xl font-bold tracking-tight" style={{ color: fg }}>
+                Check your email
+              </h2>
               <p className="text-sm leading-relaxed px-4" style={{ color: mutedFg }}>
                 We sent a confirmation link to{' '}
-                <span className="font-medium" style={{ color: fg }}>{email}</span>.
-                Click the link to activate your account.
+                <span className="font-medium" style={{ color: fg }}>
+                  {email}
+                </span>
+                . Click the link to activate your account.
               </p>
             </div>
             <div
               className="flex items-center gap-3 px-4 py-3 rounded-xl border"
-              style={{ background: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)', borderColor: cardBorder }}
+              style={{
+                background: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)',
+                borderColor: cardBorder,
+              }}
             >
               <Mail size={16} style={{ color: mutedFg }} className="shrink-0" />
               <p className="text-xs" style={{ color: mutedFg }}>
                 Didn&apos;t receive it? Check spam or{' '}
-                <button onClick={handleResendConfirmation} className="hover:underline font-medium auth-link">
+                <button
+                  onClick={handleResendConfirmation}
+                  className="hover:underline font-medium auth-link"
+                >
                   resend
                 </button>
               </p>
             </div>
             <button
-              onClick={() => { setStep('email'); setIsSignUp(false); setError(null); }}
+              onClick={() => {
+                setStep('email');
+                setIsSignUp(false);
+                setError(null);
+              }}
               className="text-sm transition auth-muted"
             >
               ← Back to sign in
             </button>
           </div>
-
         ) : step === 'email' ? (
           /* ── Email step ── */
           <div className="space-y-6">
@@ -297,7 +347,9 @@ export default function AuthScreen() {
             </div>
 
             {error && (
-              <div className="px-4 py-3 rounded-xl text-xs text-red-400 border border-red-500/20 bg-red-500/5">{error}</div>
+              <div className="px-4 py-3 rounded-xl text-xs text-red-400 border border-red-500/20 bg-red-500/5">
+                {error}
+              </div>
             )}
 
             {/* Google */}
@@ -308,12 +360,26 @@ export default function AuthScreen() {
               className="w-full h-12 flex items-center justify-center gap-3 border rounded-full text-sm font-semibold transition-all disabled:opacity-50 auth-social"
               style={{ background: socialBg, borderColor: socialBorder, color: fg }}
             >
-              {googleLoading ? <Loader2 size={18} className="animate-spin" /> : (
+              {googleLoading ? (
+                <Loader2 size={18} className="animate-spin" />
+              ) : (
                 <svg width="18" height="18" viewBox="0 0 24 24">
-                  <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
-                  <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-                  <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
-                  <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
+                  <path
+                    fill="#4285F4"
+                    d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                  />
+                  <path
+                    fill="#34A853"
+                    d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                  />
+                  <path
+                    fill="#FBBC05"
+                    d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
+                  />
+                  <path
+                    fill="#EA4335"
+                    d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
+                  />
                 </svg>
               )}
               Continue with Google
@@ -322,7 +388,9 @@ export default function AuthScreen() {
             {/* Divider */}
             <div className="flex items-center gap-4">
               <div className="flex-1 h-px" style={{ background: dividerColor }} />
-              <span className="text-[10px] font-bold tracking-wider" style={{ color: mutedFg }}>OR</span>
+              <span className="text-[10px] font-bold tracking-wider" style={{ color: mutedFg }}>
+                OR
+              </span>
               <div className="flex-1 h-px" style={{ background: dividerColor }} />
             </div>
 
@@ -358,23 +426,43 @@ export default function AuthScreen() {
 
             <p className="text-center text-xs" style={{ color: mutedFg }}>
               {isSignUp ? (
-                <>Already have an account?{' '}
-                  <button onClick={() => { setIsSignUp(false); setError(null); }} className="hover:underline font-semibold auth-link">Sign in</button>
+                <>
+                  Already have an account?{' '}
+                  <button
+                    onClick={() => {
+                      setIsSignUp(false);
+                      setError(null);
+                    }}
+                    className="hover:underline font-semibold auth-link"
+                  >
+                    Sign in
+                  </button>
                 </>
               ) : (
-                <>Don&apos;t have an account?{' '}
-                  <button onClick={() => { setIsSignUp(true); setError(null); }} className="hover:underline font-semibold auth-link">Sign up</button>
+                <>
+                  Don&apos;t have an account?{' '}
+                  <button
+                    onClick={() => {
+                      setIsSignUp(true);
+                      setError(null);
+                    }}
+                    className="hover:underline font-semibold auth-link"
+                  >
+                    Sign up
+                  </button>
                 </>
               )}
             </p>
           </div>
-
         ) : (
           /* ── Password step ── */
           <div className="space-y-6">
             <div className="text-center space-y-2">
               <button
-                onClick={() => { setStep('email'); setError(null); }}
+                onClick={() => {
+                  setStep('email');
+                  setError(null);
+                }}
                 className="inline-flex items-center gap-1.5 text-xs font-semibold mb-2 transition auth-muted"
               >
                 <ArrowLeft size={14} /> Back
@@ -382,11 +470,15 @@ export default function AuthScreen() {
               <h2 className="text-xl sm:text-2xl font-bold tracking-tight" style={{ color: fg }}>
                 {isSignUp ? 'Create your account' : 'Welcome back'}
               </h2>
-              <p className="text-xs truncate px-4" style={{ color: mutedFg }}>{email}</p>
+              <p className="text-xs truncate px-4" style={{ color: mutedFg }}>
+                {email}
+              </p>
             </div>
 
             {error && (
-              <div className="px-4 py-3 rounded-xl text-xs text-red-400 border border-red-500/20 bg-red-500/5">{error}</div>
+              <div className="px-4 py-3 rounded-xl text-xs text-red-400 border border-red-500/20 bg-red-500/5">
+                {error}
+              </div>
             )}
 
             <form onSubmit={handlePasswordSubmit} className="space-y-3">
@@ -428,19 +520,44 @@ export default function AuthScreen() {
                 style={{ background: btnPrimaryBg, color: btnPrimaryFg }}
               >
                 {isLoading ? (
-                  <><Loader2 size={16} className="animate-spin" /> {isSignUp ? 'Creating account...' : 'Signing in...'}</>
-                ) : isSignUp ? 'Create Account' : 'Sign In'}
+                  <>
+                    <Loader2 size={16} className="animate-spin" />{' '}
+                    {isSignUp ? 'Creating account...' : 'Signing in...'}
+                  </>
+                ) : isSignUp ? (
+                  'Create Account'
+                ) : (
+                  'Sign In'
+                )}
               </button>
             </form>
 
             <p className="text-center text-xs" style={{ color: mutedFg }}>
               {isSignUp ? (
-                <>Already have an account?{' '}
-                  <button onClick={() => { setIsSignUp(false); setError(null); }} className="hover:underline font-semibold auth-link">Sign in</button>
+                <>
+                  Already have an account?{' '}
+                  <button
+                    onClick={() => {
+                      setIsSignUp(false);
+                      setError(null);
+                    }}
+                    className="hover:underline font-semibold auth-link"
+                  >
+                    Sign in
+                  </button>
                 </>
               ) : (
-                <>Don&apos;t have an account?{' '}
-                  <button onClick={() => { setIsSignUp(true); setError(null); }} className="hover:underline font-semibold auth-link">Sign up</button>
+                <>
+                  Don&apos;t have an account?{' '}
+                  <button
+                    onClick={() => {
+                      setIsSignUp(true);
+                      setError(null);
+                    }}
+                    className="hover:underline font-semibold auth-link"
+                  >
+                    Sign up
+                  </button>
                 </>
               )}
             </p>
@@ -458,11 +575,13 @@ export default function AuthScreen() {
       </div>
 
       {/* Footer disclaimer */}
-      <div className="w-full max-w-[500px] text-center text-[10px] sm:text-[11px] leading-normal px-4 z-10 mt-4" style={{ color: mutedFg }}>
+      <div
+        className="w-full max-w-[500px] text-center text-[10px] sm:text-[11px] leading-normal px-4 z-10 mt-4"
+        style={{ color: mutedFg }}
+      >
         By continuing you agree to our{' '}
-        <span className="underline cursor-pointer">Terms &amp; Privacy Policy</span>.
-        Chats may be reviewed to improve our models.{' '}
-        <span className="underline cursor-pointer">Learn more</span>
+        <span className="underline cursor-pointer">Terms &amp; Privacy Policy</span>. Chats may be
+        reviewed to improve our models. <span className="underline cursor-pointer">Learn more</span>
       </div>
     </div>
   );

@@ -4,10 +4,12 @@ const GUEST_MODE_COOKIE = 'guest_mode';
 function getCookieValue(name: string) {
   if (typeof document === 'undefined') return null;
 
-  return document.cookie
-    .split('; ')
-    .find((row) => row.startsWith(`${name}=`))
-    ?.split('=')[1] || null;
+  return (
+    document.cookie
+      .split('; ')
+      .find((row) => row.startsWith(`${name}=`))
+      ?.split('=')[1] || null
+  );
 }
 
 export function isGuestModeEnabled() {

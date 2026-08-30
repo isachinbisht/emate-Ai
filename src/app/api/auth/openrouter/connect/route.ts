@@ -5,13 +5,11 @@ export async function GET(request: Request) {
   const codeVerifier = generateCodeVerifier();
   const codeChallenge = generateCodeChallenge(codeVerifier);
 
-  const host = request.headers.get("x-forwarded-host") || request.headers.get("host");
+  const host = request.headers.get('x-forwarded-host') || request.headers.get('host');
 
   // Ensure localhost is only used if explicitly running on a local development server
-  const isLocal = host?.includes("localhost") || host?.includes("127.0.0.1");
-  const baseUrl = isLocal
-    ? "http://localhost:3000"
-    : "https://emate-ai.vercel.app";
+  const isLocal = host?.includes('localhost') || host?.includes('127.0.0.1');
+  const baseUrl = isLocal ? 'http://localhost:3000' : 'https://emate-ai.vercel.app';
 
   const callbackUrl = `${baseUrl}/api/auth/openrouter/callback`;
   const openRouterAuthUrl = `https://openrouter.ai/auth?callback_url=${encodeURIComponent(
@@ -21,18 +19,17 @@ export async function GET(request: Request) {
   const response = NextResponse.redirect(openRouterAuthUrl);
 
   // Prevent Vercel CDN from caching this redirect (which would strip Set-Cookie)
-  response.headers.set("Cache-Control", "no-store, max-age=0");
+  response.headers.set('Cache-Control', 'no-store, max-age=0');
 
   // Set the PKCE verifier cookie — sameSite "lax" is correct here because the
   // callback from OpenRouter is a top-level GET navigation back to our domain.
-  response.cookies.set("openrouter_verifier", codeVerifier, {
+  response.cookies.set('openrouter_verifier', codeVerifier, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    path: "/",
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    path: '/',
     maxAge: 60 * 10, // 10 minutes
   });
 
   return response;
 }
-

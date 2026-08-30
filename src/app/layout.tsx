@@ -34,7 +34,14 @@ export const metadata: Metadata = {
   title: 'e-Mate AI — Your Smart Study Copilot & Academic Assistant',
   description:
     'AI-powered study partner for interactive flashcards, quizzes, PDF summarization, and hands-free voice studying.',
-  keywords: ['AI study assistant', 'e-Mate AI', 'flashcard generator', 'AI topper', 'quiz generator', 'academic copilot'],
+  keywords: [
+    'AI study assistant',
+    'e-Mate AI',
+    'flashcard generator',
+    'AI topper',
+    'quiz generator',
+    'academic copilot',
+  ],
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
@@ -49,7 +56,8 @@ export const metadata: Metadata = {
   },
   openGraph: {
     title: 'e-Mate AI — Your Smart Study Copilot & Academic Assistant',
-    description: 'AI-powered study partner for interactive flashcards, quizzes, PDF summarization, and hands-free voice studying.',
+    description:
+      'AI-powered study partner for interactive flashcards, quizzes, PDF summarization, and hands-free voice studying.',
     url: 'https://emate-ai.vercel.app',
     siteName: 'e-Mate AI',
     type: 'website',
@@ -58,7 +66,8 @@ export const metadata: Metadata = {
   twitter: {
     card: 'summary_large_image',
     title: 'e-Mate AI — Your Smart Study Copilot & Academic Assistant',
-    description: 'AI-powered study partner for interactive flashcards, quizzes, PDF summarization, and hands-free voice studying.',
+    description:
+      'AI-powered study partner for interactive flashcards, quizzes, PDF summarization, and hands-free voice studying.',
     creator: '@emate_ai',
   },
 };

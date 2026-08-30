@@ -2,7 +2,15 @@
 
 import React, { useState, useEffect } from 'react';
 import { ArrowLeft, X, Trash2, Plus, Sparkles, BookOpen, Clock } from 'lucide-react';
-import { getNotebook, saveNotebook, appendToNotebook, deleteNotebookEntry, clearNotebook, SubjectNotebook, NotebookEntry } from '@/lib/notebook';
+import {
+  getNotebook,
+  saveNotebook,
+  appendToNotebook,
+  deleteNotebookEntry,
+  clearNotebook,
+  SubjectNotebook,
+  NotebookEntry,
+} from '@/lib/notebook';
 
 interface NotebookOverlayProps {
   subjectName: string;
@@ -56,42 +64,55 @@ export default function NotebookOverlay({ subjectName, onClose, theme }: Noteboo
   const textMuted = theme === 'dark' ? '#71717a' : '#71717a';
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-white dark:bg-zinc-950 animate-in fade-in zoom-in-95 duration-150" style={{ color: textPrimary }}>
+    <div
+      className="fixed inset-0 z-50 flex flex-col bg-white dark:bg-zinc-950 animate-in fade-in zoom-in-95 duration-150"
+      style={{ color: textPrimary }}
+    >
       {/* Top Notebook Toolbar */}
-      <div className="flex items-center justify-between px-8 py-4 border-b bg-zinc-50/50 dark:bg-zinc-900/50" style={{ borderColor: bdr }}>
+      <div
+        className="flex items-center justify-between px-8 py-4 border-b bg-zinc-50/50 dark:bg-zinc-900/50"
+        style={{ borderColor: bdr }}
+      >
         <div className="flex items-center gap-3">
-          <button 
+          <button
             onClick={onClose}
             className="p-1.5 rounded-lg transition-colors hover:bg-zinc-200 dark:hover:bg-zinc-800"
             title="Back to chat"
           >
-            <ArrowLeft className="w-4 h-4"/>
+            <ArrowLeft className="w-4 h-4" />
           </button>
-          <span className="text-xs font-semibold px-2 py-0.5 rounded bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300">Notebook</span>
+          <span className="text-xs font-semibold px-2 py-0.5 rounded bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300">
+            Notebook
+          </span>
           <h1 className="text-base font-bold">{subjectName}</h1>
         </div>
-        <button 
+        <button
           onClick={onClose}
           className="p-2 rounded-xl text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200"
           title="Close notebook"
         >
-          <X className="w-5 h-5"/>
+          <X className="w-5 h-5" />
         </button>
       </div>
 
       {/* Full Notebook Content Pane */}
       <div className="flex-1 overflow-y-auto p-8 w-full max-w-5xl mx-auto flex flex-col gap-6">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b pb-4" style={{ borderColor: bdr }}>
+        <div
+          className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b pb-4"
+          style={{ borderColor: bdr }}
+        >
           <div>
             <h2 className="text-lg font-bold">Personalized Knowledge Base</h2>
-            <p className="text-xs text-zinc-500 mt-0.5">Custom study context e-Mate pulls from dynamically when answering queries.</p>
+            <p className="text-xs text-zinc-500 mt-0.5">
+              Custom study context e-Mate pulls from dynamically when answering queries.
+            </p>
           </div>
           {notebook && notebook.entries.length > 0 && (
-            <button 
+            <button
               onClick={handleClearAll}
               className="text-xs font-semibold text-red-500 hover:text-red-600 transition-colors flex items-center gap-1 px-3 py-1.5 rounded-lg border border-red-500/20 hover:bg-red-500/5"
             >
-              <Trash2 className="w-3.5 h-3.5"/>
+              <Trash2 className="w-3.5 h-3.5" />
               Clear All Notes
             </button>
           )}
@@ -109,11 +130,11 @@ export default function NotebookOverlay({ subjectName, onClose, theme }: Noteboo
               className="flex-1 bg-white dark:bg-zinc-900 border text-sm rounded-xl p-3 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
               style={{ borderColor: bdr }}
             />
-            <button 
+            <button
               onClick={handleAddNote}
               className="px-4 rounded-xl bg-slate-900 text-white hover:bg-black font-semibold text-xs flex items-center justify-center gap-1 transition-all"
             >
-              <Plus className="w-4 h-4"/>
+              <Plus className="w-4 h-4" />
               Add Note
             </button>
           </div>
@@ -122,40 +143,53 @@ export default function NotebookOverlay({ subjectName, onClose, theme }: Noteboo
         {/* Notes Grid */}
         <div className="flex-1">
           {!notebook || notebook.entries.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-20 text-center border-2 border-dashed rounded-2xl" style={{ borderColor: bdr }}>
+            <div
+              className="flex flex-col items-center justify-center py-20 text-center border-2 border-dashed rounded-2xl"
+              style={{ borderColor: bdr }}
+            >
               <BookOpen className="w-10 h-10 text-zinc-350 dark:text-zinc-600 mb-3" />
               <p className="font-semibold text-sm">Your notebook is currently empty</p>
-              <p className="text-xs text-zinc-500 max-w-sm mt-1">Add context notes manually above, or simply chat with e-Mate study copilot, which appends key concepts dynamically.</p>
+              <p className="text-xs text-zinc-500 max-w-sm mt-1">
+                Add context notes manually above, or simply chat with e-Mate study copilot, which
+                appends key concepts dynamically.
+              </p>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {notebook.entries.map((entry) => (
-                <div 
+                <div
                   key={entry.id}
-                  className="p-4 rounded-2xl border flex flex-col justify-between group relative transition-all hover:shadow-sm" 
+                  className="p-4 rounded-2xl border flex flex-col justify-between group relative transition-all hover:shadow-sm"
                   style={{ borderColor: bdr, background: cardBg }}
                 >
                   <p className="text-sm leading-relaxed whitespace-pre-wrap">{entry.content}</p>
-                  
-                  <div className="flex items-center justify-between mt-4 pt-3 border-t text-[10px]" style={{ borderColor: bdr, color: textMuted }}>
+
+                  <div
+                    className="flex items-center justify-between mt-4 pt-3 border-t text-[10px]"
+                    style={{ borderColor: bdr, color: textMuted }}
+                  >
                     <div className="flex items-center gap-1">
                       {entry.source === 'ai' ? (
                         <span className="flex items-center gap-1 font-semibold text-indigo-500">
-                          <Sparkles className="w-3 h-3"/> Auto-Saved
+                          <Sparkles className="w-3 h-3" /> Auto-Saved
                         </span>
                       ) : (
-                        <span className="font-semibold text-zinc-550 dark:text-zinc-400">Manual Note</span>
+                        <span className="font-semibold text-zinc-550 dark:text-zinc-400">
+                          Manual Note
+                        </span>
                       )}
                       <span>·</span>
-                      <span className="flex items-center gap-0.5"><Clock className="w-2.5 h-2.5"/> {entry.timestamp}</span>
+                      <span className="flex items-center gap-0.5">
+                        <Clock className="w-2.5 h-2.5" /> {entry.timestamp}
+                      </span>
                     </div>
 
-                    <button 
+                    <button
                       onClick={() => handleDeleteNote(entry.id)}
                       className="opacity-0 group-hover:opacity-100 p-1 rounded-md text-zinc-400 hover:text-red-500 transition-all"
                       title="Delete note"
                     >
-                      <Trash2 className="w-3.5 h-3.5"/>
+                      <Trash2 className="w-3.5 h-3.5" />
                     </button>
                   </div>
                 </div>

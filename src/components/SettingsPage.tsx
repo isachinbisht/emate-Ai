@@ -80,9 +80,15 @@ export default function SettingsPage({ onBack }: SettingsPageProps) {
   useEffect(() => {
     const sync = async () => {
       const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (user) {
-        const fullName = user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split('@')[0] || 'User';
+        const fullName =
+          user.user_metadata?.full_name ||
+          user.user_metadata?.name ||
+          user.email?.split('@')[0] ||
+          'User';
         const displayName = String(fullName).trim() || 'User';
         setIsGuest(false);
         setProfileName(displayName);
@@ -120,29 +126,54 @@ export default function SettingsPage({ onBack }: SettingsPageProps) {
   ];
 
   return (
-    <div className="flex-1 h-full w-full flex flex-col overflow-hidden" style={{ background: bg, color: textPrimary, fontFamily: "'Inter', sans-serif" }}>
+    <div
+      className="flex-1 h-full w-full flex flex-col overflow-hidden"
+      style={{ background: bg, color: textPrimary, fontFamily: "'Inter', sans-serif" }}
+    >
       {/* Back bar */}
-      <div className="flex items-center gap-3 px-8 py-4 shrink-0 border-b" style={{ borderColor: bdr, background: bg }}>
-        <button onClick={onBack} className="flex items-center gap-2 text-sm font-medium transition hover:opacity-70 active:scale-95" style={{ color: textPrimary }}>
+      <div
+        className="flex items-center gap-3 px-8 py-4 shrink-0 border-b"
+        style={{ borderColor: bdr, background: bg }}
+      >
+        <button
+          onClick={onBack}
+          className="flex items-center gap-2 text-sm font-medium transition hover:opacity-70 active:scale-95"
+          style={{ color: textPrimary }}
+        >
           <ArrowLeft size={16} />
           <span>Back to Chat</span>
         </button>
         <span style={{ color: textMuted }}>·</span>
-        <span className="text-sm font-semibold" style={{ color: textPrimary }}>Settings</span>
+        <span className="text-sm font-semibold" style={{ color: textPrimary }}>
+          Settings
+        </span>
       </div>
 
       {/* Two-column layout */}
       <div className="flex flex-1 overflow-hidden">
         {/* Left tab nav */}
-        <nav className="w-52 shrink-0 flex flex-col p-4 gap-1 border-r overflow-y-auto" style={{ borderColor: bdr, background: surface }}>
-          <p className="text-[9px] font-mono uppercase tracking-widest px-3 pt-2 pb-3" style={{ color: textMuted }}>Settings</p>
+        <nav
+          className="w-52 shrink-0 flex flex-col p-4 gap-1 border-r overflow-y-auto"
+          style={{ borderColor: bdr, background: surface }}
+        >
+          <p
+            className="text-[9px] font-mono uppercase tracking-widest px-3 pt-2 pb-3"
+            style={{ color: textMuted }}
+          >
+            Settings
+          </p>
           {TABS.map(({ id, label, icon: Icon }) => (
             <button
               key={id}
               onClick={() => setActiveTab(id)}
               className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-left transition-all"
               style={{
-                background: activeTab === id ? (theme === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)') : 'transparent',
+                background:
+                  activeTab === id
+                    ? theme === 'dark'
+                      ? 'rgba(255,255,255,0.08)'
+                      : 'rgba(0,0,0,0.06)'
+                    : 'transparent',
                 color: activeTab === id ? textPrimary : textMuted,
               }}
             >
@@ -154,51 +185,130 @@ export default function SettingsPage({ onBack }: SettingsPageProps) {
 
         {/* Right content */}
         <div className="flex-1 overflow-y-auto p-8 max-w-2xl">
-
           {/* General */}
           {activeTab === 'general' && (
             <div className="space-y-6">
               <div>
-                <h2 className="text-xl font-bold mb-1" style={{ color: textPrimary }}>General</h2>
-                <p className="text-sm" style={{ color: textMuted }}>Preferences that apply across e-Mate.</p>
+                <h2 className="text-xl font-bold mb-1" style={{ color: textPrimary }}>
+                  General
+                </h2>
+                <p className="text-sm" style={{ color: textMuted }}>
+                  Preferences that apply across e-Mate.
+                </p>
               </div>
-              <div className="flex items-center justify-between p-4 rounded-2xl" style={{ border: `1px solid ${bdr}`, background: surface }}>
+              <div
+                className="flex items-center justify-between p-4 rounded-2xl"
+                style={{ border: `1px solid ${bdr}`, background: surface }}
+              >
                 <div>
-                  <p className="text-sm font-semibold" style={{ color: textPrimary }}>Appearance</p>
-                  <p className="text-xs mt-0.5" style={{ color: textMuted }}>Interface colour scheme</p>
+                  <p className="text-sm font-semibold" style={{ color: textPrimary }}>
+                    Appearance
+                  </p>
+                  <p className="text-xs mt-0.5" style={{ color: textMuted }}>
+                    Interface colour scheme
+                  </p>
                 </div>
-                <div className="flex items-center p-0.5 rounded-xl gap-0.5" style={{ background: theme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)', border: `1px solid ${bdr}` }}>
+                <div
+                  className="flex items-center p-0.5 rounded-xl gap-0.5"
+                  style={{
+                    background: theme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)',
+                    border: `1px solid ${bdr}`,
+                  }}
+                >
                   {(['Light', 'Dark'] as const).map((opt) => (
-                    <button key={opt} onClick={() => { setAppearance(opt); const nt = opt === 'Light' ? 'light' : 'dark'; localStorage.setItem('nk-theme', nt); applyTheme(nt); window.dispatchEvent(new Event('storage')); }}
+                    <button
+                      key={opt}
+                      onClick={() => {
+                        setAppearance(opt);
+                        const nt = opt === 'Light' ? 'light' : 'dark';
+                        localStorage.setItem('nk-theme', nt);
+                        applyTheme(nt);
+                        window.dispatchEvent(new Event('storage'));
+                      }}
                       className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
-                      style={{ background: appearance === opt ? (theme === 'dark' ? '#27272a' : '#ffffff') : 'transparent', color: appearance === opt ? textPrimary : textMuted, boxShadow: appearance === opt ? '0 1px 3px rgba(0,0,0,0.12)' : 'none' }}>
+                      style={{
+                        background:
+                          appearance === opt
+                            ? theme === 'dark'
+                              ? '#27272a'
+                              : '#ffffff'
+                            : 'transparent',
+                        color: appearance === opt ? textPrimary : textMuted,
+                        boxShadow: appearance === opt ? '0 1px 3px rgba(0,0,0,0.12)' : 'none',
+                      }}
+                    >
                       {opt === 'Light' ? <Sun size={12} /> : <Moon size={12} />}
                       {opt}
                     </button>
                   ))}
                 </div>
               </div>
-              <div className="p-4 rounded-2xl" style={{ border: `1px solid ${bdr}`, background: surface }}>
-                <p className="text-sm font-semibold mb-0.5" style={{ color: textPrimary }}>Language</p>
-                <p className="text-xs mb-3" style={{ color: textMuted }}>AI response language</p>
+              <div
+                className="p-4 rounded-2xl"
+                style={{ border: `1px solid ${bdr}`, background: surface }}
+              >
+                <p className="text-sm font-semibold mb-0.5" style={{ color: textPrimary }}>
+                  Language
+                </p>
+                <p className="text-xs mb-3" style={{ color: textMuted }}>
+                  AI response language
+                </p>
                 <div className="flex flex-wrap gap-2">
-                  {['Auto-detect', 'English', 'Hindi', 'Spanish', 'French', 'German'].map((lang) => (
-                    <button key={lang} onClick={() => setLanguage(lang)}
-                      className="px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
-                      style={{ background: language === lang ? (theme === 'dark' ? '#27272a' : '#09090b') : (theme === 'dark' ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)'), color: language === lang ? (theme === 'dark' ? '#f4f4f5' : '#ffffff') : textMuted, border: language === lang ? (theme === 'dark' ? '1px solid rgba(255,255,255,0.12)' : '1px solid rgba(0,0,0,0.15)') : `1px solid ${bdr}` }}>
-                      {lang}
-                    </button>
-                  ))}
+                  {['Auto-detect', 'English', 'Hindi', 'Spanish', 'French', 'German'].map(
+                    (lang) => (
+                      <button
+                        key={lang}
+                        onClick={() => setLanguage(lang)}
+                        className="px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
+                        style={{
+                          background:
+                            language === lang
+                              ? theme === 'dark'
+                                ? '#27272a'
+                                : '#09090b'
+                              : theme === 'dark'
+                                ? 'rgba(255,255,255,0.04)'
+                                : 'rgba(0,0,0,0.04)',
+                          color:
+                            language === lang
+                              ? theme === 'dark'
+                                ? '#f4f4f5'
+                                : '#ffffff'
+                              : textMuted,
+                          border:
+                            language === lang
+                              ? theme === 'dark'
+                                ? '1px solid rgba(255,255,255,0.12)'
+                                : '1px solid rgba(0,0,0,0.15)'
+                              : `1px solid ${bdr}`,
+                        }}
+                      >
+                        {lang}
+                      </button>
+                    )
+                  )}
                 </div>
               </div>
-              <div className="flex items-center justify-between p-4 rounded-2xl" style={{ border: `1px solid ${bdr}`, background: surface }}>
+              <div
+                className="flex items-center justify-between p-4 rounded-2xl"
+                style={{ border: `1px solid ${bdr}`, background: surface }}
+              >
                 <div>
-                  <p className="text-sm font-semibold" style={{ color: textPrimary }}>Interactive Guide</p>
-                  <p className="text-xs mt-0.5" style={{ color: textMuted }}>Learn e-Mate's advanced features</p>
+                  <p className="text-sm font-semibold" style={{ color: textPrimary }}>
+                    Interactive Guide
+                  </p>
+                  <p className="text-xs mt-0.5" style={{ color: textMuted }}>
+                    Learn e-Mate&apos;s advanced features
+                  </p>
                 </div>
-                <button onClick={() => window.dispatchEvent(new Event('nk-launch-guide'))}
+                <button
+                  onClick={() => window.dispatchEvent(new Event('nk-launch-guide'))}
                   className="px-4 py-2 rounded-xl text-xs font-semibold transition hover:opacity-85"
-                  style={{ background: theme === 'dark' ? '#ffffff' : '#09090b', color: theme === 'dark' ? '#000000' : '#ffffff' }}>
+                  style={{
+                    background: theme === 'dark' ? '#ffffff' : '#09090b',
+                    color: theme === 'dark' ? '#000000' : '#ffffff',
+                  }}
+                >
                   Launch Guide
                 </button>
               </div>
@@ -209,33 +319,92 @@ export default function SettingsPage({ onBack }: SettingsPageProps) {
           {activeTab === 'context' && (
             <div className="space-y-6">
               <div>
-                <h2 className="text-xl font-bold mb-1" style={{ color: textPrimary }}>Study Context</h2>
-                <p className="text-sm" style={{ color: textMuted }}>Set the subject and unit e-Mate answers from.</p>
+                <h2 className="text-xl font-bold mb-1" style={{ color: textPrimary }}>
+                  Study Context
+                </h2>
+                <p className="text-sm" style={{ color: textMuted }}>
+                  Set the subject and unit e-Mate answers from.
+                </p>
               </div>
-              <div className="p-4 rounded-2xl" style={{ border: `1px solid ${bdr}`, background: surface }}>
-                <p className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: textMuted }}>Syllabus Subject</p>
+              <div
+                className="p-4 rounded-2xl"
+                style={{ border: `1px solid ${bdr}`, background: surface }}
+              >
+                <p
+                  className="text-xs font-semibold uppercase tracking-wider mb-3"
+                  style={{ color: textMuted }}
+                >
+                  Syllabus Subject
+                </p>
                 <div className="flex flex-col gap-1">
-                  {subjects.map(s => (
-                    <button key={s.id}
-                      onClick={() => { const fu = s.units[0]?.name ?? ''; setSelectedSubject(s.name); if (fu) setSelectedUnit(fu); localStorage.setItem('nk-subject', s.name); if (fu) localStorage.setItem('nk-unit', fu); window.dispatchEvent(new Event('nk-context-change')); }}
+                  {subjects.map((s) => (
+                    <button
+                      key={s.id}
+                      onClick={() => {
+                        const fu = s.units[0]?.name ?? '';
+                        setSelectedSubject(s.name);
+                        if (fu) setSelectedUnit(fu);
+                        localStorage.setItem('nk-subject', s.name);
+                        if (fu) localStorage.setItem('nk-unit', fu);
+                        window.dispatchEvent(new Event('nk-context-change'));
+                      }}
                       className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm text-left transition-all"
-                      style={{ background: selectedSubject === s.name ? (theme === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)') : 'transparent', color: selectedSubject === s.name ? textPrimary : textMuted, border: selectedSubject === s.name ? `1px solid ${bdr}` : '1px solid transparent' }}>
+                      style={{
+                        background:
+                          selectedSubject === s.name
+                            ? theme === 'dark'
+                              ? 'rgba(255,255,255,0.08)'
+                              : 'rgba(0,0,0,0.06)'
+                            : 'transparent',
+                        color: selectedSubject === s.name ? textPrimary : textMuted,
+                        border:
+                          selectedSubject === s.name ? `1px solid ${bdr}` : '1px solid transparent',
+                      }}
+                    >
                       <span>{s.name}</span>
-                      {selectedSubject === s.name && <Check size={14} style={{ color: textPrimary }} />}
+                      {selectedSubject === s.name && (
+                        <Check size={14} style={{ color: textPrimary }} />
+                      )}
                     </button>
                   ))}
                 </div>
               </div>
-              <div className="p-4 rounded-2xl" style={{ border: `1px solid ${bdr}`, background: surface }}>
-                <p className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: textMuted }}>Unit / Topic</p>
+              <div
+                className="p-4 rounded-2xl"
+                style={{ border: `1px solid ${bdr}`, background: surface }}
+              >
+                <p
+                  className="text-xs font-semibold uppercase tracking-wider mb-3"
+                  style={{ color: textMuted }}
+                >
+                  Unit / Topic
+                </p>
                 <div className="flex flex-col gap-1">
-                  {(subjects.find(s => s.name === selectedSubject)?.units ?? []).map(u => (
-                    <button key={u.id}
-                      onClick={() => { setSelectedUnit(u.name); localStorage.setItem('nk-unit', u.name); window.dispatchEvent(new Event('nk-context-change')); }}
+                  {(subjects.find((s) => s.name === selectedSubject)?.units ?? []).map((u) => (
+                    <button
+                      key={u.id}
+                      onClick={() => {
+                        setSelectedUnit(u.name);
+                        localStorage.setItem('nk-unit', u.name);
+                        window.dispatchEvent(new Event('nk-context-change'));
+                      }}
                       className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm text-left transition-all"
-                      style={{ background: selectedUnit === u.name ? (theme === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)') : 'transparent', color: selectedUnit === u.name ? textPrimary : textMuted, border: selectedUnit === u.name ? `1px solid ${bdr}` : '1px solid transparent' }}>
+                      style={{
+                        background:
+                          selectedUnit === u.name
+                            ? theme === 'dark'
+                              ? 'rgba(255,255,255,0.08)'
+                              : 'rgba(0,0,0,0.06)'
+                            : 'transparent',
+                        color: selectedUnit === u.name ? textPrimary : textMuted,
+                        border:
+                          selectedUnit === u.name ? `1px solid ${bdr}` : '1px solid transparent',
+                      }}
+                    >
                       <span>{u.name}</span>
-                      {selectedUnit === u.name && <Check size={14} style={{ color: textPrimary }} />}
+                      {selectedUnit === u.name && (
+                        <Check size={14} style={{ color: textPrimary }} />
+                      )}
                     </button>
                   ))}
                 </div>
@@ -248,35 +417,107 @@ export default function SettingsPage({ onBack }: SettingsPageProps) {
             <div className="space-y-6">
               <div className="flex items-start justify-between">
                 <div>
-                  <h2 className="text-xl font-bold mb-1" style={{ color: textPrimary }}>My Notebook</h2>
-                  <p className="text-sm" style={{ color: textMuted }}>Notes auto-saved during chats for <strong>{selectedSubject || 'your active subject'}</strong>.</p>
+                  <h2 className="text-xl font-bold mb-1" style={{ color: textPrimary }}>
+                    My Notebook
+                  </h2>
+                  <p className="text-sm" style={{ color: textMuted }}>
+                    Notes auto-saved during chats for{' '}
+                    <strong>{selectedSubject || 'your active subject'}</strong>.
+                  </p>
                 </div>
                 {notebookNotes.length > 0 && (
-                  <button onClick={() => { clearNotebook(selectedSubject); setNotebookNotes([]); }} className="text-xs font-semibold px-3 py-1.5 rounded-lg transition hover:opacity-80 shrink-0" style={{ color: '#ef4444', background: 'rgba(239,68,68,0.08)' }}>Clear All</button>
+                  <button
+                    onClick={() => {
+                      clearNotebook(selectedSubject);
+                      setNotebookNotes([]);
+                    }}
+                    className="text-xs font-semibold px-3 py-1.5 rounded-lg transition hover:opacity-80 shrink-0"
+                    style={{ color: '#ef4444', background: 'rgba(239,68,68,0.08)' }}
+                  >
+                    Clear All
+                  </button>
                 )}
               </div>
               <div className="space-y-2">
                 {notebookNotes.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-16 rounded-2xl border border-dashed" style={{ borderColor: bdr }}>
+                  <div
+                    className="flex flex-col items-center justify-center py-16 rounded-2xl border border-dashed"
+                    style={{ borderColor: bdr }}
+                  >
                     <BookOpen size={32} className="mb-3 opacity-30" />
-                    <p className="text-sm text-center px-4" style={{ color: textMuted }}>No notes yet. Notes are auto-saved when you chat.</p>
+                    <p className="text-sm text-center px-4" style={{ color: textMuted }}>
+                      No notes yet. Notes are auto-saved when you chat.
+                    </p>
                   </div>
-                ) : notebookNotes.map((note) => (
-                  <div key={note.id} className="group flex items-start justify-between gap-3 p-4 rounded-xl border" style={{ background: surface, borderColor: bdr }}>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm leading-relaxed" style={{ color: textPrimary }}>{note.content}</p>
-                      <span className="text-xs mt-1 block" style={{ color: textMuted }}>{note.timestamp} · {note.source === 'ai' ? 'Auto-saved' : 'Manual'}</span>
+                ) : (
+                  notebookNotes.map((note) => (
+                    <div
+                      key={note.id}
+                      className="group flex items-start justify-between gap-3 p-4 rounded-xl border"
+                      style={{ background: surface, borderColor: bdr }}
+                    >
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm leading-relaxed" style={{ color: textPrimary }}>
+                          {note.content}
+                        </p>
+                        <span className="text-xs mt-1 block" style={{ color: textMuted }}>
+                          {note.timestamp} · {note.source === 'ai' ? 'Auto-saved' : 'Manual'}
+                        </span>
+                      </div>
+                      <button
+                        onClick={() => {
+                          deleteNotebookEntry(selectedSubject, note.id);
+                          setNotebookNotes((prev) => prev.filter((n) => n.id !== note.id));
+                        }}
+                        className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg transition hover:bg-red-500/10"
+                        title="Delete"
+                      >
+                        <Trash2 size={13} style={{ color: '#ef4444' }} />
+                      </button>
                     </div>
-                    <button onClick={() => { deleteNotebookEntry(selectedSubject, note.id); setNotebookNotes(prev => prev.filter(n => n.id !== note.id)); }} className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg transition hover:bg-red-500/10" title="Delete">
-                      <Trash2 size={13} style={{ color: '#ef4444' }} />
-                    </button>
-                  </div>
-                ))}
+                  ))
+                )}
               </div>
-              <div className="flex gap-2 p-4 rounded-2xl border" style={{ borderColor: bdr, background: surface }}>
-                <input type="text" value={newNoteText} onChange={(e) => setNewNoteText(e.target.value)} placeholder="Add a study note..." className="flex-1 px-3 py-2 rounded-xl text-sm focus:outline-none transition" style={{ background: theme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)', border: `1px solid ${bdr}`, color: textPrimary }}
-                  onKeyDown={(e) => { if (e.key === 'Enter' && newNoteText.trim()) { appendToNotebook(selectedSubject, newNoteText.trim(), 'user'); setNotebookNotes(getNotebook(selectedSubject).entries); setNewNoteText(''); } }} />
-                <button onClick={() => { if (newNoteText.trim()) { appendToNotebook(selectedSubject, newNoteText.trim(), 'user'); setNotebookNotes(getNotebook(selectedSubject).entries); setNewNoteText(''); } }} disabled={!newNoteText.trim()} className="px-4 py-2 rounded-xl text-sm font-semibold transition disabled:opacity-40" style={{ background: theme === 'dark' ? '#27272a' : '#09090b', color: theme === 'dark' ? '#f4f4f5' : '#ffffff' }}>Add</button>
+              <div
+                className="flex gap-2 p-4 rounded-2xl border"
+                style={{ borderColor: bdr, background: surface }}
+              >
+                <input
+                  type="text"
+                  value={newNoteText}
+                  onChange={(e) => setNewNoteText(e.target.value)}
+                  placeholder="Add a study note..."
+                  className="flex-1 px-3 py-2 rounded-xl text-sm focus:outline-none transition"
+                  style={{
+                    background: theme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)',
+                    border: `1px solid ${bdr}`,
+                    color: textPrimary,
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && newNoteText.trim()) {
+                      appendToNotebook(selectedSubject, newNoteText.trim(), 'user');
+                      setNotebookNotes(getNotebook(selectedSubject).entries);
+                      setNewNoteText('');
+                    }
+                  }}
+                />
+                <button
+                  onClick={() => {
+                    if (newNoteText.trim()) {
+                      appendToNotebook(selectedSubject, newNoteText.trim(), 'user');
+                      setNotebookNotes(getNotebook(selectedSubject).entries);
+                      setNewNoteText('');
+                    }
+                  }}
+                  disabled={!newNoteText.trim()}
+                  className="px-4 py-2 rounded-xl text-sm font-semibold transition disabled:opacity-40"
+                  style={{
+                    background: theme === 'dark' ? '#27272a' : '#09090b',
+                    color: theme === 'dark' ? '#f4f4f5' : '#ffffff',
+                  }}
+                >
+                  Add
+                </button>
               </div>
             </div>
           )}
@@ -285,18 +526,49 @@ export default function SettingsPage({ onBack }: SettingsPageProps) {
           {activeTab === 'account' && (
             <div className="space-y-6">
               <div>
-                <h2 className="text-xl font-bold mb-1" style={{ color: textPrimary }}>Account</h2>
-                <p className="text-sm" style={{ color: textMuted }}>Manage your profile and session.</p>
+                <h2 className="text-xl font-bold mb-1" style={{ color: textPrimary }}>
+                  Account
+                </h2>
+                <p className="text-sm" style={{ color: textMuted }}>
+                  Manage your profile and session.
+                </p>
               </div>
-              <div className="flex items-center gap-4 p-5 rounded-2xl" style={{ border: `1px solid ${bdr}`, background: surface }}>
-                <div className="w-12 h-12 rounded-2xl flex items-center justify-center text-base font-bold shrink-0" style={{ background: theme === 'dark' ? '#27272a' : '#f4f4f5', color: textPrimary }}>{avatarLabel}</div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold truncate" style={{ color: textPrimary }}>{profileName}</p>
-                  <p className="text-xs mt-0.5 truncate" style={{ color: textMuted }}>{profileSubtitle}</p>
+              <div
+                className="flex items-center gap-4 p-5 rounded-2xl"
+                style={{ border: `1px solid ${bdr}`, background: surface }}
+              >
+                <div
+                  className="w-12 h-12 rounded-2xl flex items-center justify-center text-base font-bold shrink-0"
+                  style={{
+                    background: theme === 'dark' ? '#27272a' : '#f4f4f5',
+                    color: textPrimary,
+                  }}
+                >
+                  {avatarLabel}
                 </div>
-                <span className="text-[10px] uppercase font-bold tracking-wider px-2.5 py-1 rounded-full shrink-0" style={{ background: theme === 'dark' ? 'rgba(255,255,255,0.09)' : 'rgba(0,0,0,0.06)', color: textMuted }}>{isGuest ? 'Guest' : 'Pro'}</span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold truncate" style={{ color: textPrimary }}>
+                    {profileName}
+                  </p>
+                  <p className="text-xs mt-0.5 truncate" style={{ color: textMuted }}>
+                    {profileSubtitle}
+                  </p>
+                </div>
+                <span
+                  className="text-[10px] uppercase font-bold tracking-wider px-2.5 py-1 rounded-full shrink-0"
+                  style={{
+                    background: theme === 'dark' ? 'rgba(255,255,255,0.09)' : 'rgba(0,0,0,0.06)',
+                    color: textMuted,
+                  }}
+                >
+                  {isGuest ? 'Guest' : 'Pro'}
+                </span>
               </div>
-              <button onClick={handleSignOut} className="flex items-center gap-2.5 px-5 py-3 rounded-2xl border text-sm font-semibold transition-all hover:bg-red-500/8 active:scale-[0.99]" style={{ color: '#ef4444', borderColor: 'rgba(239,68,68,0.2)' }}>
+              <button
+                onClick={handleSignOut}
+                className="flex items-center gap-2.5 px-5 py-3 rounded-2xl border text-sm font-semibold transition-all hover:bg-red-500/8 active:scale-[0.99]"
+                style={{ color: '#ef4444', borderColor: 'rgba(239,68,68,0.2)' }}
+              >
                 <LogOut size={15} />
                 Sign Out of e-Mate
               </button>
