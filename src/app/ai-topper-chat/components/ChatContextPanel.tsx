@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { BookOpen, ChevronDown, Target, Zap, Clock } from 'lucide-react';
+import { BookOpen, ChevronDown, Target, Zap, Clock, Zap as ZapIcon, BookOpen as BookOpenIcon } from 'lucide-react';
 import type { SelectedContext, ChatMessage, StudyMode } from './AITopperChatScreen';
 import { getSubjects, Subject } from '@/lib/notebook';
 
@@ -65,8 +65,8 @@ export default function ChatContextPanel({
     <aside 
       className="flex flex-col w-full max-w-[320px] shrink-0 border-r transition-colors duration-300 shadow-lg"
       style={{
-        background: theme === 'dark' ? '#090909' : '#f7f7f8',
-        borderColor: theme === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.08)',
+        background: theme === 'dark' ? '#0b0b0d' : '#f7f8fb',
+        borderColor: theme === 'dark' ? 'rgba(138,162,255,0.10)' : 'rgba(31,81,255,0.10)',
         color: theme === 'dark' ? '#ffffff' : '#000000',
         fontFamily: "'Inter', sans-serif"
       }}
@@ -76,7 +76,7 @@ export default function ChatContextPanel({
         style={{ borderColor: theme === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.08)' }}
       >
         <div className="flex items-center gap-2 mb-3">
-          <BookOpen size={16} style={{ color: theme === 'dark' ? '#ffffff' : '#000000' }} />
+          <BookOpen size={16} style={{ color: theme === 'dark' ? '#8aa2ff' : '#1f51ff' }} />
           <h3 className="text-sm font-semibold" style={{ color: theme === 'dark' ? '#ffffff' : '#000000' }}>Study Context</h3>
         </div>
 
@@ -188,7 +188,7 @@ export default function ChatContextPanel({
         style={{ borderColor: theme === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.08)' }}
       >
         <div className="flex items-center gap-2 mb-3 text-xs uppercase tracking-[0.24em] text-zinc-500 font-medium">
-          <Target size={13} />
+          <Target size={13} style={{ color: theme === 'dark' ? '#8aa2ff' : '#1f51ff' }} />
           <span>PYQ Signal</span>
         </div>
         <div className="space-y-3 text-sm" style={{ color: theme === 'dark' ? '#d4d4d8' : '#3f3f46' }}>
@@ -197,7 +197,7 @@ export default function ChatContextPanel({
             style={{ background: theme === 'dark' ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)' }}
           >
             <span>Exam probability</span>
-            <span className="rounded-full px-2 py-0.5 text-[11px] font-semibold" style={{ background: theme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)', color: theme === 'dark' ? '#ffffff' : '#000000' }}>High · 87%</span>
+            <span className="rounded-full px-2 py-0.5 text-[11px] font-semibold" style={{ background: theme === 'dark' ? 'rgba(138,162,255,0.16)' : 'rgba(31,81,255,0.10)', color: theme === 'dark' ? '#8aa2ff' : '#1f51ff' }}>High · 87%</span>
           </div>
           <div className="flex items-center justify-between text-[13px] text-zinc-500 px-1">
             <span>Appeared in PYQs</span>
@@ -212,7 +212,7 @@ export default function ChatContextPanel({
 
       <div className="flex-1 overflow-y-auto px-4 py-4">
         <div className="flex items-center gap-2 mb-3 text-xs uppercase tracking-[0.24em] text-zinc-500 font-medium">
-          <Zap size={13} />
+          <Zap size={13} style={{ color: theme === 'dark' ? '#8aa2ff' : '#1f51ff' }} />
           <span>Suggested Prompts</span>
         </div>
         <div className="space-y-3">
@@ -221,15 +221,15 @@ export default function ChatContextPanel({
               key={prompt.id}
               className="w-full rounded-2xl border px-4 py-3.5 text-left text-sm transition hover:scale-[1.01]"
               style={{
-                borderColor: theme === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)',
-                background: theme === 'dark' ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)',
+                borderColor: theme === 'dark' ? 'rgba(138,162,255,0.12)' : 'rgba(31,81,255,0.12)',
+                background: theme === 'dark' ? 'rgba(138,162,255,0.06)' : 'rgba(31,81,255,0.05)',
                 color: theme === 'dark' ? '#d4d4d8' : '#3f3f46'
               }}
             >
               <div className="flex items-start justify-between gap-2">
                 <span style={{ color: theme === 'dark' ? '#ffffff' : '#000000', fontWeight: '500' }}>{prompt.text}</span>
                 <span className="rounded-full px-2 py-0.5 text-[11px] font-semibold shrink-0"
-                  style={{ background: theme === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)', color: theme === 'dark' ? '#d4d4d8' : '#3f3f46' }}>
+                  style={{ background: theme === 'dark' ? 'rgba(138,162,255,0.16)' : 'rgba(31,81,255,0.10)', color: theme === 'dark' ? '#8aa2ff' : '#1f51ff' }}>
                   {prompt.tag}
                 </span>
               </div>
@@ -243,7 +243,7 @@ export default function ChatContextPanel({
         style={{ borderColor: theme === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.08)' }}
       >
         <div className="flex items-center gap-2 mb-3 text-[10px] uppercase tracking-[0.28em] text-zinc-500 font-medium">
-          <Clock size={13} />
+          <Clock size={13} style={{ color: theme === 'dark' ? '#8aa2ff' : '#1f51ff' }} />
           <span>This Session</span>
         </div>
         <div className="space-y-3 text-sm" style={{ color: theme === 'dark' ? '#d4d4d8' : '#3f3f46' }}>
@@ -253,8 +253,12 @@ export default function ChatContextPanel({
           </div>
           <div className="flex items-center justify-between">
             <span>Mode</span>
-            <span className="font-semibold" style={{ color: theme === 'dark' ? '#ffffff' : '#000000' }}>
-              {mode === 'sprint' ? '⚡ Sprint' : '🔬 Deep Dive'}
+            <span className="inline-flex items-center gap-1.5 font-semibold" style={{ color: theme === 'dark' ? '#ffffff' : '#000000' }}>
+              {mode === 'sprint' ? (
+                <><ZapIcon size={13} style={{ color: '#1f51ff' }} /> Sprint</>
+              ) : (
+                <><BookOpenIcon size={13} style={{ color: '#1f51ff' }} /> Deep Dive</>
+              )}
             </span>
           </div>
         </div>

@@ -44,8 +44,8 @@ export const metadata: Metadata = {
     telephone: false,
   },
   icons: {
-    icon: [{ url: '/favicon.ico', type: 'image/x-icon' }],
-    apple: [{ url: '/apple-touch-icon.png' }],
+    icon: '/asset/images/e.svg',
+    apple: '/asset/images/e.svg',
   },
   openGraph: {
     title: 'e-Mate AI — Your Smart Study Copilot & Academic Assistant',

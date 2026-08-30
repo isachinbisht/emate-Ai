@@ -27,6 +27,10 @@
   --muted-foreground: #8e8ea0;
   --card: #2f2f2f;
   --card-foreground: #ececec;
+  --popover: #2f2f2f;
+  --popover-foreground: #ececec;
+  --destructive: #ef4444;
+  --destructive-foreground: #ffffff;
   --input: rgba(255, 255, 255, 0.06);
   --ring: #10a37f;
   --radius: 0.75rem;
@@ -40,6 +44,40 @@
   --danger-bg: rgba(239, 68, 68, 0.1);
   --info: #10a37f;
   --info-bg: rgba(16, 163, 127, 0.1);
+}
+
+/* e-Mate light theme — semantic tokens for /ai-topper-chat (blue/system brand) */
+.light {
+  --background: #f7f8fb;
+  --bg-surface: #f7f8fb;
+  --bg-card: #ffffff;
+  --bg-card-hover: #f4f5f9;
+  --bg-sidebar: #f4f5f9;
+  --bg-input: #ffffff;
+  --foreground: #0b0b0d;
+  --text-primary: #0b0b0d;
+  --text-secondary: #3a3a3f;
+  --text-muted: #71717a;
+  --border: rgba(0, 0, 0, 0.08);
+  --border-hover: rgba(31, 81, 255, 0.2);
+  --primary: #1f51ff;
+  --primary-hover: #1740d6;
+  --primary-foreground: #ffffff;
+  --primary-glow: rgba(31, 81, 255, 0.18);
+  --accent: #eef1ff;
+  --accent-foreground: #1f51ff;
+  --secondary: #f4f5f9;
+  --secondary-foreground: #3a3a3f;
+  --muted: #f4f5f9;
+  --muted-foreground: #71717a;
+  --card: #ffffff;
+  --card-foreground: #0b0b0d;
+  --popover: #ffffff;
+  --popover-foreground: #0b0b0d;
+  --destructive: #ef4444;
+  --destructive-foreground: #ffffff;
+  --input: rgba(0, 0, 0, 0.06);
+  --ring: #1f51ff;
 }
 
 @layer base {

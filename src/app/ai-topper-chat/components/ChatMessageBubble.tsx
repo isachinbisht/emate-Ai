@@ -53,14 +53,20 @@ function renderMarkdown(text: string, theme: 'light' | 'dark' = 'dark'): React.R
           key={`code-${i}`}
           className="relative my-4 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-950 overflow-hidden font-mono text-sm shadow-md"
         >
-          <div className="flex items-center justify-between px-4 py-1.5 bg-zinc-900 border-b border-zinc-800 text-xs text-zinc-400 font-sans">
-            <span>{lang || 'code'}</span>
+          <div className="flex items-center justify-between px-4 py-1.5 bg-zinc-900/70 border-b border-zinc-800 text-xs text-zinc-400 font-sans">
+            <span className="flex items-center gap-2">
+              <span className="flex gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-zinc-700" />
+                <span className="w-2 h-2 rounded-full bg-zinc-700" />
+              </span>
+              <span>{lang || 'code'}</span>
+            </span>
             <button
               onClick={() => {
                 navigator.clipboard.writeText(codeLines.join('\n'));
                 toast.success('Code copied to clipboard!');
               }}
-              className="hover:text-zinc-200 transition-colors"
+              className="px-1.5 py-0.5 rounded-md hover:bg-white/5 hover:text-zinc-100 transition-colors"
             >
               Copy
             </button>
@@ -167,7 +173,7 @@ function renderMarkdown(text: string, theme: 'light' | 'dark' = 'dark'): React.R
               className="text-sm leading-relaxed flex items-start gap-2"
               style={{ color: isDark ? '#b4b4b4' : '#27272a' }}
             >
-              <span className="w-1 h-1 rounded-full mt-2.5 shrink-0" style={{ background: '#10a37f' }} />
+              <span className="w-1 h-1 rounded-full mt-2.5 shrink-0" style={{ background: '#1f51ff' }} />
               <span dangerouslySetInnerHTML={{ __html: formatInline(b, theme) }} />
             </li>
           ))}
@@ -222,9 +228,9 @@ function formatInline(text: string, theme: 'light' | 'dark' = 'dark'): string {
   const strongColor = isDark ? '#ffffff' : '#111111';
   const emColor = isDark ? '#b4b4b4' : '#52525b';
   const codeBg = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)';
-  const codeColor = isDark ? '#a78bfa' : '#6d28d9';
-  const chipBg = isDark ? 'rgba(59,130,246,0.08)' : 'rgba(59,130,246,0.05)';
-  const chipBorder = isDark ? 'rgba(59,130,246,0.15)' : 'rgba(59,130,246,0.1)';
+  const codeColor = isDark ? '#a8b8ff' : '#1f51ff';
+  const chipBg = isDark ? 'rgba(138,162,255,0.10)' : 'rgba(31,81,255,0.06)';
+  const chipBorder = isDark ? 'rgba(138,162,255,0.18)' : 'rgba(31,81,255,0.12)';
 
   return text
     .replace(/\*\*(.+?)\*\*/g, `<strong style="font-weight:600;color:${strongColor};background:${chipBg};border:1px solid ${chipBorder};padding:1px 5px;border-radius:4px;font-size:0.95em;margin:0 1px;">$1</strong>`)
@@ -281,13 +287,13 @@ function ProcessAccordion({ processStep, theme }: ProcessAccordionProps) {
           <span
             className={`absolute inset-0 rounded-full ${isActive ? 'animate-ping opacity-60' : ''}`}
             style={{
-              background: isDone ? '#10b981' : isActive ? '#10b981' : '#71717a',
+              background: isDone ? '#1f51ff' : isActive ? '#1f51ff' : '#71717a',
             }}
           />
           <span
             className="relative rounded-full w-1.5 h-1.5"
             style={{
-              background: isDone ? '#10b981' : isActive ? '#10b981' : '#71717a',
+              background: isDone ? '#1f51ff' : isActive ? '#1f51ff' : '#71717a',
             }}
           />
         </span>
@@ -295,7 +301,7 @@ function ProcessAccordion({ processStep, theme }: ProcessAccordionProps) {
         <span
           style={{
             color: isDone
-              ? isDark ? '#34d399' : '#059669'
+              ? isDark ? '#8aa2ff' : '#1f51ff'
               : isActive
               ? isDark ? '#a1a1aa' : '#71717a'
               : isDark ? '#52525b' : '#a1a1aa',
@@ -423,7 +429,7 @@ export default function ChatMessageBubble({
   if (isUser) {
     return (
       <div className="flex justify-end w-full fade-in-up">
-        <div className="bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 px-4 py-2.5 rounded-2xl max-w-[80%] ml-auto text-sm leading-relaxed shadow-sm font-medium">
+        <div className="bg-[#1f51ff] dark:bg-[#8aa2ff] text-white dark:text-[#0b0b0d] px-4 py-2.5 rounded-2xl rounded-br-md max-w-[80%] ml-auto text-sm leading-relaxed shadow-[0_4px_16px_-6px_rgba(31,81,255,0.30)] font-medium">
           {message.content}
         </div>
       </div>
@@ -437,7 +443,7 @@ export default function ChatMessageBubble({
       {/* Header Row — only in Study Copilot mode */}
       {!message.isGeneralChat && (
         <div className="flex items-center gap-2 mb-2">
-          <div className="bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 w-6 h-6 rounded-md flex items-center justify-center shrink-0">
+          <div className="bg-[#1f51ff] dark:bg-[#8aa2ff] text-white dark:text-[#0b0b0d] w-6 h-6 rounded-md flex items-center justify-center shrink-0">
             <Sparkles size={12} />
           </div>
           <span className="text-xs sm:text-sm font-semibold text-zinc-900 dark:text-zinc-100">
@@ -448,7 +454,7 @@ export default function ChatMessageBubble({
               Sprint
             </span>
           ) : (
-            <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-950/40 text-blue-800 dark:text-blue-300 border border-blue-200 dark:border-blue-900/60">
+            <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-[#eef1ff] dark:bg-[#232a55]/60 text-[#1f51ff] dark:text-[#a8b8ff] border border-[#dbe3ff] dark:border-[#232a55]">
               Deep Dive
             </span>
           )}

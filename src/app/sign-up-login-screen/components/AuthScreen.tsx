@@ -162,26 +162,60 @@ export default function AuthScreen() {
     else { toast.success('Confirmation email resent!'); }
   };
 
-  /* ─────── Styles ─────── */
+  /* ─────── Styles (e-Mate blue/system theme) ─────── */
   const isDark = theme === 'dark';
-  const bg = isDark ? '#000000' : '#ffffff';
-  const fg = isDark ? '#ffffff' : '#000000';
-  const cardBg = isDark ? '#111111' : '#f9f9fb';
-  const cardBorder = isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.07)';
+  const bg = isDark ? '#0b0b0d' : '#f7f8fb';
+  const fg = isDark ? '#fafafa' : '#0b0b12';
+  const cardBg = isDark ? '#141417' : '#ffffff';
+  const cardBorder = isDark ? 'rgba(138,162,255,0.18)' : 'rgba(31,81,255,0.16)';
   const inputBorder = isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.15)';
-  const btnPrimaryBg = isDark ? '#ffffff' : '#000000';
-  const btnPrimaryFg = isDark ? '#000000' : '#ffffff';
+  const accent = '#1f51ff';
+  const accentBright = isDark ? '#8aa2ff' : '#1f51ff';
+  const accentText = isDark ? '#a8b8ff' : '#1f51ff';
+  const btnPrimaryBg = isDark ? accentBright : accent;
+  const btnPrimaryFg = isDark ? '#0b0b0d' : '#ffffff';
   const dividerColor = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)';
-  const socialBg = isDark ? '#1e1e1e' : '#f4f4f6';
-  const socialBorder = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)';
-  const mutedFg = isDark ? '#71717a' : '#a1a1aa';
+  const socialBg = isDark ? '#1c1c20' : '#f2f4fb';
+  const socialBorder = isDark ? 'rgba(255,255,255,0.09)' : 'rgba(0,0,0,0.08)';
+  const mutedFg = isDark ? '#9ca0ab' : '#71717a';
+  const accentSoft = isDark ? 'rgba(138,162,255,0.16)' : 'rgba(31,81,255,0.10)';
+
+  const rootStyle: React.CSSProperties & Record<string, string> = {
+    background: bg,
+    color: fg,
+    fontFamily: "'Inter', sans-serif",
+    '--accent': accent,
+    '--accent-bright': accentBright,
+    '--accent-text': accentText,
+    '--muted': mutedFg,
+  };
+
+  const focusRingCls = isDark ? 'focus:ring-[#8aa2ff]' : 'focus:ring-[#1f51ff]';
+  const inputEmail = `w-full h-12 px-5 bg-transparent border rounded-2xl text-sm placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-offset-0 transition-all ${focusRingCls}`;
+  const inputPassword = `w-full h-12 pl-5 pr-12 bg-transparent border rounded-2xl text-sm placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-offset-0 transition-all ${focusRingCls}`;
+  const guestBorder = isDark ? 'rgba(138,162,255,0.35)' : 'rgba(31,81,255,0.32)';
+  const guestText = isDark ? accentBright : '#1f51ff';
 
   return (
     <div
       className="min-h-screen w-full flex flex-col justify-between items-center px-4 py-6 sm:py-10 relative font-sans transition-colors duration-500"
-      style={{ background: bg, color: fg, fontFamily: "'Inter', sans-serif" }}
+      style={rootStyle}
     >
       <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" />
+
+      <style>{`
+        button { cursor: pointer; }
+        button:disabled { cursor: default; }
+        .auth-link { color: var(--accent-text); }
+        .auth-link:hover { color: var(--accent-bright); }
+        .auth-muted { color: var(--muted); }
+        .auth-muted:hover { color: var(--accent-text); }
+        .auth-btn { transition: transform .18s ease, box-shadow .18s ease, background-color .18s ease, border-color .18s ease; }
+        .auth-btn:hover { transform: translateY(-1px); box-shadow: 0 8px 24px -8px rgba(31,81,255,0.35); }
+        .auth-btn:active { transform: translateY(0); }
+        .auth-social:hover { border-color: var(--accent); }
+        @media (prefers-reduced-motion: reduce){ *,*::before,*::after { animation:none !important; transition:none !important } }
+      `}</style>
 
       {/* Background glow */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
@@ -194,13 +228,8 @@ export default function AuthScreen() {
       {/* Logo bar */}
       <div className="w-full flex justify-between items-center max-w-[440px] z-10 mb-4">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-2xl border" style={{ borderColor: cardBorder, background: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)' }}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-              <g transform="rotate(-35 12 12)">
-                <rect x="5" y="4" width="6" height="16" rx="2" fill={fg} />
-                <rect x="13" y="4" width="6" height="16" rx="2" fill={fg} />
-              </g>
-            </svg>
+          <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-2xl border" style={{ borderColor: 'rgba(15,23,42,0.08)', background: '#f8f9fa' }}>
+            <img src="/asset/images/e.svg" alt="e-Mate AI" className="h-full w-full object-contain" />
           </div>
           <p className="text-xs font-semibold uppercase tracking-[0.3em]" style={{ color: mutedFg }}>e-Mate AI</p>
         </div>
@@ -209,7 +238,7 @@ export default function AuthScreen() {
       {/* Card */}
       <div
         className="w-full max-w-[440px] border rounded-3xl p-6 sm:p-10 shadow-2xl relative z-10 my-auto transition-all"
-        style={{ background: cardBg, borderColor: cardBorder }}
+        style={{ background: cardBg, borderColor: cardBorder, boxShadow: isDark ? '0 24px 80px -24px rgba(31,81,255,0.30)' : '0 24px 80px -28px rgba(31,81,255,0.22)' }}
       >
         {/* Close */}
         <button
@@ -224,8 +253,8 @@ export default function AuthScreen() {
         {/* ── Confirm screen ── */}
         {step === 'confirm' ? (
           <div className="space-y-6 text-center py-4">
-            <div className="w-16 h-16 rounded-full bg-[#10a37f]/10 flex items-center justify-center mx-auto">
-              <CheckCircle2 size={32} className="text-[#10a37f]" />
+            <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto" style={{ background: accentSoft }}>
+              <CheckCircle2 size={32} style={{ color: accentText }} />
             </div>
             <div className="space-y-2">
               <h2 className="text-xl sm:text-2xl font-bold tracking-tight" style={{ color: fg }}>Check your email</h2>
@@ -242,14 +271,14 @@ export default function AuthScreen() {
               <Mail size={16} style={{ color: mutedFg }} className="shrink-0" />
               <p className="text-xs" style={{ color: mutedFg }}>
                 Didn&apos;t receive it? Check spam or{' '}
-                <button onClick={handleResendConfirmation} className="text-[#10a37f] hover:underline font-medium">
+                <button onClick={handleResendConfirmation} className="hover:underline font-medium auth-link">
                   resend
                 </button>
               </p>
             </div>
             <button
               onClick={() => { setStep('email'); setIsSignUp(false); setError(null); }}
-              className="text-sm transition" style={{ color: mutedFg }}
+              className="text-sm transition auth-muted"
             >
               ← Back to sign in
             </button>
@@ -276,7 +305,7 @@ export default function AuthScreen() {
               type="button"
               onClick={handleGoogleSignIn}
               disabled={googleLoading}
-              className="w-full h-12 flex items-center justify-center gap-3 border rounded-full text-sm font-semibold transition-all disabled:opacity-50"
+              className="w-full h-12 flex items-center justify-center gap-3 border rounded-full text-sm font-semibold transition-all disabled:opacity-50 auth-social"
               style={{ background: socialBg, borderColor: socialBorder, color: fg }}
             >
               {googleLoading ? <Loader2 size={18} className="animate-spin" /> : (
@@ -301,8 +330,8 @@ export default function AuthScreen() {
             <button
               type="button"
               onClick={handleGuestContinue}
-              className="w-full h-11 border rounded-full text-sm font-medium transition-all"
-              style={{ borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)', color: isDark ? '#d4d4d8' : '#3f3f46' }}
+              className="w-full h-11 border rounded-full text-sm font-medium transition-all auth-social"
+              style={{ borderColor: guestBorder, color: guestText }}
             >
               Continue as Guest
             </button>
@@ -315,12 +344,12 @@ export default function AuthScreen() {
                 value={email}
                 autoComplete="email"
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full h-12 px-5 bg-transparent border rounded-2xl text-sm placeholder-zinc-500 focus:outline-none transition-all"
+                className={inputEmail}
                 style={{ borderColor: inputBorder, color: fg }}
               />
               <button
                 type="submit"
-                className="w-full h-12 text-sm font-semibold rounded-full transition-all flex items-center justify-center"
+                className="w-full h-12 text-sm font-semibold rounded-full transition-all flex items-center justify-center auth-btn"
                 style={{ background: btnPrimaryBg, color: btnPrimaryFg }}
               >
                 Continue with email
@@ -330,11 +359,11 @@ export default function AuthScreen() {
             <p className="text-center text-xs" style={{ color: mutedFg }}>
               {isSignUp ? (
                 <>Already have an account?{' '}
-                  <button onClick={() => { setIsSignUp(false); setError(null); }} className="text-[#10a37f] hover:underline font-semibold">Sign in</button>
+                  <button onClick={() => { setIsSignUp(false); setError(null); }} className="hover:underline font-semibold auth-link">Sign in</button>
                 </>
               ) : (
                 <>Don&apos;t have an account?{' '}
-                  <button onClick={() => { setIsSignUp(true); setError(null); }} className="text-[#10a37f] hover:underline font-semibold">Sign up</button>
+                  <button onClick={() => { setIsSignUp(true); setError(null); }} className="hover:underline font-semibold auth-link">Sign up</button>
                 </>
               )}
             </p>
@@ -346,8 +375,7 @@ export default function AuthScreen() {
             <div className="text-center space-y-2">
               <button
                 onClick={() => { setStep('email'); setError(null); }}
-                className="inline-flex items-center gap-1.5 text-xs font-semibold mb-2 transition"
-                style={{ color: mutedFg }}
+                className="inline-flex items-center gap-1.5 text-xs font-semibold mb-2 transition auth-muted"
               >
                 <ArrowLeft size={14} /> Back
               </button>
@@ -369,7 +397,7 @@ export default function AuthScreen() {
                   value={name}
                   autoComplete="name"
                   onChange={(e) => setName(e.target.value)}
-                  className="w-full h-12 px-5 bg-transparent border rounded-2xl text-sm placeholder-zinc-500 focus:outline-none transition-all"
+                  className={inputEmail}
                   style={{ borderColor: inputBorder, color: fg }}
                 />
               )}
@@ -380,7 +408,7 @@ export default function AuthScreen() {
                   value={password}
                   autoComplete={isSignUp ? 'new-password' : 'current-password'}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full h-12 pl-5 pr-12 bg-transparent border rounded-2xl text-sm placeholder-zinc-500 focus:outline-none transition-all"
+                  className={inputPassword}
                   style={{ borderColor: inputBorder, color: fg }}
                 />
                 <button
@@ -396,7 +424,7 @@ export default function AuthScreen() {
               <button
                 type="submit"
                 disabled={isLoading}
-                className="w-full h-12 text-sm font-semibold rounded-full transition-all flex items-center justify-center gap-2 disabled:opacity-60"
+                className="w-full h-12 text-sm font-semibold rounded-full transition-all flex items-center justify-center gap-2 disabled:opacity-60 auth-btn"
                 style={{ background: btnPrimaryBg, color: btnPrimaryFg }}
               >
                 {isLoading ? (
@@ -408,11 +436,11 @@ export default function AuthScreen() {
             <p className="text-center text-xs" style={{ color: mutedFg }}>
               {isSignUp ? (
                 <>Already have an account?{' '}
-                  <button onClick={() => { setIsSignUp(false); setError(null); }} className="text-[#10a37f] hover:underline font-semibold">Sign in</button>
+                  <button onClick={() => { setIsSignUp(false); setError(null); }} className="hover:underline font-semibold auth-link">Sign in</button>
                 </>
               ) : (
                 <>Don&apos;t have an account?{' '}
-                  <button onClick={() => { setIsSignUp(true); setError(null); }} className="text-[#10a37f] hover:underline font-semibold">Sign up</button>
+                  <button onClick={() => { setIsSignUp(true); setError(null); }} className="hover:underline font-semibold auth-link">Sign up</button>
                 </>
               )}
             </p>
@@ -420,8 +448,7 @@ export default function AuthScreen() {
             {!isSignUp && (
               <button
                 onClick={handleForgotPassword}
-                className="block mx-auto text-xs transition hover:text-[#10a37f]"
-                style={{ color: mutedFg }}
+                className="block mx-auto text-xs transition auth-muted"
               >
                 Forgot password?
               </button>
