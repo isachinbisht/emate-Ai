@@ -934,7 +934,7 @@ export default function ChatMainArea({
       {/* Messages area — no pt-20 needed since header is no longer absolute */}
       <div className="flex-1 overflow-y-auto min-h-0 flex flex-col">
         {!hasMessages ? (
-          <div className="min-h-[75vh] flex flex-col justify-center items-center text-center max-w-2xl mx-auto w-full px-4">
+          <div className="flex flex-col items-center justify-start pt-24 sm:pt-32 pb-16 px-4 w-full max-w-3xl mx-auto">
             {/* Hidden File Input */}
             <input
               type="file"

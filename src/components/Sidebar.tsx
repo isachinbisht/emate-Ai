@@ -31,7 +31,6 @@ import {
   Clock,
   ChevronRight,
   ChevronLeft,
-  ChevronDown,
   LogOut,
   Trash2,
   PlusCircle,
@@ -46,9 +45,6 @@ import {
   Edit2,
   Check,
   MoreHorizontal,
-  Compass,
-  Target,
-  Zap,
   ArrowLeft,
   Folder,
   BookMarked,
@@ -86,23 +82,11 @@ export default function Sidebar({
   const [newSubjectName, setNewSubjectName] = useState('');
   const [newSubjectEmoji, setNewSubjectEmoji] = useState('📚');
   const [newSubjectType, setNewSubjectType] = useState('');
-
-  // ── Study Context panel state ────────────────────────────────────────────
-  const [showStudyContext, setShowStudyContext] = useState(false);
-  const [subjectDropOpen, setSubjectDropOpen] = useState(false);
-  const [unitDropOpen, setUnitDropOpen] = useState(false);
   const [portalMounted, setPortalMounted] = useState(false);
 
   useEffect(() => {
     setPortalMounted(true);
   }, []);
-
-  const SUGGESTED_PROMPTS = [
-    { id: 'p1', text: 'Explain BCNF with a 2-mark exam answer', tag: 'High PYQ' },
-    { id: 'p2', text: 'List all functional dependencies in 3NF', tag: 'Concept' },
-    { id: 'p3', text: 'Give me 5 MCQs on normalization', tag: 'Practice' },
-    { id: 'p4', text: 'Difference between 2NF and 3NF in table form', tag: 'Sprint' },
-  ];
 
   const SUBJECT_TYPES = [
     { label: 'Science', emoji: '🔬', icon: FlaskConical },
@@ -313,25 +297,17 @@ export default function Sidebar({
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2.5">
               <div
-                className="flex h-7 w-7 items-center justify-center rounded-xl"
+                className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-xl"
                 style={{
-                  border: '1px solid currentColor',
-                  background: 'rgba(0,0,0,0.05)',
-                  color: theme === 'dark' ? '#ffffff' : '#000000',
+                  border: '1px solid rgba(0,0,0,0.06)',
+                  background: '#f8f9fa',
                 }}
               >
-                <svg
-                  width="12"
-                  height="12"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  className="text-current"
-                >
-                  <g transform="rotate(-35 12 12)">
-                    <rect x="5" y="4" width="6" height="16" rx="2" fill="currentColor" />
-                    <rect x="13" y="4" width="6" height="16" rx="2" fill="currentColor" />
-                  </g>
-                </svg>
+                <img
+                  src="/asset/images/e.svg"
+                  alt="e-Mate"
+                  className="h-full w-full object-contain"
+                />
               </div>
               <span
                 className="text-sm font-semibold"
@@ -362,22 +338,22 @@ export default function Sidebar({
               style={{
                 background: isGeneralWorkspaceActive
                   ? theme === 'dark'
-                    ? 'rgba(59,130,246,0.15)'
-                    : 'rgba(59,130,246,0.08)'
+                    ? 'rgba(255,255,255,0.12)'
+                    : 'rgba(0,0,0,0.08)'
                   : theme === 'dark'
                     ? 'rgba(255,255,255,0.08)'
                     : 'rgba(0,0,0,0.06)',
                 color: isGeneralWorkspaceActive
                   ? theme === 'dark'
-                    ? '#93c5fd'
-                    : '#2563eb'
+                    ? '#ffffff'
+                    : '#000000'
                   : theme === 'dark'
                     ? '#f4f4f5'
                     : '#09090b',
                 border: isGeneralWorkspaceActive
                   ? theme === 'dark'
-                    ? '1px solid rgba(59,130,246,0.3)'
-                    : '1px solid rgba(59,130,246,0.2)'
+                    ? '1px solid rgba(255,255,255,0.18)'
+                    : '1px solid rgba(0,0,0,0.12)'
                   : '1px solid transparent',
               }}
             >
@@ -403,311 +379,6 @@ export default function Sidebar({
               <span>Library</span>
             </button>
 
-            {/* ── Study Context inline accordion ── */}
-            <div>
-              <button
-                type="button"
-                onClick={() => {
-                  setShowStudyContext(!showStudyContext);
-                  setSubjectDropOpen(false);
-                  setUnitDropOpen(false);
-                }}
-                className="flex items-center justify-between w-full rounded-2xl px-2.5 py-2.5 text-sm font-medium transition"
-                style={{
-                  background: showStudyContext
-                    ? theme === 'dark'
-                      ? 'rgba(255,255,255,0.08)'
-                      : 'rgba(0,0,0,0.05)'
-                    : 'transparent',
-                  color: theme === 'dark' ? '#d4d4d8' : '#3f3f46',
-                }}
-              >
-                <span className="flex items-center gap-3">
-                  <Compass size={18} />
-                  <span>Study Context</span>
-                </span>
-                <ChevronDown
-                  size={14}
-                  className={`text-zinc-400 transition-transform duration-200 ${showStudyContext ? 'rotate-180' : ''}`}
-                />
-              </button>
-
-              {/* Accordion body */}
-              {showStudyContext && (
-                <div
-                  className="mt-2 mb-1 rounded-2xl border p-3 space-y-3"
-                  style={{
-                    borderColor: theme === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.07)',
-                    background: theme === 'dark' ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
-                  }}
-                >
-                  {/* Close pill */}
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] uppercase tracking-[0.3em] text-zinc-500 font-medium">
-                      Context
-                    </span>
-                    <button
-                      onClick={() => {
-                        setShowStudyContext(false);
-                        setSubjectDropOpen(false);
-                        setUnitDropOpen(false);
-                      }}
-                      className="w-6 h-6 flex items-center justify-center rounded-full transition hover:opacity-70"
-                      style={{
-                        background:
-                          theme === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)',
-                        color: theme === 'dark' ? '#a1a1aa' : '#71717a',
-                      }}
-                      title="Close"
-                    >
-                      <X size={11} />
-                    </button>
-                  </div>
-
-                  {/* Subject */}
-                  <div>
-                    <p className="text-[10px] uppercase tracking-[0.28em] text-zinc-500 font-medium mb-1">
-                      Subject
-                    </p>
-                    <div className="relative">
-                      <button
-                        onClick={() => {
-                          setSubjectDropOpen(!subjectDropOpen);
-                          setUnitDropOpen(false);
-                        }}
-                        className="w-full rounded-full border px-3 py-2 text-left text-xs font-medium transition flex items-center justify-between"
-                        style={{
-                          borderColor:
-                            theme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)',
-                          background:
-                            theme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)',
-                          color: theme === 'dark' ? '#ffffff' : '#000000',
-                        }}
-                      >
-                        <span className="truncate">{selectedSubject}</span>
-                        <ChevronDown
-                          size={12}
-                          className={`text-zinc-400 shrink-0 transition-transform duration-200 ${subjectDropOpen ? 'rotate-180' : ''}`}
-                        />
-                      </button>
-                      {subjectDropOpen && (
-                        <div
-                          className="mt-1 rounded-2xl border p-1 shadow-xl z-30 w-full"
-                          style={{
-                            background:
-                              theme === 'dark' ? 'rgba(20,20,20,0.98)' : 'rgba(255,255,255,0.98)',
-                            borderColor:
-                              theme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)',
-                          }}
-                        >
-                          {subjects.map((s) => (
-                            <button
-                              key={s.id}
-                              onClick={() => {
-                                handleSelectNotebook(s.name);
-                                setSubjectDropOpen(false);
-                              }}
-                              className="w-full rounded-xl px-3 py-1.5 text-left text-xs transition"
-                              style={{
-                                background:
-                                  s.name === selectedSubject
-                                    ? theme === 'dark'
-                                      ? 'rgba(255,255,255,0.1)'
-                                      : 'rgba(0,0,0,0.06)'
-                                    : 'transparent',
-                                color: theme === 'dark' ? '#ffffff' : '#000000',
-                                fontWeight: s.name === selectedSubject ? '600' : '400',
-                              }}
-                            >
-                              {s.name}
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Unit */}
-                  <div>
-                    <p className="text-[10px] uppercase tracking-[0.28em] text-zinc-500 font-medium mb-1">
-                      Unit
-                    </p>
-                    <div className="relative">
-                      <button
-                        onClick={() => {
-                          setUnitDropOpen(!unitDropOpen);
-                          setSubjectDropOpen(false);
-                        }}
-                        className="w-full rounded-full border px-3 py-2 text-left text-xs font-medium transition flex items-center justify-between"
-                        style={{
-                          borderColor:
-                            theme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)',
-                          background:
-                            theme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)',
-                          color: theme === 'dark' ? '#ffffff' : '#000000',
-                        }}
-                      >
-                        <span className="truncate">{selectedUnit}</span>
-                        <ChevronDown
-                          size={12}
-                          className={`text-zinc-400 shrink-0 transition-transform duration-200 ${unitDropOpen ? 'rotate-180' : ''}`}
-                        />
-                      </button>
-                      {unitDropOpen &&
-                        (() => {
-                          const curSubj = subjects.find((s) => s.name === selectedSubject);
-                          return (
-                            <div
-                              className="mt-1 rounded-2xl border p-1 shadow-xl z-30 w-full max-h-40 overflow-y-auto"
-                              style={{
-                                background:
-                                  theme === 'dark'
-                                    ? 'rgba(20,20,20,0.98)'
-                                    : 'rgba(255,255,255,0.98)',
-                                borderColor:
-                                  theme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)',
-                              }}
-                            >
-                              {curSubj?.units.map((u) => (
-                                <button
-                                  key={u.id}
-                                  onClick={() => {
-                                    setSelectedUnit(u.name);
-                                    localStorage.setItem('nk-unit', u.name);
-                                    window.dispatchEvent(new Event('nk-context-change'));
-                                    setUnitDropOpen(false);
-                                  }}
-                                  className="w-full rounded-xl px-3 py-1.5 text-left text-xs transition"
-                                  style={{
-                                    background:
-                                      u.name === selectedUnit
-                                        ? theme === 'dark'
-                                          ? 'rgba(255,255,255,0.1)'
-                                          : 'rgba(0,0,0,0.06)'
-                                        : 'transparent',
-                                    color: theme === 'dark' ? '#ffffff' : '#000000',
-                                    fontWeight: u.name === selectedUnit ? '600' : '400',
-                                  }}
-                                >
-                                  {u.name}
-                                </button>
-                              ))}
-                            </div>
-                          );
-                        })()}
-                    </div>
-                  </div>
-
-                  {/* Divider */}
-                  <div
-                    className="border-t"
-                    style={{
-                      borderColor: theme === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)',
-                    }}
-                  />
-
-                  {/* PYQ Signal */}
-                  <div>
-                    <div className="flex items-center gap-1 mb-1.5 text-[9px] uppercase tracking-[0.24em] text-zinc-500 font-medium">
-                      <Target size={10} />
-                      <span>PYQ Signal</span>
-                    </div>
-                    <div
-                      className="flex items-center justify-between rounded-xl px-2.5 py-1.5 mb-1"
-                      style={{
-                        background:
-                          theme === 'dark' ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)',
-                      }}
-                    >
-                      <span
-                        className="text-[11px]"
-                        style={{ color: theme === 'dark' ? '#a1a1aa' : '#52525b' }}
-                      >
-                        Exam probability
-                      </span>
-                      <span
-                        className="rounded-full px-1.5 py-0.5 text-[10px] font-semibold"
-                        style={{
-                          background:
-                            theme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)',
-                          color: theme === 'dark' ? '#ffffff' : '#000000',
-                        }}
-                      >
-                        High · 87%
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between text-[11px] text-zinc-500 px-1">
-                      <span>Appeared in PYQs</span>
-                      <span
-                        style={{
-                          color: theme === 'dark' ? '#ffffff' : '#000000',
-                          fontWeight: '500',
-                        }}
-                      >
-                        4 / last 5 yrs
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Divider */}
-                  <div
-                    className="border-t"
-                    style={{
-                      borderColor: theme === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)',
-                    }}
-                  />
-
-                  {/* Suggested Prompts */}
-                  <div>
-                    <div className="flex items-center gap-1 mb-1.5 text-[9px] uppercase tracking-[0.24em] text-zinc-500 font-medium">
-                      <Zap size={10} />
-                      <span>Quick Prompts</span>
-                    </div>
-                    <div className="space-y-1.5">
-                      {SUGGESTED_PROMPTS.map((prompt) => (
-                        <button
-                          key={prompt.id}
-                          onClick={() => {
-                            window.dispatchEvent(
-                              new CustomEvent('nk-send-prompt', { detail: { text: prompt.text } })
-                            );
-                            setShowStudyContext(false);
-                          }}
-                          className="w-full rounded-xl border px-2.5 py-2 text-left transition hover:scale-[1.01] active:scale-[0.99]"
-                          style={{
-                            borderColor:
-                              theme === 'dark' ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.07)',
-                            background: theme === 'dark' ? 'rgba(255,255,255,0.03)' : 'transparent',
-                          }}
-                        >
-                          <div className="flex items-start justify-between gap-1.5">
-                            <span
-                              className="text-[11px] leading-snug"
-                              style={{
-                                color: theme === 'dark' ? '#e4e4e7' : '#27272a',
-                                fontWeight: '500',
-                              }}
-                            >
-                              {prompt.text}
-                            </span>
-                            <span
-                              className="rounded-full px-1 py-0.5 text-[8px] font-semibold shrink-0"
-                              style={{
-                                background:
-                                  theme === 'dark' ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.05)',
-                                color: '#71717a',
-                              }}
-                            >
-                              {prompt.tag}
-                            </span>
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
           </nav>
 
           {/* Notebooks & Recent Sections container with space-y-4 visual separation */}
@@ -959,7 +630,7 @@ export default function Sidebar({
                           onKeyDown={(e) => {
                             if (e.key === 'Enter') handleConfirmCreate();
                           }}
-                          className="w-full h-11 rounded-xl border px-4 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                          className="w-full h-11 rounded-xl border px-4 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-400/30 focus:border-zinc-400 transition-all"
                           style={{
                             background:
                               theme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)',
@@ -1006,8 +677,8 @@ export default function Sidebar({
                                 borderColor:
                                   newSubjectEmoji === em
                                     ? theme === 'dark'
-                                      ? '#6366f1'
-                                      : '#4f46e5'
+                                      ? '#ffffff'
+                                      : '#000000'
                                     : theme === 'dark'
                                       ? 'rgba(255,255,255,0.08)'
                                       : 'rgba(0,0,0,0.08)',
@@ -1127,7 +798,11 @@ export default function Sidebar({
                     <button
                       onClick={handleConfirmCreate}
                       disabled={!newSubjectName.trim()}
-                      className="px-5 py-2 rounded-xl text-xs font-semibold bg-indigo-650 hover:bg-indigo-700 text-white shadow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="px-5 py-2 rounded-xl text-xs font-semibold shadow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                      style={{
+                        background: theme === 'dark' ? '#ffffff' : '#000000',
+                        color: theme === 'dark' ? '#000000' : '#ffffff',
+                      }}
                     >
                       Save & Launch Notebook
                     </button>

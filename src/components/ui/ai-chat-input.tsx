@@ -6,14 +6,6 @@ import { cn } from '@/lib/utils';
 import { Mic } from 'lucide-react';
 
 // ----------------------------------------------------------------------
-// Transition Physics
-// ----------------------------------------------------------------------
-const SPRING_TRANSITION =
-  'max-width 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), height 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
-const SMOOTH_HEIGHT_TRANSITION =
-  'max-width 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), height 0.15s ease-out';
-
-// ----------------------------------------------------------------------
 // Types
 // ----------------------------------------------------------------------
 interface Attachment {
@@ -72,9 +64,6 @@ function ModelSparkleIcon() {
 }
 
 function ModelIcon({ model, className }: { model: string; className?: string }) {
-  // Real e-Mate model icons. Unmapped names fall back to a neutral brand sparkle
-  // (never an unrelated third-party logo). Registered here so the cloudinary-map
-  // demo names below still render their logos when a project opts in.
   const brandIcons: Record<string, string> = {
     'Gemini 2.0 Flash':
       'https://res.cloudinary.com/drhx7imeb/image/upload/v1781695268/google-gemini-icon_l6kk5q.svg',
@@ -95,7 +84,7 @@ function ModelIcon({ model, className }: { model: string; className?: string }) 
 
 function ArrowUpIcon() {
   return (
-    <svg width="20" height="20" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+    <svg width="16" height="16" viewBox="0 0 14 14" fill="none" aria-hidden="true">
       <path
         d="M7 12V2M7 2L2.5 6.5M7 2L11.5 6.5"
         stroke="currentColor"
@@ -107,23 +96,9 @@ function ArrowUpIcon() {
   );
 }
 
-function MicIcon() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-      <rect x="5" y="1" width="4" height="7" rx="2" stroke="currentColor" strokeWidth="1.5" />
-      <path
-        d="M2.75 6.5V7a4.25 4.25 0 0 0 8.5 0v-.5M7 11.25V13"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
-}
-
 function StopIcon() {
   return (
-    <svg width="20" height="20" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+    <svg width="16" height="16" viewBox="0 0 14 14" fill="none" aria-hidden="true">
       <rect x="3.5" y="3.5" width="7" height="7" rx="1.5" fill="currentColor" />
     </svg>
   );
@@ -131,7 +106,7 @@ function StopIcon() {
 
 function PlusIcon() {
   return (
-    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+    <svg width="16" height="16" viewBox="0 0 14 14" fill="none" aria-hidden="true">
       <path
         d="M7 2.5V11.5M2.5 7H11.5"
         stroke="currentColor"
@@ -156,8 +131,12 @@ function CloseIcon() {
 }
 
 function DynamicBarsIcon({ level }: { level: string }) {
-  const isMediumOrHigh = level === 'Medium' || level === 'Max Effort';
-  const isHigh = level === 'Max Effort';
+  const bars =
+    level === 'Deep' || level === 'Max Effort'
+      ? 3
+      : level === 'Balanced' || level === 'Medium'
+        ? 2
+        : 1;
 
   return (
     <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
@@ -169,7 +148,7 @@ function DynamicBarsIcon({ level }: { level: string }) {
         rx="1"
         fill="currentColor"
         className="transition-opacity duration-300"
-        opacity={1}
+        opacity={bars >= 1 ? 1 : 0.3}
       />
       <rect
         x="5.75"
@@ -179,7 +158,7 @@ function DynamicBarsIcon({ level }: { level: string }) {
         rx="1"
         fill="currentColor"
         className="transition-opacity duration-300"
-        opacity={isMediumOrHigh ? 1 : 0.3}
+        opacity={bars >= 2 ? 1 : 0.3}
       />
       <rect
         x="10"
@@ -189,7 +168,7 @@ function DynamicBarsIcon({ level }: { level: string }) {
         rx="1"
         fill="currentColor"
         className="transition-opacity duration-300"
-        opacity={isHigh ? 1 : 0.3}
+        opacity={bars >= 3 ? 1 : 0.3}
       />
     </svg>
   );
@@ -232,9 +211,9 @@ function AttachmentThumb({
       }}
       style={{ animationDelay: `${index * 35}ms`, animationFillMode: 'backwards' }}
       className={cn(
-        'group relative size-12 shrink-0 overflow-hidden rounded-xl border border-border bg-muted outline-none',
-        'transition-transform duration-200 ease-[cubic-bezier(0.175,0.885,0.32,1.275)] hover:scale-[1.04] active:scale-[0.96]',
-        'animate-in fade-in slide-in-from-top-3 zoom-in-90 duration-400'
+        'group relative size-12 shrink-0 overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-100 dark:bg-zinc-800 outline-none',
+        'transition-transform duration-200 hover:scale-[1.04] active:scale-[0.96]',
+        'animate-in fade-in zoom-in-90 duration-300'
       )}
       aria-label={`Open preview of ${attachment.name}`}
     >
@@ -262,7 +241,7 @@ function AttachmentThumb({
             onRemove(attachment.id);
           }}
           className={cn(
-            'm-1 flex size-4 items-center justify-center rounded-full bg-background/90 text-foreground/70 shadow-sm transition-all duration-200 ease-[cubic-bezier(0.175,0.885,0.32,1.275)] hover:bg-background hover:text-foreground hover:scale-110',
+            'm-1 flex size-4 items-center justify-center rounded-full bg-white/90 dark:bg-zinc-900/90 text-zinc-700 dark:text-zinc-300 shadow-sm transition-all duration-200 hover:scale-110',
             isHovered ? 'opacity-100 scale-100' : 'opacity-0 scale-50 pointer-events-none'
           )}
           aria-label={`Remove ${attachment.name}`}
@@ -350,7 +329,7 @@ function AttachmentGalleryModal({
   return (
     <div className="fixed inset-0 z-[100]" onClick={handleClose} role="dialog" aria-modal="true">
       <div
-        className="absolute inset-0 bg-background/70 backdrop-blur-md transition-opacity duration-400"
+        className="absolute inset-0 bg-black/70 backdrop-blur-md transition-opacity duration-400"
         style={{ opacity: isOpen ? 1 : 0 }}
       />
       <div
@@ -367,7 +346,7 @@ function AttachmentGalleryModal({
             ? '0 24px 60px -12px rgb(0 0 0 / 0.35)'
             : '0 0px 0px 0px rgb(0 0 0 / 0)',
         }}
-        className="bg-muted"
+        className="bg-zinc-900"
         onTransitionEnd={() => {
           if (phase === 'closing') onClose();
         }}
@@ -387,8 +366,8 @@ function AttachmentGalleryModal({
         onClick={handleClose}
         style={{ opacity: isOpen ? 1 : 0, transform: isOpen ? 'scale(1)' : 'scale(0.7)' }}
         className={cn(
-          'fixed right-4 top-4 flex size-9 items-center justify-center rounded-full bg-card/90 text-foreground/70 shadow-md backdrop-blur-sm',
-          'transition-all duration-300 ease-[cubic-bezier(0.175,0.885,0.32,1.275)] hover:bg-card hover:text-foreground',
+          'fixed right-4 top-4 flex size-9 items-center justify-center rounded-full bg-zinc-800/90 text-zinc-100 shadow-md backdrop-blur-sm',
+          'transition-all duration-300 hover:bg-zinc-700',
           !isOpen && 'pointer-events-none'
         )}
       >
@@ -420,10 +399,10 @@ export const PromptInput = React.forwardRef<HTMLDivElement, PromptInputProps>(
   (
     {
       onSubmit,
-      placeholder = 'Ask anything',
+      placeholder = 'Ask anything or type / for commands...',
       className,
-      models = ['GPT 5.5', 'Opus 4.8', 'Gemini 3.5 Flash', 'Composer 2.5', 'GLM 5.2'],
-      efforts = ['Low', 'Medium', 'Max Effort'],
+      models = ['Gemini 2.0 Flash', 'Gemini 2.5 Flash', 'GPT-4o Mini', 'Claude 3.5 Sonnet'],
+      efforts = ['Quick', 'Balanced', 'Deep'],
       defaultValue = '',
       value: controlledValue,
       onChange,
@@ -431,11 +410,9 @@ export const PromptInput = React.forwardRef<HTMLDivElement, PromptInputProps>(
     },
     ref
   ) => {
-    const [expanded, setExpanded] = useState(false);
-    const [isSmoothResize, setIsSmoothResize] = useState(false);
     const [localValue, setLocalValue] = useState(defaultValue);
     const [selectedModel, setSelectedModel] = useState(models[0]);
-    const [effortIndex, setEffortIndex] = useState(1);
+    const [effortIndex, setEffortIndex] = useState(0);
     const [isModelSelectOpen, setIsModelSelectOpen] = useState(false);
 
     const [attachments, setAttachments] = useState<Attachment[]>([]);
@@ -447,7 +424,17 @@ export const PromptInput = React.forwardRef<HTMLDivElement, PromptInputProps>(
     // Audio/Voice recording states
     const [isRecording, setIsRecording] = useState(false);
     const [audioData, setAudioData] = useState<number[]>(new Array(5).fill(0));
-    const valueRef = useRef(controlledValue !== undefined ? controlledValue : localValue);
+
+    const isControlled = controlledValue !== undefined;
+    const value = isControlled ? controlledValue : localValue;
+    const hasValue = value.trim() !== '' || attachments.length > 0;
+    const hasAttachments = attachments.length > 0;
+
+    const valueRef = useRef(value);
+    const textareaRef = useRef<HTMLTextAreaElement>(null);
+    const modelSelectRef = useRef<HTMLDivElement>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const thumbRefs = useRef<Map<string, HTMLButtonElement | null>>(new Map());
 
     // Refs for Web Audio & Speech Recognition cleanup
     const streamRef = useRef<MediaStream | null>(null);
@@ -457,61 +444,43 @@ export const PromptInput = React.forwardRef<HTMLDivElement, PromptInputProps>(
     const demoIntervalRef = useRef<number | null>(null);
     const demoTextIntervalRef = useRef<number | null>(null);
 
-    const [hoverStyle, setHoverStyle] = useState({
-      opacity: 0,
-      transform: 'translateY(0px) scale(0.95)',
-      transition: 'none',
-    });
-    const [containerHeight, setContainerHeight] = useState(116);
-    const [textareaHeight, setTextareaHeight] = useState(68);
-    const [isScrolling, setIsScrolling] = useState(false);
-
-    const isControlled = controlledValue !== undefined;
-    const value = isControlled ? controlledValue : localValue;
-    const hasValue = value.trim() !== '' || attachments.length > 0;
-    const hasAttachments = attachments.length > 0;
-
-    const textareaRef = useRef<HTMLTextAreaElement>(null);
-    const internalContainerRef = useRef<HTMLDivElement>(null);
-    const topFadeRef = useRef<HTMLDivElement>(null);
-    const bottomFadeRef = useRef<HTMLDivElement>(null);
-    const fileInputRef = useRef<HTMLInputElement>(null);
-    const thumbRefs = useRef<Map<string, HTMLButtonElement | null>>(new Map());
-
     // Sync value ref for audio callback closure
     useEffect(() => {
       valueRef.current = value;
     }, [value]);
 
-    const updateFades = () => {
-      const el = textareaRef.current;
-      if (!el) return;
-      const { scrollTop, scrollHeight, clientHeight } = el;
-      if (topFadeRef.current) {
-        topFadeRef.current.style.opacity = Math.min(scrollTop / 20, 1).toString();
-      }
-      if (bottomFadeRef.current) {
-        const bottomScroll = scrollHeight - clientHeight - scrollTop;
-        bottomFadeRef.current.style.opacity = Math.min(
-          Math.max(bottomScroll - 16, 0) / 10,
-          1
-        ).toString();
-      }
-    };
-
     const handleValueChange = useCallback(
       (val: string) => {
-        setIsSmoothResize(true);
         if (!isControlled) setLocalValue(val);
         onChange?.(val);
       },
       [isControlled, onChange]
     );
 
-    const expand = () => {
-      setIsSmoothResize(false);
-      setExpanded(true);
+    const handleInput = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+      e.target.style.height = 'auto';
+      e.target.style.height = `${Math.min(e.target.scrollHeight, 160)}px`;
     };
+
+    // Auto-adjust textarea height dynamically based on value changes
+    useEffect(() => {
+      if (!textareaRef.current) return;
+      const el = textareaRef.current;
+      el.style.height = 'auto';
+      el.style.height = `${Math.min(el.scrollHeight, 160)}px`;
+    }, [value]);
+
+    // Close model select on outside click
+    useEffect(() => {
+      if (!isModelSelectOpen) return;
+      const handleOutsideClick = (e: MouseEvent) => {
+        if (modelSelectRef.current && !modelSelectRef.current.contains(e.target as Node)) {
+          setIsModelSelectOpen(false);
+        }
+      };
+      document.addEventListener('mousedown', handleOutsideClick);
+      return () => document.removeEventListener('mousedown', handleOutsideClick);
+    }, [isModelSelectOpen]);
 
     // --- Voice Recording Logic ---
     const stopRecording = useCallback(() => {
@@ -544,9 +513,6 @@ export const PromptInput = React.forwardRef<HTMLDivElement, PromptInputProps>(
     }, []);
 
     const startRecording = useCallback(async () => {
-      setIsSmoothResize(false);
-      setExpanded(true);
-
       let stream: MediaStream | null = null;
       try {
         if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
@@ -560,10 +526,8 @@ export const PromptInput = React.forwardRef<HTMLDivElement, PromptInputProps>(
 
       setIsRecording(true);
 
-      // Simulation function for tight sandbox environments
       function simulateText() {
-        const fakeText =
-          'Can you build a high fidelity Framer Motion layout animation for a dark mode dashboard?';
+        const fakeText = 'Explain 3NF and BCNF normalization with examples';
         const words = fakeText.split(' ');
         let i = 0;
         let currentBase = valueRef.current;
@@ -581,7 +545,6 @@ export const PromptInput = React.forwardRef<HTMLDivElement, PromptInputProps>(
       if (stream) {
         streamRef.current = stream;
 
-        // Setup Web Audio API for visualizer
         const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
         const audioCtx = new AudioCtx();
         audioContextRef.current = audioCtx;
@@ -602,14 +565,13 @@ export const PromptInput = React.forwardRef<HTMLDivElement, PromptInputProps>(
             for (let j = 0; j < step; j++) {
               sum += dataArray[i * step + j];
             }
-            bands[i] = sum / step / 255; // normalize to 0-1
+            bands[i] = sum / step / 255;
           }
           setAudioData(bands);
           rafRef.current = requestAnimationFrame(updateVisualizer);
         };
         updateVisualizer();
 
-        // Setup Speech Recognition
         const SpeechRecognition =
           (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
         if (SpeechRecognition) {
@@ -652,13 +614,9 @@ export const PromptInput = React.forwardRef<HTMLDivElement, PromptInputProps>(
           recognitionRef.current = recognition;
           recognition.start();
         } else {
-          console.warn(
-            'Speech Recognition API not supported in this browser. Using simulated text.'
-          );
           simulateText();
         }
       } else {
-        // Fallback simulated visualizer
         demoIntervalRef.current = window.setInterval(() => {
           setAudioData(Array.from({ length: 5 }, () => Math.random() * 0.8 + 0.1));
         }, 100);
@@ -681,85 +639,8 @@ export const PromptInput = React.forwardRef<HTMLDivElement, PromptInputProps>(
       };
     }, [stopRecording, attachments]);
 
-    useEffect(() => {
-      if ((value.trim() !== '' || hasAttachments) && !expanded) {
-        setIsSmoothResize(false);
-        setExpanded(true);
-      }
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [value, expanded, hasAttachments]);
-
-    useEffect(() => {
-      if (expanded && !isRecording) {
-        const timer = setTimeout(() => {
-          if (textareaRef.current) {
-            textareaRef.current.focus();
-            const length = textareaRef.current.value.length;
-            textareaRef.current.setSelectionRange(length, length);
-          }
-        }, 50);
-        return () => clearTimeout(timer);
-      }
-    }, [expanded, isRecording]);
-
-    // ONLY updates height on value/text change. Adding attachments leaves this completely isolated.
-    useEffect(() => {
-      if (!textareaRef.current) return;
-      const el = textareaRef.current;
-
-      const currentHeight = el.style.height;
-      el.style.transition = 'none';
-      el.style.height = '0px';
-      const scrollHeight = el.scrollHeight;
-      el.style.height = currentHeight;
-      void el.offsetHeight;
-      el.style.transition = '';
-
-      const newHeight = Math.max(68, Math.min(scrollHeight, 160));
-      el.style.height = `${newHeight}px`;
-
-      setTextareaHeight(newHeight);
-      setIsScrolling(scrollHeight > 160);
-
-      setTimeout(updateFades, 0);
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [value, expanded]);
-
-    useEffect(() => {
-      setContainerHeight(Math.max(116, textareaHeight + 48));
-      setTimeout(updateFades, 0);
-    }, [textareaHeight]);
-
-    useEffect(() => {
-      if (!isModelSelectOpen) return;
-      const handleOutsideClick = (e: MouseEvent) => {
-        if (
-          internalContainerRef.current &&
-          !internalContainerRef.current.contains(e.target as Node)
-        ) {
-          setIsModelSelectOpen(false);
-        }
-      };
-      document.addEventListener('mousedown', handleOutsideClick);
-      return () => document.removeEventListener('mousedown', handleOutsideClick);
-    }, [isModelSelectOpen]);
-
-    const handleBlur = (e: React.FocusEvent<HTMLDivElement>) => {
-      if (
-        internalContainerRef.current &&
-        internalContainerRef.current.contains(e.relatedTarget as Node)
-      )
-        return;
-      if (value.trim() === '' && !hasAttachments && !isRecording) {
-        setIsSmoothResize(false);
-        setExpanded(false);
-        setIsModelSelectOpen(false);
-      }
-    };
-
     const handleSubmit = () => {
       if (value.trim() === '' && !hasAttachments) return;
-      setIsSmoothResize(false);
       onSubmit?.(value, {
         model: selectedModel,
         effort: efforts[effortIndex],
@@ -768,7 +649,6 @@ export const PromptInput = React.forwardRef<HTMLDivElement, PromptInputProps>(
       handleValueChange('');
       attachments.forEach((a) => URL.revokeObjectURL(a.url));
       setAttachments([]);
-      setExpanded(false);
       setIsModelSelectOpen(false);
     };
 
@@ -790,13 +670,6 @@ export const PromptInput = React.forwardRef<HTMLDivElement, PromptInputProps>(
       const room = Math.max(0, maxAttachments - attachments.length);
       const accepted = files.slice(0, room);
 
-      if (!expanded) {
-        setIsSmoothResize(false);
-        setExpanded(true);
-      } else {
-        setIsSmoothResize(true);
-      }
-
       for (const file of accepted) {
         const url = URL.createObjectURL(file);
         const img = new Image();
@@ -812,7 +685,6 @@ export const PromptInput = React.forwardRef<HTMLDivElement, PromptInputProps>(
     };
 
     const removeAttachment = (id: string) => {
-      setIsSmoothResize(true);
       setAttachments((prev) => {
         const target = prev.find((a) => a.id === id);
         if (target) URL.revokeObjectURL(target.url);
@@ -839,182 +711,79 @@ export const PromptInput = React.forwardRef<HTMLDivElement, PromptInputProps>(
 
     return (
       <>
-        {/* Outer Wrapper for positioning and max-width scaling */}
-        <div
-          ref={(node) => {
-            if (typeof ref === 'function') ref(node);
-            else if (ref) ref.current = node;
-            internalContainerRef.current = node;
-          }}
-          onBlur={handleBlur}
-          className={cn('relative flex flex-col w-full', className)}
-          style={{
-            maxWidth: expanded ? 740 : 560,
-            transition: isSmoothResize
-              ? 'max-width 0.15s ease-out'
-              : 'max-width 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
-          }}
-        >
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            multiple
-            onChange={handleFilesChosen}
-            className="hidden"
-            tabIndex={-1}
-            aria-hidden="true"
-          />
-
-          {/* Independent Attachment Tab (Slides up from behind the prompt input) */}
-          <div
-            aria-hidden={!hasAttachments}
-            style={{
-              height: hasAttachments && expanded ? 68 : 0,
-              transition: isSmoothResize
-                ? 'height 0.15s ease-out'
-                : 'height 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
-            }}
-            className="w-full relative z-0 overflow-hidden"
-          >
-            <div
-              style={{
-                position: 'absolute',
-                bottom: -8,
-                left: 20,
-                right: 20,
-                height: 68,
-                transform: hasAttachments && expanded ? 'translateY(0)' : 'translateY(100%)',
-                opacity: hasAttachments && expanded ? 1 : 0,
-                transition: isSmoothResize
-                  ? 'transform 0.15s ease-out, opacity 0.15s ease-out'
-                  : 'transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.3s ease-out',
-              }}
-              className="border border-border border-b-0 bg-muted rounded-t-2xl px-2 pt-2 pb-1 flex items-start gap-2 overflow-x-auto prompt-scrollbar"
-            >
-              {attachments.map((attachment, index) => (
-                <AttachmentThumb
-                  key={attachment.id}
-                  attachment={attachment}
-                  index={index}
-                  onRemove={removeAttachment}
-                  onOpen={(a, rect) => setActiveAttachment({ attachment: a, rect })}
-                  registerRef={(id, el) => thumbRefs.current.set(id, el)}
-                />
-              ))}
-            </div>
-          </div>
-
-          {/* Main Input Card */}
-          <div
-            onMouseDown={(e) => {
-              const isTextarea = e.target === textareaRef.current;
-              if (expanded && !isTextarea && !isRecording) {
-                e.preventDefault();
-                textareaRef.current?.focus();
-              }
-            }}
-            style={{
-              borderRadius: 32,
-              height: expanded ? containerHeight : 64,
-              transition: isSmoothResize ? SMOOTH_HEIGHT_TRANSITION : SPRING_TRANSITION,
-              overflow: expanded ? 'visible' : 'hidden',
-            }}
-            className={cn(
-              'relative w-full border border-border bg-card shadow-xl focus-within:border-ring/60 focus-within:ring-2 focus-within:ring-ring/25 hover:border-border/80 z-10',
-              expanded ? 'cursor-text' : 'cursor-default'
-            )}
-          >
-            <style
-              dangerouslySetInnerHTML={{
-                __html: `
+        <style
+          dangerouslySetInnerHTML={{
+            __html: `
               .prompt-scrollbar::-webkit-scrollbar { width: 4px; height: 4px; background: transparent; }
               .prompt-scrollbar::-webkit-scrollbar-track { background: transparent; }
-              .prompt-scrollbar::-webkit-scrollbar-thumb { background: transparent; border-radius: 4px; }
-              .prompt-scrollbar:hover::-webkit-scrollbar-thumb { background: hsl(var(--muted-foreground) / 0.3); }
+              .prompt-scrollbar::-webkit-scrollbar-thumb { background: rgba(150, 150, 150, 0.2); border-radius: 4px; }
+              .prompt-scrollbar:hover::-webkit-scrollbar-thumb { background: rgba(150, 150, 150, 0.4); }
             `,
-              }}
-            />
+          }}
+        />
+
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          multiple
+          onChange={handleFilesChosen}
+          className="hidden"
+          tabIndex={-1}
+          aria-hidden="true"
+        />
+
+        {/* Primary Search Card Container — Clean Single-Card Layout without internal line collisions */}
+        <div
+          ref={ref}
+          className={cn(
+            'w-full max-w-2xl mx-auto rounded-3xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4 shadow-md flex flex-col justify-between transition-all duration-200 focus-within:ring-2 focus-within:ring-blue-500/20 focus-within:border-blue-500/40',
+            className
+          )}
+        >
+          {/* Top Row: Auto-resizing Text Input */}
+          <div className="w-full flex-1 mb-3">
+            {/* Attachment preview row if files are attached */}
+            {hasAttachments && (
+              <div className="flex items-center gap-2 pb-2 px-1 overflow-x-auto prompt-scrollbar">
+                {attachments.map((attachment, index) => (
+                  <AttachmentThumb
+                    key={attachment.id}
+                    attachment={attachment}
+                    index={index}
+                    onRemove={removeAttachment}
+                    onOpen={(a, rect) => setActiveAttachment({ attachment: a, rect })}
+                    registerRef={(id, el) => thumbRefs.current.set(id, el)}
+                  />
+                ))}
+              </div>
+            )}
 
             <textarea
               ref={textareaRef}
               value={value}
-              onChange={(e) => handleValueChange(e.target.value)}
-              onScroll={updateFades}
+              onChange={(e) => {
+                handleInput(e);
+                handleValueChange(e.target.value);
+              }}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && !e.shiftKey) {
                   e.preventDefault();
                   handleSubmit();
                 }
-                if (e.key === 'Escape' && value.trim() === '' && !hasAttachments) {
-                  setIsSmoothResize(false);
-                  setExpanded(false);
-                  setIsModelSelectOpen(false);
-                }
               }}
               placeholder={placeholder}
               aria-label="Prompt"
               disabled={isRecording}
-              style={{
-                transition: isSmoothResize
-                  ? 'height 0.15s ease-out'
-                  : 'opacity 0.3s ease-out, transform 0.3s ease-out, height 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
-              }}
-              className={cn(
-                'prompt-scrollbar absolute top-0 inset-x-0 z-[1] w-full resize-none bg-transparent border-0 outline-none focus:ring-0 text-center text-sm py-2 px-4 text-zinc-400 font-normal placeholder:text-zinc-400/80 placeholder:text-sm placeholder:text-center text-foreground cursor-text',
-                expanded
-                  ? 'opacity-100 scale-100 translate-y-0'
-                  : 'opacity-0 scale-95 -translate-y-1 pointer-events-none',
-                isScrolling ? 'overflow-y-auto' : 'overflow-y-hidden',
-                isRecording && 'pointer-events-none'
-              )}
+              className="w-full bg-transparent border-0 outline-none focus:ring-0 text-sm text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 placeholder:text-left text-left px-1 py-1 resize-none overflow-y-auto min-h-[56px] max-h-[160px] prompt-scrollbar"
             />
+          </div>
 
-            <div
-              ref={topFadeRef}
-              className="absolute left-4 right-12 top-0 z-[2] h-8 bg-gradient-to-b from-card via-card/90 to-transparent pointer-events-none"
-            />
-            <div
-              ref={bottomFadeRef}
-              className="absolute left-4 right-12 z-[2] h-8 bg-gradient-to-t from-card via-card/90 to-transparent pointer-events-none"
-              style={{
-                opacity: 0,
-                top: `${textareaHeight - 32}px`,
-                transition: isSmoothResize
-                  ? 'top 0.15s ease-out'
-                  : 'top 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
-              }}
-            />
-
-            <button
-              type="button"
-              onClick={expand}
-              style={{
-                transition: isSmoothResize
-                  ? 'none'
-                  : 'all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
-              }}
-              className={cn(
-                'absolute inset-0 z-[1] cursor-text flex items-center justify-center text-center text-zinc-400 text-sm font-normal outline-none',
-                !expanded
-                  ? 'opacity-100 scale-100 translate-y-0'
-                  : 'opacity-0 scale-105 translate-y-1 pointer-events-none'
-              )}
-              aria-label="Open prompt input"
-            >
-              {placeholder}
-            </button>
-
-            {/* Bottom Actions Wrapper - Hides when recording to make space for visualizer */}
-            <div
-              className={cn(
-                'absolute bottom-3 left-4 right-12 z-[10] flex items-center gap-1 transition-all duration-300 ease-[cubic-bezier(0.175,0.885,0.32,1.275)]',
-                expanded && !isRecording
-                  ? 'opacity-100 blur-0 translate-y-0 pointer-events-auto'
-                  : 'opacity-0 blur-sm translate-y-2 pointer-events-none'
-              )}
-            >
-              <div className="relative">
+          {/* Bottom Row: Toolbar Controls */}
+          <div className="flex items-center justify-between pt-1 w-full">
+            {/* Left Side: Model & Network Mode */}
+            <div className="flex items-center gap-2">
+              <div className="relative" ref={modelSelectRef}>
                 <button
                   type="button"
                   onMouseDown={(e) => e.preventDefault()}
@@ -1023,63 +792,38 @@ export const PromptInput = React.forwardRef<HTMLDivElement, PromptInputProps>(
                     setIsModelSelectOpen((prev) => !prev);
                   }}
                   className={cn(
-                    'group flex items-center gap-1 rounded-full px-2 py-1 text-foreground/50 transition-all duration-200 outline-none hover:bg-accent/60 hover:text-foreground cursor-default',
-                    isModelSelectOpen ? 'bg-accent/60 text-foreground' : ''
+                    'group flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors outline-none cursor-pointer text-xs font-semibold',
+                    isModelSelectOpen ? 'ring-1 ring-zinc-300 dark:ring-zinc-700' : ''
                   )}
                   aria-label={`Select model. Current: ${selectedModel}`}
                 >
                   <ModelIcon
                     model={selectedModel}
-                    className="size-3.5 opacity-70 group-hover:opacity-100 transition-opacity"
+                    className="size-3.5 opacity-80 group-hover:opacity-100 transition-opacity"
                   />
-                  <span className="text-xs font-semibold select-none transition-colors">
+                  <span className="text-xs font-semibold select-none">
                     <MorphingText text={selectedModel} />
                   </span>
                 </button>
 
-                <div
-                  style={{ transformOrigin: 'bottom left' }}
-                  onMouseLeave={() => {
-                    setHoverStyle((prev) => ({
-                      ...prev,
-                      opacity: 0,
-                      transform: prev.transform.replace('scale(1)', 'scale(0.95)'),
-                      transition: 'opacity 0.2s ease-in, transform 0.2s ease-out',
-                    }));
-                  }}
-                  className={cn(
-                    'absolute bottom-full left-0 mb-2.5 z-50 w-44 rounded-2xl border border-border bg-card/95 p-1 shadow-xl backdrop-blur-md flex flex-col gap-0.5 transition-all duration-400 cursor-default',
-                    isModelSelectOpen
-                      ? 'opacity-100 scale-100 translate-y-0 pointer-events-auto ease-[cubic-bezier(0.34,1.56,0.64,1)]'
-                      : 'opacity-0 scale-95 translate-y-3 pointer-events-none ease-[cubic-bezier(0.175,0.885,0.32,1.275)]'
-                  )}
-                >
-                  <div className="relative flex flex-col gap-0.5">
-                    <div
-                      style={hoverStyle}
-                      className="absolute left-0 right-0 top-0 h-8 -z-10 rounded-xl bg-accent pointer-events-none"
-                    />
-                    {models.map((model, idx) => (
+                {isModelSelectOpen && (
+                  <div className="absolute bottom-full left-0 mb-2 z-50 w-48 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white/95 dark:bg-zinc-900/95 p-1.5 shadow-xl backdrop-blur-md flex flex-col gap-0.5 animate-in fade-in zoom-in-95 duration-150">
+                    {models.map((model) => (
                       <button
                         key={model}
                         type="button"
                         onMouseDown={(e) => e.preventDefault()}
-                        onMouseEnter={() => {
-                          setHoverStyle((prev) => ({
-                            opacity: 1,
-                            transform: `translateY(${idx * 34}px) scale(1)`,
-                            transition:
-                              prev.opacity === 0
-                                ? 'opacity 0.15s ease-out'
-                                : 'transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.15s ease',
-                          }));
-                        }}
                         onClick={(e) => {
                           e.stopPropagation();
                           setSelectedModel(model);
                           setIsModelSelectOpen(false);
                         }}
-                        className="group relative flex h-8 w-full items-center justify-between rounded-xl px-2.5 py-1.5 text-left text-xs font-medium text-foreground/80 outline-none active:scale-[0.98] cursor-default"
+                        className={cn(
+                          'group flex h-8 w-full items-center justify-between rounded-xl px-2.5 py-1.5 text-left text-xs font-medium transition-colors cursor-pointer',
+                          model === selectedModel
+                            ? 'bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 font-semibold'
+                            : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800/60 hover:text-zinc-900 dark:hover:text-zinc-100'
+                        )}
                       >
                         <span className="flex items-center gap-2">
                           <ModelIcon
@@ -1091,101 +835,97 @@ export const PromptInput = React.forwardRef<HTMLDivElement, PromptInputProps>(
                       </button>
                     ))}
                   </div>
-                </div>
+                )}
               </div>
 
               <button
                 type="button"
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={cycleEffort}
-                className="group flex items-center gap-1 rounded-full px-2 py-1 text-foreground/50 transition-all duration-200 hover:bg-accent/60 hover:text-foreground outline-none cursor-default"
+                className="text-xs font-medium text-zinc-500 flex items-center gap-1 hover:text-zinc-800 dark:hover:text-zinc-200 px-2 py-1 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors outline-none cursor-pointer"
+                aria-label={`Mode effort: ${efforts[effortIndex]}`}
               >
                 <DynamicBarsIcon level={efforts[effortIndex]} />
-                <span className="text-xs font-semibold select-none transition-colors">
+                <span className="text-xs font-medium select-none">
                   <MorphingText text={efforts[effortIndex]} />
                 </span>
               </button>
+            </div>
+
+            {/* Right Side: Action Icons (+ and Mic) */}
+            <div className="flex items-center gap-2">
+              {/* Audio Wave Visualizer during voice recording */}
+              {isRecording && (
+                <div className="flex h-8 items-center gap-[3px] px-1">
+                  {audioData.map((val, i) => (
+                    <div
+                      key={i}
+                      className="w-1 rounded-full bg-blue-500 transition-[height] duration-75 ease-out"
+                      style={{ height: `${Math.max(4, val * 20)}px` }}
+                    />
+                  ))}
+                </div>
+              )}
 
               <button
                 type="button"
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={openFileChooser}
                 disabled={attachments.length >= maxAttachments}
-                className="ml-auto flex size-7 items-center justify-center rounded-full text-foreground/50 transition-all duration-200 hover:bg-accent/60 hover:text-foreground outline-none cursor-default disabled:opacity-40 disabled:pointer-events-none"
+                title="Attach image"
+                className="h-8 w-8 rounded-full flex items-center justify-center text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors outline-none cursor-pointer disabled:opacity-40 disabled:pointer-events-none"
               >
                 <PlusIcon />
               </button>
-            </div>
 
-            {/* Audio Wave Visualizer Overlay positioned precisely to the left of the mic button */}
-            <div
-              className={cn(
-                'absolute right-12 bottom-3 z-[10] flex h-8 items-center justify-end gap-[3px] transition-all duration-400 ease-[cubic-bezier(0.175,0.885,0.32,1.275)]',
-                isRecording
-                  ? 'w-16 opacity-100 translate-x-0'
-                  : 'w-0 opacity-0 translate-x-4 pointer-events-none'
-              )}
-            >
-              {audioData.map((val, i) => (
-                <div
-                  key={i}
-                  className="w-1 rounded-full bg-primary transition-[height] duration-75 ease-out"
-                  style={{ height: `${Math.max(4, val * 24)}px` }}
-                />
-              ))}
-            </div>
-
-            <button
-              type="button"
-              onMouseDown={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-              }}
-              onClick={onActionButtonClick}
-              aria-label={
-                showArrow ? 'Send prompt' : showStop ? 'Stop recording' : 'Use voice input'
-              }
-              style={!showMic ? { borderRadius: 16 } : undefined}
-              className={cn(
-                'absolute right-3 z-[10] flex items-center justify-center transition-all duration-300 outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-default',
-                showMic
-                  ? 'h-8 w-8 rounded-full bg-blue-600 hover:bg-blue-700 text-white p-0 transition-transform active:scale-95 shadow-sm top-1/2 -translate-y-1/2'
-                  : 'h-11 w-11 bg-primary text-primary-foreground shadow-lg shadow-primary/20 hover:opacity-90 bottom-2.5'
-              )}
-            >
-              <span className="relative flex h-full w-full items-center justify-center">
-                <span
-                  className={cn(
-                    'absolute inset-0 flex items-center justify-center transition-all duration-300 ease-[cubic-bezier(0.175,0.885,0.32,1.275)]',
-                    showArrow
-                      ? 'opacity-100 scale-100 rotate-0 blur-none'
-                      : 'opacity-0 scale-50 rotate-45 blur-[1px] pointer-events-none'
-                  )}
-                >
-                  <ArrowUpIcon />
-                </span>
-                <span
-                  className={cn(
-                    'absolute inset-0 flex items-center justify-center transition-all duration-300 ease-[cubic-bezier(0.175,0.885,0.32,1.275)]',
-                    showMic
-                      ? 'opacity-100 scale-100 rotate-0 blur-none'
-                      : 'opacity-0 scale-50 -rotate-45 blur-[1px] pointer-events-none'
-                  )}
+              {showMic && (
+                <button
+                  type="button"
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                  }}
+                  onClick={onActionButtonClick}
+                  aria-label="Use voice input"
+                  title="Voice input"
+                  className="h-8 w-8 rounded-full bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center shadow-sm transition-transform active:scale-95 outline-none focus-visible:ring-2 focus-visible:ring-blue-500 cursor-pointer"
                 >
                   <Mic className="w-4 h-4 text-white" />
-                </span>
-                <span
-                  className={cn(
-                    'absolute inset-0 flex items-center justify-center transition-all duration-300 ease-[cubic-bezier(0.175,0.885,0.32,1.275)]',
-                    showStop
-                      ? 'opacity-100 scale-100 rotate-0 blur-none'
-                      : 'opacity-0 scale-50 rotate-45 blur-[1px] pointer-events-none'
-                  )}
+                </button>
+              )}
+
+              {showArrow && (
+                <button
+                  type="button"
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                  }}
+                  onClick={onActionButtonClick}
+                  aria-label="Send prompt"
+                  title="Send"
+                  className="h-8 w-8 rounded-full bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 flex items-center justify-center shadow-sm transition-transform active:scale-95 hover:opacity-90 outline-none focus-visible:ring-2 focus-visible:ring-zinc-400 cursor-pointer"
+                >
+                  <ArrowUpIcon />
+                </button>
+              )}
+
+              {showStop && (
+                <button
+                  type="button"
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                  }}
+                  onClick={onActionButtonClick}
+                  aria-label="Stop recording"
+                  title="Stop recording"
+                  className="h-8 w-8 rounded-full bg-red-500 hover:bg-red-600 text-white flex items-center justify-center shadow-sm transition-transform active:scale-95 outline-none focus-visible:ring-2 focus-visible:ring-red-400 cursor-pointer"
                 >
                   <StopIcon />
-                </span>
-              </span>
-            </button>
+                </button>
+              )}
+            </div>
           </div>
         </div>
 
