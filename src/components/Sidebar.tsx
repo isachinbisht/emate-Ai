@@ -17,11 +17,14 @@ import {
 } from '@/lib/notebook';
 import {
   getChatHistory,
+  getChatTranscript,
   deleteChatSession,
   clearChatHistory,
   formatChatTime,
-  ChatHistoryItem,
+  type ChatHistoryItem,
+  type ChatMessage,
 } from '@/lib/chatHistory';
+import ChatSearchModal from './ChatSearchModal';
 import {
   Search,
   Image,
@@ -83,9 +86,22 @@ export default function Sidebar({
   const [newSubjectEmoji, setNewSubjectEmoji] = useState('📚');
   const [newSubjectType, setNewSubjectType] = useState('');
   const [portalMounted, setPortalMounted] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
 
   useEffect(() => {
     setPortalMounted(true);
+  }, []);
+
+  // Global Cmd/Ctrl+K shortcut to open chat search.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setSearchOpen((v) => !v);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
   }, []);
 
   const SUBJECT_TYPES = [
@@ -363,11 +379,21 @@ export default function Sidebar({
 
             <button
               type="button"
-              className="flex items-center gap-2.5 w-full rounded-lg px-3 py-2 text-xs font-medium transition-colors"
-              style={{ color: theme === 'dark' ? '#71717a' : '#71717a' }}
+              onClick={() => setSearchOpen(true)}
+              className="flex items-center gap-2.5 w-full rounded-lg px-3 py-2 text-xs font-medium transition-colors hover:bg-black/5 dark:hover:bg-white/5"
+              style={{ color: theme === 'dark' ? '#71717a' : '#52525b' }}
             >
               <Search size={14} />
               <span>Search</span>
+              <span
+                className="ml-auto text-[9px] font-medium px-1.5 py-0.5 rounded"
+                style={{
+                  color: theme === 'dark' ? '#8aa2ff' : '#1f51ff',
+                  background: theme === 'dark' ? 'rgba(138,162,255,0.12)' : 'rgba(31,81,255,0.08)',
+                }}
+              >
+                ⌘K
+              </span>
             </button>
 
             <button
@@ -378,7 +404,6 @@ export default function Sidebar({
               <BookOpen size={14} />
               <span>Library</span>
             </button>
-
           </nav>
 
           {/* Notebooks & Recent Sections container with space-y-4 visual separation */}
@@ -1132,6 +1157,28 @@ export default function Sidebar({
           </>,
           document.body
         )}
+
+      {/* In-chat search command palette (Cmd/Ctrl+K or Search button) */}
+      <ChatSearchModal
+        open={searchOpen}
+        onClose={() => setSearchOpen(false)}
+        onSelect={(chat, messages) => {
+          // Resume the selected session in /ai-topper-chat (if mounted).
+          setSearchOpen(false);
+          window.dispatchEvent(
+            new CustomEvent('nk-chat-load', {
+              detail: {
+                id: chat.id,
+                title: chat.title,
+                subject: chat.subject,
+                unit: chat.unit,
+                mode: chat.mode,
+                messages,
+              },
+            })
+          );
+        }}
+      />
     </>
   );
 }

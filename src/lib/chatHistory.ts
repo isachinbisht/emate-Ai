@@ -1,8 +1,21 @@
 /**
  * Chat History — localStorage-backed utility.
- * Persists recent chats across sessions and broadcasts changes
- * via the `nk-chat-history-change` custom event for real-time sidebar sync.
+ * Persists recent chats (metadata) and their full message transcripts across
+ * sessions, and broadcasts changes via the `nk-chat-history-change` custom event
+ * for real-time sidebar sync.
  */
+
+/** A chat message. Defined here (single source of truth) and re-exported by
+ *  the chat screen so both the lib and components share one type. */
+export interface ChatMessage {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  mode: 'sprint' | 'deep-dive';
+  timestamp: string;
+  subject?: string;
+  isGeneralChat?: boolean;
+}
 
 export interface ChatHistoryItem {
   id: string;
@@ -14,6 +27,7 @@ export interface ChatHistoryItem {
 }
 
 const STORAGE_KEY = 'nk-chat-history';
+const TRANSCRIPT_KEY = 'nk-chat-transcripts';
 const MAX_ITEMS = 30;
 
 function dispatch() {
@@ -30,6 +44,51 @@ export function getChatHistory(): ChatHistoryItem[] {
     return JSON.parse(raw) as ChatHistoryItem[];
   } catch {
     return [];
+  }
+}
+
+/* ── Full message transcripts ─────────────────────────────────────────────── */
+
+/** Load the saved message transcript for a chat session (may be empty). */
+export function getChatTranscript(id: string): ChatMessage[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = localStorage.getItem(TRANSCRIPT_KEY);
+    if (!raw) return [];
+    const map = JSON.parse(raw) as Record<string, ChatMessage[]>;
+    return map[id] ?? [];
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Persist a chat session's full message transcript. Overwrites the latest
+ * state so resuming a chat always shows the most recent conversation.
+ */
+export function saveChatTranscript(id: string, messages: ChatMessage[]): void {
+  if (typeof window === 'undefined') return;
+  try {
+    const raw = localStorage.getItem(TRANSCRIPT_KEY);
+    const map = raw ? (JSON.parse(raw) as Record<string, ChatMessage[]>) : {};
+    map[id] = messages.slice(-100); // bound transcript size
+    localStorage.setItem(TRANSCRIPT_KEY, JSON.stringify(map));
+  } catch {
+    // quota exceeded – silently ignore
+  }
+}
+
+/** Remove a session's transcript (called on session delete). */
+export function deleteChatTranscript(id: string): void {
+  if (typeof window === 'undefined') return;
+  try {
+    const raw = localStorage.getItem(TRANSCRIPT_KEY);
+    if (!raw) return;
+    const map = JSON.parse(raw) as Record<string, ChatMessage[]>;
+    delete map[id];
+    localStorage.setItem(TRANSCRIPT_KEY, JSON.stringify(map));
+  } catch {
+    /* empty */
   }
 }
 
@@ -64,6 +123,7 @@ export function deleteChatSession(id: string): void {
   try {
     const updated = getChatHistory().filter((c) => c.id !== id);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+    deleteChatTranscript(id); // drop the transcript with the session
     dispatch();
   } catch {
     /* empty */
@@ -73,6 +133,7 @@ export function deleteChatSession(id: string): void {
 export function clearChatHistory(): void {
   if (typeof window === 'undefined') return;
   localStorage.removeItem(STORAGE_KEY);
+  localStorage.removeItem(TRANSCRIPT_KEY);
   dispatch();
 }
 

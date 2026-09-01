@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import ChatMainArea from './ChatMainArea';
+import type { ChatMessage } from '@/lib/chatHistory';
 import {
   Sparkles,
   BookOpen,
@@ -15,15 +16,9 @@ import {
 
 export type StudyMode = 'deep-dive' | 'sprint';
 
-export interface ChatMessage {
-  id: string;
-  role: 'user' | 'assistant';
-  content: string;
-  mode: StudyMode;
-  timestamp: string;
-  subject?: string;
-  isGeneralChat?: boolean;
-}
+// Single source of truth in the lib; re-exported so existing `from './AITopper...'`
+// imports keep working while the search/persistence layer shares one type.
+export type { ChatMessage } from '@/lib/chatHistory';
 
 export interface SelectedContext {
   subject: string;
@@ -38,6 +33,11 @@ export default function AITopperChatScreen() {
     unit: 'Normalization (3NF/BCNF)',
   });
   const [selectedModel, setSelectedModel] = useState('openrouter/auto');
+  // Active chat session id (drives transcript persistence/loading). Defaults to
+  // a fresh id; updated to the loaded chat's id when a search result is picked.
+  const [sessionId, setSessionId] = useState(() =>
+    typeof window === 'undefined' ? 'chat-new' : `chat-${Date.now()}`
+  );
 
   // Onboarding Guide State
   const [showGuide, setShowGuide] = useState(false);
@@ -91,6 +91,29 @@ export default function AITopperChatScreen() {
       window.removeEventListener('storage', syncTheme);
       window.removeEventListener('nk-launch-guide', handleLaunchGuide);
     };
+  }, []);
+
+  // Resume a chat session chosen from the sidebar Search / recent list.
+  useEffect(() => {
+    const handleChatLoad = (event: Event) => {
+      const detail = (event as CustomEvent).detail as {
+        id: string;
+        subject: string;
+        unit: string;
+        mode: StudyMode;
+        messages: ChatMessage[];
+      };
+      if (!detail?.id) return;
+      setSessionId(detail.id);
+      setMessages(detail.messages ?? []);
+      setMode(detail.mode);
+      setSelectedContext({ subject: detail.subject, unit: detail.unit });
+      // Keep localStorage context in sync so notebooks / ChatMainArea follow.
+      localStorage.setItem('nk-subject', detail.subject);
+      localStorage.setItem('nk-unit', detail.unit);
+    };
+    window.addEventListener('nk-chat-load', handleChatLoad);
+    return () => window.removeEventListener('nk-chat-load', handleChatLoad);
   }, []);
 
   const handleNext = () => {
@@ -166,6 +189,7 @@ export default function AITopperChatScreen() {
             setMessages={setMessages}
             mode={mode}
             setMode={setMode}
+            sessionId={sessionId}
             selectedContext={selectedContext}
             selectedModel={selectedModel}
             setSelectedModel={setSelectedModel}

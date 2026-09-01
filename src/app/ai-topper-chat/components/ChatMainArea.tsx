@@ -35,7 +35,7 @@ import type { ChatMessage, SelectedContext, StudyMode } from './AITopperChatScre
 import { applyTheme } from '@/lib/theme';
 import { ModelSelector } from '@/components/ModelSelector';
 import { buildNotebookContext, appendToNotebook } from '@/lib/notebook';
-import { saveChatSession } from '@/lib/chatHistory';
+import { saveChatSession, saveChatTranscript } from '@/lib/chatHistory';
 import { loadDemoNotebook } from '@/lib/demoNotebook';
 import {
   GUEST_LIMIT,
@@ -91,6 +91,7 @@ interface ChatMainAreaProps {
   setMessages: React.Dispatch<React.SetStateAction<ChatMessage[]>>;
   mode: StudyMode;
   setMode: (m: StudyMode) => void;
+  sessionId: string;
   selectedContext: SelectedContext;
   selectedModel: string;
   setSelectedModel: (m: string) => void;
@@ -113,6 +114,7 @@ export default function ChatMainArea({
   setMessages,
   mode,
   setMode,
+  sessionId,
   selectedContext,
   selectedModel,
   setSelectedModel,
@@ -294,8 +296,11 @@ export default function ChatMainArea({
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const centerInputRef = useRef<HTMLTextAreaElement>(null);
-  // Stable session id — created once per component mount
-  const sessionIdRef = useRef<string>(`chat-${Date.now()}`);
+  // Stable session id — mirrors `sessionId` prop (set by parent on resume load).
+  const sessionIdRef = useRef(sessionId);
+  useEffect(() => {
+    sessionIdRef.current = sessionId;
+  }, [sessionId]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -425,6 +430,8 @@ export default function ChatMainArea({
       mode,
       timestamp: Date.now(),
     });
+    // Persist full transcript so Search can match message content and resume.
+    saveChatTranscript(sessionIdRef.current, newMessages);
 
     try {
       const notebookContext = isStudyMode ? buildNotebookContext(selectedContext.subject) : '';
@@ -517,6 +524,21 @@ export default function ChatMainArea({
           }
         }
       }
+
+      // Persist the completed transcript (assistant content is final after the stream loop).
+      saveChatTranscript(sessionIdRef.current, [
+        ...messages,
+        userMsg,
+        {
+          id: assistantMsgId,
+          role: 'assistant',
+          content: accumulatedText,
+          mode,
+          timestamp: formatTimestamp(),
+          subject: selectedContext.subject,
+          isGeneralChat: !isStudyMode,
+        },
+      ]);
 
       if (isStudyMode && accumulatedText) {
         appendToNotebook(
