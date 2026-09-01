@@ -208,6 +208,130 @@ export async function openRouterCompletion(
   return (await response.json()) as Record<string, unknown>;
 }
 
+/** The OpenRouter model id used for image generation (fast + cheap). */
+export const IMAGE_GENERATION_MODEL = 'black-forest-labs/flux-1-schnell';
+
+/**
+ * Extract a `data:image/...` (or http) URL from an OpenRouter image-model
+ * response. flux-1-schnell returns the image inline in
+ * `choices[0].message.content`, either as a plain data-URL string, a markdown
+ * `![alt](url)`, or a multimodal content array with `image_url` parts.
+ */
+function extractImageUrl(
+  content: unknown,
+  fallbackUrl?: unknown
+): string | null {
+  // Object wrapper fallback (e.g. `{ data: [...] }`-style providers).
+  if (typeof content === 'string') {
+    const trimmed = content.trim();
+    if (trimmed.startsWith('data:image/') || trimmed.startsWith('https://')) return trimmed;
+    const md = /!\[[^\]]*\]\(([^)]+)\)/.exec(trimmed);
+    if (md && md[1]) return md[1];
+    return null;
+  }
+  if (Array.isArray(content)) {
+    for (const part of content) {
+      if (
+        part &&
+        typeof part === 'object' &&
+        'image_url' in part &&
+        (part as { image_url?: { url?: string } }).image_url?.url
+      ) {
+        return (part as { image_url: { url: string } }).image_url.url;
+      }
+      if (
+        part &&
+        typeof part === 'object' &&
+        'text' in part &&
+        typeof (part as { text?: unknown }).text === 'string'
+      ) {
+        const fromText = extractImageUrl((part as { text: string }).text);
+        if (fromText) return fromText;
+      }
+    }
+  }
+  // `fallbackUrl` — some responses surface the image in a top-level field.
+  if (typeof fallbackUrl === 'string' && fallbackUrl.startsWith('data:image/')) return fallbackUrl;
+  return null;
+}
+
+/**
+ * Execute a single non-streaming image-generation request against the same
+ * OpenRouter chat/completions endpoint (flux models are served there).
+ *
+ * Returns `{ imageUrl }` where `imageUrl` is a data: URL. Throws an
+ * `OpenRouterError` with a user-friendly, status-aware message on non-2xx.
+ */
+export async function openRouterImageCompletion(
+  apiKey: string,
+  options: {
+    prompt: string;
+    model?: string;
+    referer?: string;
+    title?: string;
+  }
+): Promise<{ imageUrl: string }> {
+  const {
+    prompt,
+    model = IMAGE_GENERATION_MODEL,
+    referer,
+    title,
+  } = options;
+
+  const payload: Record<string, unknown> = {
+    model,
+    messages: [{ role: 'user', content: prompt }],
+  };
+
+  let response: Response;
+  try {
+    response = await fetch(OPENROUTER_ENDPOINT, {
+      method: 'POST',
+      headers: buildOpenRouterHeaders(apiKey, referer, title),
+      body: JSON.stringify(payload),
+    });
+  } catch (err) {
+    const e: OpenRouterError = new Error(
+      'Network error reaching OpenRouter. Check your connection and try again.'
+    );
+    e.retryable = true;
+    throw e;
+  }
+
+  if (!response.ok) {
+    let rawMessage = '';
+    try {
+      const errJson = (await response.json()) as { error?: { message?: string } } | null;
+      rawMessage = errJson?.error?.message || response.statusText || '';
+    } catch {
+      rawMessage = response.statusText || '';
+    }
+
+    const err: OpenRouterError = new Error(getOpenRouterErrorMessage(response.status, model));
+    err.status = response.status;
+    err.retryable = shouldFallback(response.status);
+    if (rawMessage) (err as OpenRouterError & { raw?: string }).raw = rawMessage;
+    throw err;
+  }
+
+  const json = (await response.json()) as {
+    data?: unknown;
+    choices?: Array<{ message?: { content?: unknown } }>;
+  };
+
+  const content = json?.choices?.[0]?.message?.content;
+  const imageUrl = extractImageUrl(content, json?.data);
+  if (!imageUrl) {
+    const err: OpenRouterError = new Error(
+      'Image generation returned an empty response. Try a different prompt, or switch models.'
+    );
+    err.retryable = true;
+    throw err;
+  }
+
+  return { imageUrl };
+}
+
 /**
  * Task 2b — Streaming variant for SSE piping. Performs the same auth + payload
  * construction and pre-flights non-2xx responses so callers can surface the

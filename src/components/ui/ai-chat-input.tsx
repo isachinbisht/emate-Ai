@@ -3,7 +3,7 @@
 import * as React from 'react';
 import { useRef, useState, useEffect, useCallback } from 'react';
 import { cn } from '@/lib/utils';
-import { Mic } from 'lucide-react';
+import { Mic, Wand2 } from 'lucide-react';
 
 // ----------------------------------------------------------------------
 // Types
@@ -13,6 +13,7 @@ interface Attachment {
   file: File;
   url: string;
   name: string;
+  kind: 'image' | 'doc';
   width?: number;
   height?: number;
 }
@@ -106,15 +107,24 @@ function StopIcon() {
   );
 }
 
-function PlusIcon() {
+function DocIcon() {
   return (
-    <svg width="16" height="16" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
       <path
-        d="M7 2.5V11.5M2.5 7H11.5"
+        d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"
         stroke="currentColor"
         strokeWidth="1.5"
         strokeLinecap="round"
+        strokeLinejoin="round"
       />
+      <path
+        d="M14 2v6h6"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path d="M8 13h8M8 17h5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
     </svg>
   );
 }
@@ -219,12 +229,21 @@ function AttachmentThumb({
       )}
       aria-label={`Open preview of ${attachment.name}`}
     >
-      <img
-        src={attachment.url}
-        alt={attachment.name}
-        className="size-full object-cover"
-        draggable={false}
-      />
+      {attachment.kind === 'doc' ? (
+        <span className="flex size-full flex-col items-center justify-center gap-1 p-1 text-zinc-500 dark:text-zinc-400">
+          <DocIcon />
+          <span className="w-full truncate text-center text-[9px] font-medium leading-tight text-zinc-500 dark:text-zinc-400">
+            {attachment.name}
+          </span>
+        </span>
+      ) : (
+        <img
+          src={attachment.url}
+          alt={attachment.name}
+          className="size-full object-cover"
+          draggable={false}
+        />
+      )}
       <span
         className={cn(
           'absolute inset-0 flex items-start justify-end bg-black/0 transition-colors duration-200',
@@ -397,6 +416,12 @@ export interface PromptInputProps {
   maxAttachments?: number;
   /** When false, hides the attach-image button (e.g. for guest users). */
   allowAttachments?: boolean;
+  /** When true, the input is in "Image Gen Mode" — subtitle + placeholder swap. */
+  imageGenMode?: boolean;
+  /** Fired when the user clicks the image-generation toggle. */
+  onImageGenToggle?: () => void;
+  /** Placeholder shown when imageGenMode is active. */
+  imageGenPlaceholder?: string;
 }
 
 export const PromptInput = React.forwardRef<HTMLDivElement, PromptInputProps>(
@@ -412,6 +437,9 @@ export const PromptInput = React.forwardRef<HTMLDivElement, PromptInputProps>(
       onChange,
       maxAttachments = 6,
       allowAttachments = true,
+      imageGenMode = false,
+      onImageGenToggle,
+      imageGenPlaceholder = 'Describe the diagram, chart, or visual you want e-Mate to generate...',
     },
     ref
   ) => {
@@ -425,6 +453,11 @@ export const PromptInput = React.forwardRef<HTMLDivElement, PromptInputProps>(
       attachment: Attachment;
       rect: DOMRect;
     } | null>(null);
+
+    // "Filtering chip" toggles: Document / Image / Plugins.
+    const [showPlugins, setShowPlugins] = useState(true);
+    // What the file input should accept (swapped before opening the chooser).
+    const uploadKindRef = useRef<'image' | 'doc'>('image');
 
     // Audio/Voice recording states
     const [isRecording, setIsRecording] = useState(false);
@@ -662,14 +695,33 @@ export const PromptInput = React.forwardRef<HTMLDivElement, PromptInputProps>(
       setEffortIndex((prev) => (prev + 1) % efforts.length);
     };
 
-    const openFileChooser = (e: React.MouseEvent) => {
+    const openFileChooser = (e: React.MouseEvent, kind: 'image' | 'doc' = 'image') => {
       e.stopPropagation();
+      uploadKindRef.current = kind;
+      if (fileInputRef.current) {
+        fileInputRef.current.accept =
+          kind === 'image' ? 'image/*' : '.pdf,.doc,.docx,.txt,.md,.csv,.json,.xlsx,.ppt,.pptx';
+      }
       fileInputRef.current?.click();
     };
 
     const handleFilesChosen = async (e: React.ChangeEvent<HTMLInputElement>) => {
-      const files = Array.from(e.target.files ?? []).filter((f) => f.type.startsWith('image/'));
+      const kind = uploadKindRef.current;
+      const files = Array.from(e.target.files ?? []).filter((f) =>
+        kind === 'image' ? f.type.startsWith('image/') : f.type !== ''
+      );
       e.target.value = '';
+
+      // For docs, don't try to read image dimensions — show a doc icon instead.
+      if (kind === 'doc') {
+        const room = Math.max(0, maxAttachments - attachments.length);
+        const accepted = files.slice(0, room);
+        for (const file of accepted) {
+          const url = URL.createObjectURL(file);
+          addAttachment(file, url, 0, 0, 'doc');
+        }
+        return;
+      }
 
       if (files.length === 0) return;
       const room = Math.max(0, maxAttachments - attachments.length);
@@ -678,15 +730,21 @@ export const PromptInput = React.forwardRef<HTMLDivElement, PromptInputProps>(
       for (const file of accepted) {
         const url = URL.createObjectURL(file);
         const img = new Image();
-        img.onload = () => addAttachment(file, url, img.naturalWidth, img.naturalHeight);
-        img.onerror = () => addAttachment(file, url, 800, 600);
+        img.onload = () => addAttachment(file, url, img.naturalWidth, img.naturalHeight, 'image');
+        img.onerror = () => addAttachment(file, url, 800, 600, 'image');
         img.src = url;
       }
     };
 
-    const addAttachment = (file: File, url: string, width: number, height: number) => {
+    const addAttachment = (
+      file: File,
+      url: string,
+      width: number,
+      height: number,
+      kind: 'image' | 'doc'
+    ) => {
       const id = `${file.name}-${file.lastModified}-${Math.random().toString(36).slice(2, 8)}`;
-      setAttachments((prev) => [...prev, { id, file, url, name: file.name, width, height }]);
+      setAttachments((prev) => [...prev, { id, file, url, name: file.name, width, height, kind }]);
     };
 
     const removeAttachment = (id: string) => {
@@ -777,84 +835,151 @@ export const PromptInput = React.forwardRef<HTMLDivElement, PromptInputProps>(
                   handleSubmit();
                 }
               }}
-              placeholder={placeholder}
+              placeholder={imageGenMode ? imageGenPlaceholder : placeholder}
               aria-label="Prompt"
               disabled={isRecording}
               className="w-full bg-transparent border-0 outline-none focus:ring-0 text-sm text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 placeholder:text-left text-left px-1 py-1 resize-none overflow-y-auto min-h-[56px] max-h-[160px] prompt-scrollbar"
             />
           </div>
 
+          {/* Active Image Gen Mode pill */}
+          {imageGenMode && (
+            <div className="flex items-center gap-1.5 pb-2 px-1 -mt-1">
+              <Wand2 size={12} className="text-[#1f51ff] dark:text-[#a8b8ff]" />
+              <span className="text-[11px] font-medium text-[#1f51ff] dark:text-[#a8b8ff] bg-[#eef1ff] dark:bg-[#232a55]/60 border border-[#dbe3ff] dark:border-[#232a55] px-2 py-0.5 rounded-md flex items-center gap-1">
+                Image Gen Mode Active
+              </span>
+            </div>
+          )}
+
           {/* Bottom Row: Toolbar Controls */}
           <div className="flex items-center justify-between pt-1 w-full">
-            {/* Left Side: Model & Network Mode */}
+            {/* Left Side: Upload/Plugin filter chips + Model & effort */}
             <div className="flex items-center gap-2">
-              <div className="relative" ref={modelSelectRef}>
+              {/* Document / Image / Plugins filtering chips */}
+              <div className="flex items-center gap-1">
                 <button
                   type="button"
                   onMouseDown={(e) => e.preventDefault()}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setIsModelSelectOpen((prev) => !prev);
-                  }}
+                  disabled={!allowAttachments || attachments.length >= maxAttachments}
+                  onClick={(e) => openFileChooser(e, 'doc')}
+                  title="Attach a document (PDF, txt, docx…)"
+                  aria-label="Attach a document"
                   className={cn(
-                    'group flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors outline-none cursor-pointer text-xs font-semibold',
-                    isModelSelectOpen ? 'ring-1 ring-zinc-300 dark:ring-zinc-700' : ''
+                    'rounded-lg px-2 py-1 text-[11px] font-medium transition-colors outline-none cursor-pointer disabled:opacity-40 disabled:pointer-events-none',
+                    'text-zinc-500 hover:text-[#1f51ff] dark:text-zinc-400 dark:hover:text-[#a8b8ff]',
+                    'hover:bg-zinc-100 dark:hover:bg-zinc-800'
                   )}
-                  aria-label={`Select model. Current: ${selectedModel}`}
                 >
-                  <ModelIcon
-                    model={selectedModel}
-                    className="size-3.5 opacity-80 group-hover:opacity-100 transition-opacity"
-                  />
-                  <span className="text-xs font-semibold select-none">
-                    <MorphingText text={selectedModel} />
-                  </span>
+                  Document
                 </button>
-
-                {isModelSelectOpen && (
-                  <div className="absolute bottom-full left-0 mb-2 z-50 w-48 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white/95 dark:bg-zinc-900/95 p-1.5 shadow-xl backdrop-blur-md flex flex-col gap-0.5 animate-in fade-in zoom-in-95 duration-150">
-                    {models.map((model) => (
-                      <button
-                        key={model}
-                        type="button"
-                        onMouseDown={(e) => e.preventDefault()}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setSelectedModel(model);
-                          setIsModelSelectOpen(false);
-                        }}
-                        className={cn(
-                          'group flex h-8 w-full items-center justify-between rounded-xl px-2.5 py-1.5 text-left text-xs font-medium transition-colors cursor-pointer',
-                          model === selectedModel
-                            ? 'bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 font-semibold'
-                            : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800/60 hover:text-zinc-900 dark:hover:text-zinc-100'
-                        )}
-                      >
-                        <span className="flex items-center gap-2">
-                          <ModelIcon
-                            model={model}
-                            className="size-3.5 opacity-85 group-hover:opacity-100 transition-opacity"
-                          />
-                          {model}
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                )}
+                <button
+                  type="button"
+                  onMouseDown={(e) => e.preventDefault()}
+                  disabled={!allowAttachments || attachments.length >= maxAttachments}
+                  onClick={(e) => openFileChooser(e, 'image')}
+                  title="Attach an image"
+                  aria-label="Attach an image"
+                  className={cn(
+                    'rounded-lg px-2 py-1 text-[11px] font-medium transition-colors outline-none cursor-pointer disabled:opacity-40 disabled:pointer-events-none',
+                    'text-zinc-500 hover:text-[#1f51ff] dark:text-zinc-400 dark:hover:text-[#a8b8ff]',
+                    'hover:bg-zinc-100 dark:hover:bg-zinc-800'
+                  )}
+                >
+                  Image
+                </button>
+                <button
+                  type="button"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => setShowPlugins((v) => !v)}
+                  title={
+                    showPlugins ? 'Hide model & effort plugins' : 'Show model & effort plugins'
+                  }
+                  aria-pressed={showPlugins}
+                  aria-label="Toggle plugins"
+                  className={cn(
+                    'rounded-lg px-2 py-1 text-[11px] font-medium transition-colors outline-none cursor-pointer',
+                    showPlugins
+                      ? 'text-[#1f51ff] dark:text-[#a8b8ff] bg-[#eef1ff] dark:bg-[#232a55]/60'
+                      : 'text-zinc-500 hover:text-[#1f51ff] dark:text-zinc-400 dark:hover:text-[#a8b8ff] hover:bg-zinc-100 dark:hover:bg-zinc-800'
+                  )}
+                >
+                  Plugins
+                </button>
               </div>
 
-              <button
-                type="button"
-                onMouseDown={(e) => e.preventDefault()}
-                onClick={cycleEffort}
-                className="text-xs font-medium text-zinc-500 flex items-center gap-1 hover:text-zinc-800 dark:hover:text-zinc-200 px-2 py-1 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors outline-none cursor-pointer"
-                aria-label={`Mode effort: ${efforts[effortIndex]}`}
-              >
-                <DynamicBarsIcon level={efforts[effortIndex]} />
-                <span className="text-xs font-medium select-none">
-                  <MorphingText text={efforts[effortIndex]} />
-                </span>
-              </button>
+              {/* Most plugins — gated by the Plugins chip above */}
+              {showPlugins && (
+                <div className="flex items-center gap-2">
+                  <div className="relative" ref={modelSelectRef}>
+                    <button
+                      type="button"
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setIsModelSelectOpen((prev) => !prev);
+                      }}
+                      className={cn(
+                        'group flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors outline-none cursor-pointer text-xs font-semibold',
+                        isModelSelectOpen ? 'ring-1 ring-zinc-300 dark:ring-zinc-700' : ''
+                      )}
+                      aria-label={`Select model. Current: ${selectedModel}`}
+                    >
+                      <ModelIcon
+                        model={selectedModel}
+                        className="size-3.5 opacity-80 group-hover:opacity-100 transition-opacity"
+                      />
+                      <span className="text-xs font-semibold select-none">
+                        <MorphingText text={selectedModel} />
+                      </span>
+                    </button>
+
+                    {isModelSelectOpen && (
+                      <div className="absolute bottom-full left-0 mb-2 z-50 w-48 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white/95 dark:bg-zinc-900/95 p-1.5 shadow-xl backdrop-blur-md flex flex-col gap-0.5 animate-in fade-in zoom-in-95 duration-150">
+                        {models.map((model) => (
+                          <button
+                            key={model}
+                            type="button"
+                            onMouseDown={(e) => e.preventDefault()}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedModel(model);
+                              setIsModelSelectOpen(false);
+                            }}
+                            className={cn(
+                              'group flex h-8 w-full items-center justify-between rounded-xl px-2.5 py-1.5 text-left text-xs font-medium transition-colors cursor-pointer',
+                              model === selectedModel
+                                ? 'bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 font-semibold'
+                                : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800/60 hover:text-zinc-900 dark:hover:text-zinc-100'
+                            )}
+                          >
+                            <span className="flex items-center gap-2">
+                              <ModelIcon
+                                model={model}
+                                className="size-3.5 opacity-85 group-hover:opacity-100 transition-opacity"
+                              />
+                              {model}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  <button
+                    type="button"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={cycleEffort}
+                    className="text-xs font-medium text-zinc-500 flex items-center gap-1 hover:text-zinc-800 dark:hover:text-zinc-200 px-2 py-1 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors outline-none cursor-pointer"
+                    aria-label={`Mode effort: ${efforts[effortIndex]}`}
+                  >
+                    <DynamicBarsIcon level={efforts[effortIndex]} />
+                    <span className="text-xs font-medium select-none">
+                      <MorphingText text={efforts[effortIndex]} />
+                    </span>
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* Right Side: Action Icons (+ and Mic) */}
@@ -872,16 +997,23 @@ export const PromptInput = React.forwardRef<HTMLDivElement, PromptInputProps>(
                 </div>
               )}
 
-              {allowAttachments && (
+              {/* Image Generation Mode toggle — only rendered when the parent
+                  provides a handler (ChatMainArea gates authenticated-only). */}
+              {onImageGenToggle && (
                 <button
                   type="button"
                   onMouseDown={(e) => e.preventDefault()}
-                  onClick={openFileChooser}
-                  disabled={attachments.length >= maxAttachments}
-                  title="Attach image"
-                  className="h-8 w-8 rounded-full flex items-center justify-center text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors outline-none cursor-pointer disabled:opacity-40 disabled:pointer-events-none"
+                  onClick={onImageGenToggle}
+                  title="Generate image"
+                  aria-pressed={imageGenMode}
+                  aria-label="Toggle image generation mode"
+                  className={`h-8 w-8 rounded-full flex items-center justify-center transition-colors outline-none cursor-pointer ${
+                    imageGenMode
+                      ? 'text-[#1f51ff] dark:text-[#a8b8ff] bg-[#eef1ff] dark:bg-[#232a55]/60'
+                      : 'text-zinc-500 hover:text-[#1f51ff] dark:text-zinc-400 dark:hover:text-[#a8b8ff] hover:bg-zinc-100 dark:hover:bg-zinc-800'
+                  }`}
                 >
-                  <PlusIcon />
+                  <Wand2 className="w-4 h-4" />
                 </button>
               )}
 

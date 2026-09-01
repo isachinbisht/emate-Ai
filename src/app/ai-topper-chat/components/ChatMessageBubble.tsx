@@ -5,6 +5,7 @@ import { Copy, Check, RotateCcw, BookMarked, Sparkles, Loader2 } from 'lucide-re
 import type { ChatMessage } from './AITopperChatScreen';
 import { appendToNotebook } from '@/lib/notebook';
 import { toast } from 'sonner';
+import GeneratedImageCard from '@/components/GeneratedImageCard';
 
 // ─── Process step definitions ────────────────────────────────────────────────
 const PROCESS_STEPS = [
@@ -27,6 +28,8 @@ interface ChatMessageBubbleProps {
    *  5  = all steps done (stream complete)
    */
   processStep?: number;
+  /** Called when the user clicks a generated-image "Regenerate". (imageId, prompt) */
+  onRegenerateImage?: (messageId: string, imageId: string, prompt: string) => void;
 }
 
 // ─── Markdown renderer ────────────────────────────────────────────────────────
@@ -446,6 +449,7 @@ export default function ChatMessageBubble({
   theme = 'dark',
   onRegenerate,
   processStep = -1,
+  onRegenerateImage,
 }: ChatMessageBubbleProps) {
   const [copied, setCopied] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -520,6 +524,24 @@ export default function ChatMessageBubble({
       >
         {renderMarkdown(message.content, theme)}
       </div>
+
+      {/* Generated image cards (in-memory — only present in live state) */}
+      {message.images && message.images.length > 0 && (
+        <div className="mt-2">
+          {message.images.map((img) => (
+            <GeneratedImageCard
+              key={img.id}
+              image={img}
+              theme={theme}
+              onRegenerate={
+                onRegenerateImage
+                  ? (imageId, prompt) => onRegenerateImage(message.id, imageId, prompt)
+                  : undefined
+              }
+            />
+          ))}
+        </div>
+      )}
 
       {/* Actions */}
       <div className="flex items-center gap-1 mt-1 opacity-0 group-hover:opacity-100 transition-opacity duration-150">

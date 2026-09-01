@@ -247,6 +247,7 @@ export default function ChatMainArea({
   const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
   const [previewUrls, setPreviewUrls] = useState<string[]>([]);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [imageGenMode, setImageGenMode] = useState(false);
   const [isModelMenuOpen, setIsModelMenuOpen] = useState(false);
   const modelMenuRef = useRef<HTMLDivElement>(null);
 
@@ -351,27 +352,215 @@ export default function ChatMainArea({
 
   const convertFilesToBase64 = async (
     files: File[]
-  ): Promise<{ data: string; mimeType: string }[]> => {
+  ): Promise<{ data: string; mimeType: string; text?: string; fileName?: string }[]> => {
     return Promise.all(
       files.map((file) => {
-        return new Promise<{ data: string; mimeType: string }>((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = () => {
-            const result = reader.result as string;
-            // Strip the "data:image/jpeg;base64," prefix
-            const base64Data = result.split(',')[1];
-            resolve({ data: base64Data, mimeType: file.type });
-          };
-          reader.onerror = reject;
-          reader.readAsDataURL(file);
+        return new Promise<{ data: string; mimeType: string; text?: string; fileName?: string }>((resolve, reject) => {
+          const isTextFile =
+            file.type.startsWith('text/') ||
+            file.name.endsWith('.md') ||
+            file.name.endsWith('.json') ||
+            file.name.endsWith('.csv') ||
+            file.name.endsWith('.xml') ||
+            file.name.endsWith('.yaml') ||
+            file.name.endsWith('.yml') ||
+            file.name.endsWith('.txt');
+
+          if (isTextFile) {
+            const reader = new FileReader();
+            reader.onload = () => {
+              const textContent = reader.result as string;
+              resolve({ data: '', mimeType: file.type, text: textContent, fileName: file.name });
+            };
+            reader.onerror = reject;
+            reader.readAsText(file);
+          } else {
+            const reader = new FileReader();
+            reader.onload = () => {
+              const result = reader.result as string;
+              const base64Data = result.split(',')[1];
+              resolve({ data: base64Data, mimeType: file.type, fileName: file.name });
+            };
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+          }
         });
       })
     );
   };
 
+  // ── Image Generation (authenticated-only) ──────────────────────────────────
+
+  /** Send an image generation request and stream the result into the chat. */
+  const handleImageSend = async (prompt: string) => {
+    if (!prompt.trim() || isStreaming) return;
+    setImageGenMode(false); // turn off mode after submitting
+
+    const formatTimestamp = () => {
+      try {
+        return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      } catch (_) {
+        const now = Date.now();
+        return `${new Date(now).getHours()}:${String(new Date(now).getMinutes()).padStart(2, '0')}`;
+      }
+    };
+
+    const userMsg: ChatMessage = {
+      id: `msg-${String(msgCounter++).padStart(3, '0')}`,
+      role: 'user',
+      content: prompt,
+      mode,
+      timestamp: formatTimestamp(),
+      subject: selectedContext.subject,
+      isGeneralChat: !isStudyMode,
+      images: [],
+    };
+
+    const imageId = `img-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const assistantMsg: ChatMessage = {
+      id: `msg-${String(msgCounter++).padStart(3, '0')}`,
+      role: 'assistant',
+      content: '',
+      mode,
+      timestamp: formatTimestamp(),
+      subject: selectedContext.subject,
+      isGeneralChat: !isStudyMode,
+      images: [{ id: imageId, url: '', prompt, status: 'generating' }],
+    };
+
+    const newMessages = [...messages, userMsg, assistantMsg];
+    setMessages(newMessages);
+    setInputValue('');
+    setIsStreaming(true);
+
+    // Persist the user prompt to transcript (images themselves are stripped).
+    if (!isGuest) {
+      saveChatSession({
+        id: sessionIdRef.current,
+        title: prompt.length > 60 ? prompt.slice(0, 57) + '…' : prompt,
+        subject: selectedContext.subject,
+        unit: selectedContext.unit,
+        mode,
+        timestamp: Date.now(),
+      });
+      saveChatTranscript(sessionIdRef.current, newMessages);
+    }
+
+    try {
+      const res = await fetch('/api/generate-image', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || `Image generation failed (${res.status})`);
+      }
+
+      const { imageUrl } = (await res.json()) as { imageUrl: string };
+
+      // Patch the assistant message's image to done state.
+      setMessages((prev) =>
+        prev.map((m) => {
+          if (m.id !== assistantMsg.id || !m.images?.length) return m;
+          return {
+            ...m,
+            images: [{ ...m.images[0], url: imageUrl, status: 'done' }],
+          };
+        })
+      );
+    } catch (err: any) {
+      const msg = err?.message || 'Image generation failed. Try again.';
+      toast.error(msg);
+      // Patch the image to error state so the user can retry.
+      setMessages((prev) =>
+        prev.map((m) => {
+          if (m.id !== assistantMsg.id || !m.images?.length) return m;
+          return {
+            ...m,
+            images: [{ ...m.images[0], status: 'error' }],
+            content: msg,
+          };
+        })
+      );
+    } finally {
+      setIsStreaming(false);
+    }
+  };
+
+  /** Re-run image generation for an existing assistant message's image. */
+  const handleRegenerateImage = async (messageId: string, imageId: string, prompt: string) => {
+    if (isStreaming) return;
+
+    // Set the image back to generating state.
+    setMessages((prev) =>
+      prev.map((m) => {
+        if (m.id !== messageId || !m.images) return m;
+        return {
+          ...m,
+          images: m.images.map((img) =>
+            img.id === imageId ? { ...img, url: '', status: 'generating' as const } : img
+          ),
+        };
+      })
+    );
+    setIsStreaming(true);
+
+    try {
+      const res = await fetch('/api/generate-image', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || `Image generation failed (${res.status})`);
+      }
+
+      const { imageUrl } = (await res.json()) as { imageUrl: string };
+
+      setMessages((prev) =>
+        prev.map((m) => {
+          if (m.id !== messageId || !m.images) return m;
+          return {
+            ...m,
+            images: m.images.map((img) =>
+              img.id === imageId ? { ...img, url: imageUrl, status: 'done' as const } : img
+            ),
+          };
+        })
+      );
+    } catch (err: any) {
+      toast.error(err?.message || 'Regeneration failed. Try again.');
+      setMessages((prev) =>
+        prev.map((m) => {
+          if (m.id !== messageId || !m.images) return m;
+          return {
+            ...m,
+            images: m.images.map((img) =>
+              img.id === imageId ? { ...img, status: 'error' as const } : img
+            ),
+          };
+        })
+      );
+    } finally {
+      setIsStreaming(false);
+    }
+  };
+
   const handleSend = async (text?: string, attachmentOverride?: File[]) => {
     const content = (text ?? inputValue).trim();
     if (!content || isStreaming) return;
+
+    // Image Gen Mode intercepts before the text/credit path — authenticated
+    // users only (the toggle is hidden for guests). No credit spend: image
+    // generation is billed to the user's own OpenRouter balance.
+    if (imageGenMode && !isGuest) {
+      await handleImageSend(content);
+      return;
+    }
 
     // ── Credit gating ──────────────────────────────────────────────────────
     // Guests: a non-refillable trial allowance. When exhausted, open the soft
@@ -421,17 +610,20 @@ export default function ChatMainArea({
     setInputValue('');
     setIsStreaming(true);
 
-    // Persist to recent chats (real-time sidebar sync)
-    saveChatSession({
-      id: sessionIdRef.current,
-      title: content.length > 60 ? content.slice(0, 57) + '…' : content,
-      subject: selectedContext.subject,
-      unit: selectedContext.unit,
-      mode,
-      timestamp: Date.now(),
-    });
-    // Persist full transcript so Search can match message content and resume.
-    saveChatTranscript(sessionIdRef.current, newMessages);
+    // Persist to recent chats + transcript only for signed-in users — guest
+    // chats are ephemeral and must not survive into history or search.
+    if (!isGuest) {
+      saveChatSession({
+        id: sessionIdRef.current,
+        title: content.length > 60 ? content.slice(0, 57) + '…' : content,
+        subject: selectedContext.subject,
+        unit: selectedContext.unit,
+        mode,
+        timestamp: Date.now(),
+      });
+      // Persist full transcript so Search can match message content and resume.
+      saveChatTranscript(sessionIdRef.current, newMessages);
+    }
 
     try {
       const notebookContext = isStudyMode ? buildNotebookContext(selectedContext.subject) : '';
@@ -525,20 +717,23 @@ export default function ChatMainArea({
         }
       }
 
-      // Persist the completed transcript (assistant content is final after the stream loop).
-      saveChatTranscript(sessionIdRef.current, [
-        ...messages,
-        userMsg,
-        {
-          id: assistantMsgId,
-          role: 'assistant',
-          content: accumulatedText,
-          mode,
-          timestamp: formatTimestamp(),
-          subject: selectedContext.subject,
-          isGeneralChat: !isStudyMode,
-        },
-      ]);
+      // Persist the completed transcript (assistant content is final after the
+      // stream loop) — signed-in users only; guest chats are ephemeral.
+      if (!isGuest) {
+        saveChatTranscript(sessionIdRef.current, [
+          ...messages,
+          userMsg,
+          {
+            id: assistantMsgId,
+            role: 'assistant',
+            content: accumulatedText,
+            mode,
+            timestamp: formatTimestamp(),
+            subject: selectedContext.subject,
+            isGeneralChat: !isStudyMode,
+          },
+        ]);
+      }
 
       if (isStudyMode && accumulatedText) {
         appendToNotebook(
@@ -1115,6 +1310,8 @@ export default function ChatMainArea({
               allowAttachments={!isGuest}
               placeholder="Ask anything or type / for commands..."
               className="mx-auto w-full max-w-2xl mt-6 mb-2"
+              imageGenMode={imageGenMode}
+              onImageGenToggle={!isGuest ? () => setImageGenMode((v) => !v) : undefined}
             />
 
             {/* Prompt chips. For guests: a "Try Demo Notebook" button that
@@ -1175,7 +1372,12 @@ export default function ChatMainArea({
         ) : (
           <div className="max-w-3xl mx-auto w-full px-4 py-6 space-y-6">
             {messages.map((msg) => (
-              <ChatMessageBubble key={msg.id} message={msg} theme={theme} />
+              <ChatMessageBubble
+                key={msg.id}
+                message={msg}
+                theme={theme}
+                onRegenerateImage={handleRegenerateImage}
+              />
             ))}
             {isStreaming && <StreamingIndicator />}
             <div ref={messagesEndRef} />
@@ -1221,6 +1423,8 @@ export default function ChatMainArea({
                   : 'Ask for a full explanation, proof, or derivation...'
             }
             className="mx-auto w-full max-w-3xl mt-3"
+            imageGenMode={imageGenMode}
+            onImageGenToggle={!isGuest ? () => setImageGenMode((v) => !v) : undefined}
           />
           <p
             className="text-[11px] text-center mt-2"

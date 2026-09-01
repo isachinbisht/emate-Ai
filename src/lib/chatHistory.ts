@@ -5,6 +5,17 @@
  * for real-time sidebar sync.
  */
 
+/** An AI-generated image attached to a chat message (in-memory only — not
+ *  persisted to the transcript, see saveChatTranscript's strip). */
+export interface GeneratedImage {
+  id: string;
+  url: string; // data: URL returned by the image provider
+  prompt: string; // original prompt used to generate
+  aspectRatio?: string;
+  style?: string;
+  status?: 'generating' | 'done' | 'error';
+}
+
 /** A chat message. Defined here (single source of truth) and re-exported by
  *  the chat screen so both the lib and components share one type. */
 export interface ChatMessage {
@@ -15,6 +26,8 @@ export interface ChatMessage {
   timestamp: string;
   subject?: string;
   isGeneralChat?: boolean;
+  /** Generated images rendered live from React state. Never persisted. */
+  images?: GeneratedImage[];
 }
 
 export interface ChatHistoryItem {
@@ -65,17 +78,27 @@ export function getChatTranscript(id: string): ChatMessage[] {
 /**
  * Persist a chat session's full message transcript. Overwrites the latest
  * state so resuming a chat always shows the most recent conversation.
+ *
+ * Generated images are in-memory only — they are stripped before storage so
+ * the (1–2MB base64) payloads never consume the localStorage quota.
  */
 export function saveChatTranscript(id: string, messages: ChatMessage[]): void {
   if (typeof window === 'undefined') return;
   try {
     const raw = localStorage.getItem(TRANSCRIPT_KEY);
     const map = raw ? (JSON.parse(raw) as Record<string, ChatMessage[]>) : {};
-    map[id] = messages.slice(-100); // bound transcript size
+    map[id] = messages.slice(-100).map(stripImages); // bound + strip image payloads
     localStorage.setItem(TRANSCRIPT_KEY, JSON.stringify(map));
   } catch {
     // quota exceeded – silently ignore
   }
+}
+
+/** Drop the `images` field from a message (in-memory-only persistence). */
+function stripImages(m: ChatMessage): ChatMessage {
+  const copy = { ...m };
+  delete copy.images;
+  return copy;
 }
 
 /** Remove a session's transcript (called on session delete). */

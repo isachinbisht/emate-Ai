@@ -116,10 +116,18 @@ export async function POST(req: Request) {
         if (index === cappedMessages.length - 1 && attachments && attachments.length > 0) {
           const contentArray: any[] = [{ type: 'text', text: m.content }];
           attachments.forEach((att: any) => {
-            if (att.mimeType?.startsWith('image/')) {
+            if (att.mimeType?.startsWith('image/') && att.data) {
               contentArray.push({
                 type: 'image_url',
                 image_url: { url: `data:${att.mimeType};base64,${att.data}` },
+              });
+            } else if (att.text) {
+              // Text-based document (txt, md, json, csv, …) — include the
+              // file's content as a text block so the model can reference it.
+              const fileName = att.fileName || 'attached file';
+              contentArray.push({
+                type: 'text',
+                text: `[Attached document "${fileName}" content]:\n${att.text}`,
               });
             }
           });
