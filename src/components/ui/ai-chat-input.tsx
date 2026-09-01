@@ -69,6 +69,8 @@ function ModelIcon({ model, className }: { model: string; className?: string }) 
       'https://res.cloudinary.com/drhx7imeb/image/upload/v1781695268/google-gemini-icon_l6kk5q.svg',
     'Gemini 2.5 Flash':
       'https://res.cloudinary.com/drhx7imeb/image/upload/v1781695268/google-gemini-icon_l6kk5q.svg',
+    'Gemini 2.5 Pro':
+      'https://res.cloudinary.com/drhx7imeb/image/upload/v1781695268/google-gemini-icon_l6kk5q.svg',
     'GPT-4o Mini':
       'https://res.cloudinary.com/drhx7imeb/image/upload/v1781695269/openai-icon_zozuib.svg',
     'Claude 3.5 Sonnet':
@@ -393,6 +395,8 @@ export interface PromptInputProps {
   value?: string;
   onChange?: (value: string) => void;
   maxAttachments?: number;
+  /** When false, hides the attach-image button (e.g. for guest users). */
+  allowAttachments?: boolean;
 }
 
 export const PromptInput = React.forwardRef<HTMLDivElement, PromptInputProps>(
@@ -407,6 +411,7 @@ export const PromptInput = React.forwardRef<HTMLDivElement, PromptInputProps>(
       value: controlledValue,
       onChange,
       maxAttachments = 6,
+      allowAttachments = true,
     },
     ref
   ) => {
@@ -867,16 +872,18 @@ export const PromptInput = React.forwardRef<HTMLDivElement, PromptInputProps>(
                 </div>
               )}
 
-              <button
-                type="button"
-                onMouseDown={(e) => e.preventDefault()}
-                onClick={openFileChooser}
-                disabled={attachments.length >= maxAttachments}
-                title="Attach image"
-                className="h-8 w-8 rounded-full flex items-center justify-center text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors outline-none cursor-pointer disabled:opacity-40 disabled:pointer-events-none"
-              >
-                <PlusIcon />
-              </button>
+              {allowAttachments && (
+                <button
+                  type="button"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={openFileChooser}
+                  disabled={attachments.length >= maxAttachments}
+                  title="Attach image"
+                  className="h-8 w-8 rounded-full flex items-center justify-center text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors outline-none cursor-pointer disabled:opacity-40 disabled:pointer-events-none"
+                >
+                  <PlusIcon />
+                </button>
+              )}
 
               {showMic && (
                 <button

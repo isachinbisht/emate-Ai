@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   Zap,
   BookOpen,
@@ -24,6 +25,8 @@ import {
   Key,
   ImagePlus,
   Menu,
+  NotebookText,
+  Lock,
 } from 'lucide-react';
 import ChatMessageBubble from './ChatMessageBubble';
 import StreamingIndicator from './StreamingIndicator';
@@ -33,6 +36,16 @@ import { applyTheme } from '@/lib/theme';
 import { ModelSelector } from '@/components/ModelSelector';
 import { buildNotebookContext, appendToNotebook } from '@/lib/notebook';
 import { saveChatSession } from '@/lib/chatHistory';
+import { loadDemoNotebook } from '@/lib/demoNotebook';
+import {
+  GUEST_LIMIT,
+  DAILY_LIMIT,
+  getGuestCredits,
+  spendGuestCredit,
+  spendAuthCredit,
+  authCreditsExhausted,
+} from '@/lib/credits';
+import { toast } from 'sonner';
 
 // Study quick actions are built dynamically inside the component from selectedContext.
 
@@ -56,6 +69,20 @@ const GENERAL_QUICK_ACTIONS = [
     icon: Compass,
     label: 'Explain a complex topic',
     prompt: 'Explain this topic clearly and simply: ',
+  },
+];
+
+// Guests only get two quick actions: an explanation and a summary.
+const GUEST_QUICK_ACTIONS = [
+  {
+    icon: Compass,
+    label: 'Explain',
+    prompt: 'Explain this clearly and simply, step by step: ',
+  },
+  {
+    icon: Sparkles,
+    label: 'Summarize',
+    prompt: 'Summarize this concisely into easy to remember key points: ',
   },
 ];
 
@@ -90,6 +117,7 @@ export default function ChatMainArea({
   selectedModel,
   setSelectedModel,
 }: ChatMainAreaProps) {
+  const router = useRouter();
   const [inputValue, setInputValue] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
   const [showFeatureModal, setShowFeatureModal] = useState(false);
@@ -98,7 +126,20 @@ export default function ChatMainArea({
   const [showConnectModal, setShowConnectModal] = useState(false);
   const [isConnectingOpenRouter, setIsConnectingOpenRouter] = useState(false);
   const [showSuccessToast, setShowSuccessToast] = useState(false);
+  const [guestCredits, setGuestCreditsState] = useState(GUEST_LIMIT);
   const popupRef = useRef<Window | null>(null);
+
+  // Identity: guests have no connected OpenRouter key; connected users are the
+  // "authenticated" (unlocked) tier.
+  const isAuthenticated = isOpenRouterConnected;
+  const isGuest = !isAuthenticated;
+
+  // Guests are locked to the fast free model.
+  const GUEST_MODEL = 'google/gemini-2.0-flash';
+
+  // True once a guest has burned through the trial allowance. Drives the soft
+  // conversion gate (sign-up CTA) while preserving their chat context.
+  const isGuestOutOfCredits = isGuest && guestCredits <= 0;
 
   // Build study action tiles dynamically from the active notebook context
   const studyQuickActions = useMemo(
@@ -151,17 +192,14 @@ export default function ChatMainArea({
     }, 500);
   };
 
-  const [guestQueryCount, setGuestQueryCount] = useState(0);
-
   useEffect(() => {
     if (typeof window !== 'undefined') {
       // Sync study mode from localStorage after hydration
       const saved = localStorage.getItem('nk-study-mode-active');
       if (saved !== null) setIsStudyMode(saved !== 'false');
 
-      // Sync free limit credit count
-      const count = parseInt(localStorage.getItem('guest_query_count') || '0', 10);
-      setGuestQueryCount(count);
+      // Sync guest trial credit count from localStorage
+      setGuestCreditsState(getGuestCredits());
 
       // Check if redirected from OAuth callback with ?connected=true
       const params = new URLSearchParams(window.location.search);
@@ -211,13 +249,21 @@ export default function ChatMainArea({
   const modelMenuRef = useRef<HTMLDivElement>(null);
 
   const MODELS = [
-    { id: 'google/gemini-2.0-flash-001', name: 'Gemini 2.0 Flash', badge: 'Fastest' },
+    { id: 'google/gemini-2.0-flash', name: 'Gemini 2.0 Flash', badge: 'Fastest' },
     { id: 'google/gemini-2.5-flash', name: 'Gemini 2.5 Flash', badge: 'Latest' },
+    { id: 'google/gemini-2.5-pro', name: 'Gemini 2.5 Pro', badge: 'Powerful' },
     { id: 'openai/gpt-4o-mini', name: 'GPT-4o Mini', badge: 'Efficient' },
     { id: 'anthropic/claude-3.5-sonnet', name: 'Claude 3.5 Sonnet', badge: 'Smartest' },
   ];
 
   const activeModel = MODELS.find((m) => m.id === selectedModel) || MODELS[0];
+
+  // Lock guests to the fast free model — the model switcher is hidden for them.
+  useEffect(() => {
+    if (isGuest && selectedModel !== GUEST_MODEL) {
+      setSelectedModel(GUEST_MODEL);
+    }
+  }, [isGuest, selectedModel, setSelectedModel, GUEST_MODEL]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -322,17 +368,28 @@ export default function ChatMainArea({
     const content = (text ?? inputValue).trim();
     if (!content || isStreaming) return;
 
-    // Guard: if no API key is connected, check guest freemium credit limit
-    if (!isOpenRouterConnected) {
-      const currentCount = parseInt(localStorage.getItem('guest_query_count') || '0', 10);
-      if (currentCount >= 5) {
+    // ── Credit gating ──────────────────────────────────────────────────────
+    // Guests: a non-refillable trial allowance. When exhausted, open the soft
+    // conversion modal (guarding their chat context) instead of sending.
+    // Authenticated (connected) users: a daily refillable allowance; when
+    // exhausted we still send (they pay with their own key) but nudge them.
+    let guestCreditsSent: number | undefined;
+    if (isGuest) {
+      // The server guard rejects guests whose remaining allowance is already
+      // 0 at the START of a request — so send the pre-spend remaining here.
+      const remainingBefore = getGuestCredits();
+      if (remainingBefore <= 0) {
         setShowConnectModal(true);
         return;
       }
-      // Increment guest query count
-      const newCount = currentCount + 1;
-      localStorage.setItem('guest_query_count', String(newCount));
-      setGuestQueryCount(newCount);
+      guestCreditsSent = remainingBefore;
+      const remainingAfter = spendGuestCredit();
+      setGuestCreditsState(remainingAfter);
+    } else if (typeof window !== 'undefined' && authCreditsExhausted()) {
+      // Daily allowance used up — connected users continue on their own key.
+      toast.info(`You've used your ${DAILY_LIMIT} free daily credits — continuing on your connected OpenRouter key.`);
+    } else {
+      spendAuthCredit();
     }
 
     const formatTimestamp = () => {
@@ -397,6 +454,7 @@ export default function ChatMainArea({
           notebookContext,
           isGeneralChat: !isStudyMode,
           attachments: base64Attachments,
+          credits: guestCreditsSent, // sent for the server-side guest guard
         }),
       });
 
@@ -406,7 +464,10 @@ export default function ChatMainArea({
 
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || `Request failed with status ${res.status}`);
+        const msg = data.error || `Request failed with status ${res.status}`;
+        // Task 4 — surface the granular OpenRouter error as a toast, not silently.
+        toast.error(msg);
+        throw new Error(msg);
       }
 
       const assistantMsgId = `msg-${String(msgCounter++).padStart(3, '0')}`;
@@ -442,21 +503,16 @@ export default function ChatMainArea({
             const dataStr = line.replace('data: ', '');
             if (dataStr === '[DONE]') continue;
             try {
-              const parsed = JSON.parse(dataStr);
-              if (parsed.error) {
-                accumulatedText += `\n\n⚠️ **Notice:** ${parsed.error}`;
-              } else {
-                accumulatedText += parsed.text || parsed;
+              // Server sends JSON-encoded string deltas: `data: "…"\n\n`
+              const delta = JSON.parse(dataStr);
+              if (typeof delta === 'string' && delta.length > 0) {
+                accumulatedText += delta;
+                setMessages((prev) =>
+                  prev.map((m) => (m.id === assistantMsgId ? { ...m, content: accumulatedText } : m))
+                );
               }
-              setMessages((prev) =>
-                prev.map((m) => (m.id === assistantMsgId ? { ...m, content: accumulatedText } : m))
-              );
-            } catch (e) {
-              // Fallback for raw text chunks
-              accumulatedText += dataStr;
-              setMessages((prev) =>
-                prev.map((m) => (m.id === assistantMsgId ? { ...m, content: accumulatedText } : m))
-              );
+            } catch {
+              // Malformed chunk — skip silently (no notice injection)
             }
           }
         }
@@ -659,8 +715,27 @@ export default function ChatMainArea({
           </div>
         </div>
 
-        {/* Right Group: high-contrast Connect / Connected status only */}
-        <div className="ml-auto flex items-center">
+        {/* Right Group: credit badge for guests, Connected status for auth */}
+        <div className="ml-auto flex items-center gap-2">
+          {isGuest && (
+            <div
+              className="h-8 flex items-center gap-1.5 select-none text-[11px] font-medium px-3 rounded-full border"
+              style={{
+                background: guestCredits <= 0
+                  ? (theme === 'dark' ? 'rgba(239,68,68,0.12)' : 'rgba(239,68,68,0.08)')
+                  : (theme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)'),
+                borderColor: guestCredits <= 0
+                  ? (theme === 'dark' ? 'rgba(239,68,68,0.25)' : 'rgba(239,68,68,0.2)')
+                  : (theme === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'),
+                color: guestCredits <= 0
+                  ? (theme === 'dark' ? '#fca5a5' : '#dc2626')
+                  : (theme === 'dark' ? '#a1a1aa' : '#52525b'),
+              }}
+            >
+              <Zap size={11} />
+              Free Credits: {guestCredits}/{GUEST_LIMIT}
+            </div>
+          )}
           {isOpenRouterConnected ? (
             <div className="h-8 flex items-center gap-1.5 select-none text-[11px] text-gray-500 dark:text-zinc-400 px-2">
               <span className="relative flex h-2 w-2">
@@ -718,7 +793,11 @@ export default function ChatMainArea({
                 background: theme === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
               }}
             >
-              <Key size={22} style={{ color: theme === 'dark' ? '#a1a1aa' : '#52525b' }} />
+              {isGuestOutOfCredits ? (
+                <Lock size={22} style={{ color: theme === 'dark' ? '#a1a1aa' : '#52525b' }} />
+              ) : (
+                <Key size={22} style={{ color: theme === 'dark' ? '#a1a1aa' : '#52525b' }} />
+              )}
             </div>
 
             <div>
@@ -726,31 +805,62 @@ export default function ChatMainArea({
                 className="text-base font-semibold mb-1"
                 style={{ color: theme === 'dark' ? '#fafafa' : '#09090b' }}
               >
-                {guestQueryCount >= 5
-                  ? "You've reached your 5 free searches"
+                {isGuestOutOfCredits
+                  ? "You've reached your 20 free searches"
                   : 'Connect Your API Key'}
               </h3>
               <p
                 className="text-xs leading-relaxed"
                 style={{ color: theme === 'dark' ? '#71717a' : '#a1a1aa' }}
               >
-                {guestQueryCount >= 5
-                  ? 'Connect your OpenRouter account to unlock unlimited AI processing with full model access.'
+                {isGuestOutOfCredits
+                  ? 'Connect your OpenRouter account to unlock unlimited access. It takes one click and is completely free.'
                   : 'Link your OpenRouter account to unlock AI processing. It takes one click and is completely free.'}
               </p>
             </div>
 
-            <button
-              onClick={handleOpenRouterConnect}
-              className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all hover:opacity-90 active:scale-[0.98]"
-              style={{
-                background: theme === 'dark' ? '#8aa2ff' : '#1f51ff',
-                color: theme === 'dark' ? '#0b0b0d' : '#ffffff',
-              }}
-            >
-              <Key size={14} />
-              Connect OpenRouter (1-Click)
-            </button>
+            {isGuestOutOfCredits ? (
+              <>
+                <button
+                  onClick={() => router.push('/sign-up-login-screen')}
+                  className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all hover:opacity-90 active:scale-[0.98]"
+                  style={{
+                    background: theme === 'dark' ? '#8aa2ff' : '#1f51ff',
+                    color: theme === 'dark' ? '#0b0b0d' : '#ffffff',
+                  }}
+                >
+                  <Sparkles size={14} />
+                  Sign up / Log in — keep chatting
+                </button>
+                <button
+                  onClick={handleOpenRouterConnect}
+                  className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all hover:opacity-90 active:scale-[0.98]"
+                  style={{
+                    background: 'transparent',
+                    border:
+                      theme === 'dark'
+                        ? '1px solid rgba(255,255,255,0.12)'
+                        : '1px solid rgba(0,0,0,0.12)',
+                    color: theme === 'dark' ? '#d4d4d8' : '#18181b',
+                  }}
+                >
+                  <Key size={14} />
+                  Connect OpenRouter instead
+                </button>
+              </>
+            ) : (
+              <button
+                onClick={handleOpenRouterConnect}
+                className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all hover:opacity-90 active:scale-[0.98]"
+                style={{
+                  background: theme === 'dark' ? '#8aa2ff' : '#1f51ff',
+                  color: theme === 'dark' ? '#0b0b0d' : '#ffffff',
+                }}
+              >
+                <Key size={14} />
+                Connect OpenRouter (1-Click)
+              </button>
+            )}
 
             <button
               onClick={() => setShowConnectModal(false)}
@@ -978,31 +1088,67 @@ export default function ChatMainArea({
                 }
                 handleSend(text, meta.attachments);
               }}
-              models={MODELS.map((m) => m.name)}
+              models={isGuest ? ['Gemini 2.0 Flash'] : MODELS.map((m) => m.name)}
               efforts={['Quick', 'Balanced', 'Deep']}
+              allowAttachments={!isGuest}
               placeholder="Ask anything or type / for commands..."
               className="mx-auto w-full max-w-2xl mt-6 mb-2"
             />
 
-            {/* Compact prompt chips — swaps per mode */}
-            <div className="flex flex-wrap items-center justify-center gap-2 mt-6 max-w-xl mx-auto">
-              {(isStudyMode ? studyQuickActions : GENERAL_QUICK_ACTIONS).map((action) => (
+            {/* Prompt chips. For guests: a "Try Demo Notebook" button that
+                preloads sample OS notes in place of file uploads, plus only the
+                Explain + Summarize quick actions. Authenticated users get the
+                full mode-specific action sets. */}
+            {isGuest ? (
+              <div className="flex flex-wrap items-center justify-center gap-2 mt-6 max-w-xl mx-auto">
                 <button
-                  key={action.label}
                   type="button"
                   onClick={() => {
-                    if (action.prompt) {
-                      setInputValue(action.prompt);
-                      setTimeout(() => centerInputRef.current?.focus(), 50);
-                    }
+                    loadDemoNotebook(selectedContext.subject);
+                    toast.success('Demo Operating Systems notebook loaded');
                   }}
                   className="px-3 py-1.5 rounded-full border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 text-xs font-medium text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer flex items-center gap-1.5"
                 >
-                  <action.icon size={13} className="text-zinc-400 dark:text-zinc-500" />
-                  {action.label}
+                  <NotebookText size={13} className="text-zinc-400 dark:text-zinc-500" />
+                  Try Demo Notebook
                 </button>
-              ))}
-            </div>
+                {GUEST_QUICK_ACTIONS.map((action) => (
+                  <button
+                    key={action.label}
+                    type="button"
+                    onClick={() => {
+                      if (action.prompt) {
+                        setInputValue(action.prompt);
+                        setTimeout(() => centerInputRef.current?.focus(), 50);
+                      }
+                    }}
+                    className="px-3 py-1.5 rounded-full border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 text-xs font-medium text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer flex items-center gap-1.5"
+                  >
+                    <action.icon size={13} className="text-zinc-400 dark:text-zinc-500" />
+                    {action.label}
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <div className="flex flex-wrap items-center justify-center gap-2 mt-6 max-w-xl mx-auto">
+                {(isStudyMode ? studyQuickActions : GENERAL_QUICK_ACTIONS).map((action) => (
+                  <button
+                    key={action.label}
+                    type="button"
+                    onClick={() => {
+                      if (action.prompt) {
+                        setInputValue(action.prompt);
+                        setTimeout(() => centerInputRef.current?.focus(), 50);
+                      }
+                    }}
+                    className="px-3 py-1.5 rounded-full border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 text-xs font-medium text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer flex items-center gap-1.5"
+                  >
+                    <action.icon size={13} className="text-zinc-400 dark:text-zinc-500" />
+                    {action.label}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         ) : (
           <div className="max-w-3xl mx-auto w-full px-4 py-6 space-y-6">
@@ -1042,8 +1188,9 @@ export default function ChatMainArea({
               }
               handleSend(text, meta.attachments);
             }}
-            models={MODELS.map((m) => m.name)}
+            models={isGuest ? ['Gemini 2.0 Flash'] : MODELS.map((m) => m.name)}
             efforts={['Quick', 'Balanced', 'Deep']}
+            allowAttachments={!isGuest}
             placeholder={
               !isStudyMode
                 ? 'Ask a question or request help...'

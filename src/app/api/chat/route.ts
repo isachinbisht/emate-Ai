@@ -1,5 +1,12 @@
+import {
+  openRouterCompletionStream,
+  FALLBACK_MODELS,
+  getModelFallbackId,
+  type OpenRouterError,
+} from '@/lib/openrouter';
+
 // Ultra-fast primary model (TTFT ~200-400ms via Nitro routing)
-const PRIMARY_MODEL = 'google/gemini-2.0-flash-001';
+const PRIMARY_MODEL = 'google/gemini-2.0-flash';
 
 export const runtime = 'edge'; // Edge runtime for lowest cold-start latency
 
@@ -12,8 +19,17 @@ function getCookie(cookieHeader: string | null, name: string): string | undefine
 
 export async function POST(req: Request) {
   try {
-    const { messages, mode, subject, unit, model, notebookContext, isGeneralChat, attachments } =
-      await req.json();
+    const {
+      messages,
+      mode,
+      subject,
+      unit,
+      model,
+      notebookContext,
+      isGeneralChat,
+      attachments,
+      credits,
+    } = await req.json();
 
     const cookieHeader = req.headers.get('cookie');
     const userKey = getCookie(cookieHeader, 'user_openrouter_key');
@@ -27,6 +43,21 @@ export async function POST(req: Request) {
             'OpenRouter API key is missing. Please connect your OpenRouter account to unlock unlimited access.',
         }),
         { status: 400, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Best-effort guest credit guard. The client is the source of truth for the
+    // localStorage trial allowance; this rejects with 402 when a guest (no BYOK
+    // key cookie) has spent their trial and the UI was somehow bypassed.
+    const isGuest = !userKey;
+    if (isGuest && typeof credits === 'number' && credits <= 0) {
+      return new Response(
+        JSON.stringify({
+          error:
+            "You've reached your 20 free searches. Connect your OpenRouter account to unlock unlimited access.",
+          code: 'trial_exhausted',
+        }),
+        { status: 402, headers: { 'Content-Type': 'application/json' } }
       );
     }
 
@@ -102,37 +133,73 @@ export async function POST(req: Request) {
       }),
     ];
 
-    // ── OpenRouter fetch with Nitro provider routing ──────────────────────────
-    const upstreamRes = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-        'HTTP-Referer': 'https://emate-ai.vercel.app',
-        'X-Title': 'e-Mate AI',
-      },
-      body: JSON.stringify({
-        model: selectedModel,
-        messages: formattedMessages,
-        stream: true,
-        max_tokens: 1200, // Cap to minimise latency & cost
-        temperature: 0.7,
-        transforms: [], // Skip OpenRouter post-processing for zero added latency
-        provider: {
-          order: ['Nitro', 'Together', 'Groq'], // Highest TPS providers first
-          allow_fallbacks: true,
-        },
-      }),
-    });
+    const headers = {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+      'HTTP-Referer': 'https://emate-ai.vercel.app',
+      'X-Title': 'e-Mate AI',
+    };
 
-    if (!upstreamRes.ok || !upstreamRes.body) {
-      const errData = await upstreamRes.json().catch(() => ({}));
-      const errMsg =
-        (errData as any)?.error?.message || `OpenRouter API error: ${upstreamRes.statusText}`;
-      return new Response(JSON.stringify({ error: errMsg }), {
-        status: upstreamRes.status,
-        headers: { 'Content-Type': 'application/json' },
-      });
+    const baseBody = {
+      max_tokens: 1200, // Cap to minimise latency & cost
+      temperature: 0.7,
+      transforms: [], // Skip OpenRouter post-processing for zero added latency
+      provider: {
+        order: ['Nitro', 'Together', 'Groq'], // Highest TPS providers first
+        allow_fallbacks: true,
+      },
+    };
+
+    /**
+     * Task 4 — Automatic fallback: attempt the requested model; on a transient
+     * provider/quota fault (429/5xx) transparently retry the same payload against
+     * the model's own fallbackId (if any), then the global lightweight
+     * fallback models (gpt-4o-mini → gemini-2.0-flash) before surfacing an error.
+     */
+    const modelFallback = getModelFallbackId(selectedModel);
+    const attemptOrder = [selectedModel, ...[modelFallback, ...FALLBACK_MODELS].filter(
+      (m): m is string => typeof m === 'string'
+    )].filter((m, i, arr) => arr.indexOf(m) === i);
+
+    let upstreamRes: Response | null = null;
+    let lastError: OpenRouterError | null = null;
+
+    for (const candidate of attemptOrder.slice(0, 2)) {
+      try {
+        upstreamRes = await openRouterCompletionStream(apiKey, {
+          model: candidate,
+          messages: formattedMessages as any,
+          stream: true,
+          temperature: 0.7,
+          max_tokens: 1200,
+          extraBody: baseBody,
+        });
+        break;
+      } catch (err) {
+        const oe = err as OpenRouterError;
+        // Non-retryable errors (401/402) are surfaced immediately.
+        if (!oe.retryable) {
+          return new Response(
+            JSON.stringify({ error: oe.message || 'OpenRouter request failed.' }),
+            { status: oe.status || 500, headers: { 'Content-Type': 'application/json' } }
+          );
+        }
+        // Transient: fall through and try the next candidate silently.
+        upstreamRes = null;
+        lastError = oe;
+      }
+    }
+
+    if (!upstreamRes) {
+      // All candidates exhausted — surface a generic error.
+      return new Response(
+        JSON.stringify({
+          error:
+            lastError?.message ||
+            'OpenRouter is temporarily unavailable. Please try again in a moment, or switch models.',
+        }),
+        { status: 502, headers: { 'Content-Type': 'application/json' } }
+      );
     }
 
     // ── SSE pipe: forward upstream stream straight to the client ─────────────
@@ -145,7 +212,7 @@ export async function POST(req: Request) {
     const writer = writable.getWriter();
 
     (async () => {
-      const reader = upstreamRes.body!.getReader();
+      const reader = upstreamRes!.body!.getReader();
       let buffer = '';
       try {
         while (true) {
