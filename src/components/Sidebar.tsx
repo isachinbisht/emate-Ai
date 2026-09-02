@@ -524,7 +524,23 @@ export default function Sidebar({
                   {chatHistory.slice(0, 15).map((chat) => (
                     <div
                       key={chat.id}
-                      className="group relative w-full rounded-lg px-3 py-2 text-left transition-colors hover:bg-slate-50 dark:hover:bg-zinc-800/40"
+                      onClick={() => {
+                        const messages = getChatTranscript(chat.id);
+                        router.push(`/ai-topper-chat?chatId=${chat.id}`);
+                        window.dispatchEvent(
+                          new CustomEvent('nk-chat-load', {
+                            detail: {
+                              id: chat.id,
+                              title: chat.title,
+                              subject: chat.subject,
+                              unit: chat.unit,
+                              mode: chat.mode,
+                              messages,
+                            },
+                          })
+                        );
+                      }}
+                      className="group relative w-full cursor-pointer rounded-lg px-3 py-2 text-left transition-colors hover:bg-slate-50 dark:hover:bg-zinc-800/40"
                       style={{ background: 'transparent' }}
                     >
                       <div className="flex items-center justify-between gap-2 pr-4">

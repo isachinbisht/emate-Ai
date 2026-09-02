@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import ChatMainArea from './ChatMainArea';
-import type { ChatMessage } from '@/lib/chatHistory';
+import { getChatHistory, getChatTranscript, type ChatMessage } from '@/lib/chatHistory';
 import {
   Sparkles,
   BookOpen,
@@ -26,6 +27,7 @@ export interface SelectedContext {
 }
 
 export default function AITopperChatScreen() {
+  const searchParams = useSearchParams();
   const [mode, setMode] = useState<StudyMode>('sprint');
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [selectedContext, setSelectedContext] = useState<SelectedContext>({
@@ -38,6 +40,27 @@ export default function AITopperChatScreen() {
   const [sessionId, setSessionId] = useState(() =>
     typeof window === 'undefined' ? 'chat-new' : `chat-${Date.now()}`
   );
+
+  // Sync active session when URL searchParam `chatId` changes
+  useEffect(() => {
+    const urlChatId = searchParams.get('chatId');
+    if (urlChatId && urlChatId !== sessionId) {
+      const history = getChatHistory();
+      const chatItem = history.find((c) => c.id === urlChatId);
+      const transcript = getChatTranscript(urlChatId);
+
+      setSessionId(urlChatId);
+      setMessages(transcript);
+      if (chatItem) {
+        if (chatItem.mode) setMode(chatItem.mode);
+        if (chatItem.subject && chatItem.unit) {
+          setSelectedContext({ subject: chatItem.subject, unit: chatItem.unit });
+          localStorage.setItem('nk-subject', chatItem.subject);
+          localStorage.setItem('nk-unit', chatItem.unit);
+        }
+      }
+    }
+  }, [searchParams, sessionId]);
 
   // Onboarding Guide State
   const [showGuide, setShowGuide] = useState(false);

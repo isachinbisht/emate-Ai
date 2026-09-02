@@ -334,6 +334,11 @@ export default function ChatMainArea({
   }, [sessionId]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Smooth auto-scroll to the bottom of the conversation as messages arrive or stream
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages, isStreaming]);
+
   useEffect(() => {
     if (!messages.length) {
       setTimeout(() => centerInputRef.current?.focus(), 50);
@@ -740,6 +745,8 @@ export default function ChatMainArea({
       });
       // Persist full transcript so Search can match message content and resume.
       saveChatTranscript(sessionIdRef.current, newMessages);
+      // Automatically update client route to active chat session without page reload
+      router.push(`/ai-topper-chat?chatId=${sessionIdRef.current}`, { scroll: false });
     }
 
     try {
