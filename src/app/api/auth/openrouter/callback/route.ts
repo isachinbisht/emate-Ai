@@ -5,12 +5,11 @@ export async function GET(request: NextRequest) {
   const stateVerifier = request.nextUrl.searchParams.get("state");
   const cookieVerifier = request.cookies.get("openrouter_verifier")?.value;
 
-  // Use cookie verifier first, fall back to URL state verifier
   const verifier = cookieVerifier || stateVerifier;
 
   if (!code || !verifier) {
     return NextResponse.json(
-      { error: "Missing authorization code or PKCE verifier. Please try connecting again." },
+      { error: "Missing authorization code or PKCE verifier." },
       { status: 400 }
     );
   }
@@ -32,37 +31,38 @@ export async function GET(request: NextRequest) {
       throw new Error(tokenData?.error?.message || "Failed to exchange key");
     }
 
-    const host = request.headers.get("x-forwarded-host") || request.headers.get("host");
-    const protocol = request.headers.get("x-forwarded-proto") || "https";
-    const isLocal = host?.includes("localhost") || host?.includes("127.0.0.1");
-    const baseUrl = isLocal
-      ? "http://localhost:3000"
-      : (process.env.NEXT_PUBLIC_APP_URL || `${protocol}://${host}`);
+    const apiKey = tokenData.key;
 
-    const html = `<!DOCTYPE html>
-<html><head><title>Connecting...</title></head>
-<body>
-<script>
-  if (window.opener) {
-    window.opener.postMessage({ type: 'OPENROUTER_AUTH_SUCCESS' }, '${baseUrl}');
-    window.close();
-  } else {
-    window.location.href = '${baseUrl}/ai-topper-chat?connected=true';
-  }
-</script>
-<noscript><meta http-equiv="refresh" content="0;url=${baseUrl}/ai-topper-chat?connected=true"></noscript>
-</body></html>`;
+    // Send an HTML script that saves key to localStorage, posts message, and redirects/closes
+    const htmlResponse = `
+      <!DOCTYPE html>
+      <html>
+        <head><title>Authentication Successful</title></head>
+        <body>
+          <script>
+            try {
+              localStorage.setItem("user_openrouter_key", "${apiKey}");
+              document.cookie = "user_openrouter_key=${apiKey}; path=/; max-age=2592000; SameSite=Lax; Secure";
+              
+              if (window.opener) {
+                window.opener.postMessage({ type: "OPENROUTER_AUTH_SUCCESS", key: "${apiKey}" }, "*");
+                window.close();
+              } else {
+                window.location.href = "/ai-topper-chat?connected=true";
+              }
+            } catch (e) {
+              window.location.href = "/ai-topper-chat?connected=true";
+            }
+          </script>
+        </body>
+      </html>
+    `;
 
-    const response = new NextResponse(html, {
-      status: 200,
-      headers: {
-        "Content-Type": "text/html; charset=utf-8",
-        "Cache-Control": "no-store, max-age=0",
-      },
+    const response = new NextResponse(htmlResponse, {
+      headers: { "Content-Type": "text/html" },
     });
 
-    // Store user key and clear temporary verifier cookie
-    response.cookies.set("user_openrouter_key", tokenData.key, {
+    response.cookies.set("user_openrouter_key", apiKey, {
       httpOnly: false,
       secure: true,
       sameSite: "lax",
@@ -75,9 +75,10 @@ export async function GET(request: NextRequest) {
     return response;
   } catch (error: any) {
     return NextResponse.json(
-      { error: error.message || "Failed to exchange PKCE authorization key" },
+      { error: error.message || "Failed to exchange key" },
       { status: 500 }
     );
   }
 }
+
 

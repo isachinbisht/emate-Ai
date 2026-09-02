@@ -197,17 +197,25 @@ export default function ChatMainArea({
     }, 500);
   };
 
+  const checkConnection = useCallback(() => {
+    // 1. Check localStorage
+    const localKey = typeof window !== 'undefined' ? localStorage.getItem('user_openrouter_key') : null;
+
+    // 2. Check document cookies
+    const cookieKey = typeof document !== 'undefined'
+      ? document.cookie.split('; ').find((row) => row.startsWith('user_openrouter_key='))?.split('=')[1]
+      : null;
+
+    if (localKey || cookieKey) {
+      setIsOpenRouterConnected(true);
+      return true;
+    }
+    setIsOpenRouterConnected(false);
+    return false;
+  }, []);
+
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      // Helper to check for user_openrouter_key cookie or localStorage
-      const checkConnection = () => {
-        const hasKeyCookie = document.cookie
-          .split('; ')
-          .some((item) => item.trim().startsWith('user_openrouter_key='));
-        const hasLocalStorageKey = !!localStorage.getItem('user_openrouter_key');
-        return hasKeyCookie || hasLocalStorageKey;
-      };
-
       // Sync study mode from localStorage after hydration
       const saved = localStorage.getItem('nk-study-mode-active');
       if (saved !== null) setIsStudyMode(saved !== 'false');
@@ -215,30 +223,34 @@ export default function ChatMainArea({
       // Sync guest trial credit count from localStorage
       setGuestCreditsState(getGuestCredits());
 
-      // Check if redirected from OAuth callback with ?connected=true or cookie is present
-      const params = new URLSearchParams(window.location.search);
-      const isConnectedLocally = checkConnection();
+      const hasConnection = checkConnection();
 
-      if (params.get('connected') === 'true' || isConnectedLocally) {
-        setIsOpenRouterConnected(true);
-        if (params.get('connected') === 'true') {
-          // Clean query parameter from address bar cleanly without page reload
-          router.replace('/ai-topper-chat');
-        }
-      } else {
-        // Check server-side cookie via API
+      // Check when URL query parameter changes
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('connected') === 'true') {
+        checkConnection();
+        router.replace('/ai-topper-chat');
+      } else if (!hasConnection) {
+        // Fallback check server status route
         fetch('/api/auth/openrouter/status')
           .then((res) => res.json())
-          .then((data) => setIsOpenRouterConnected(!!data.connected))
-          .catch(() => setIsOpenRouterConnected(false));
+          .then((data) => {
+            if (data?.connected) {
+              setIsOpenRouterConnected(true);
+            }
+          })
+          .catch(() => {});
       }
     }
-  }, [router]);
+  }, [router, checkConnection]);
 
   // Listen for postMessage from OAuth popup callback
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
       if (event.data?.type === 'OPENROUTER_AUTH_SUCCESS') {
+        if (event.data.key) {
+          localStorage.setItem('user_openrouter_key', event.data.key);
+        }
         setIsConnectingOpenRouter(false);
         setIsOpenRouterConnected(true);
         popupRef.current = null;
