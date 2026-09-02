@@ -2,13 +2,19 @@ import { NextResponse, NextRequest } from 'next/server';
 
 export async function GET(request: NextRequest) {
   const code = request.nextUrl.searchParams.get('code');
-  const verifier = request.cookies.get('openrouter_verifier')?.value;
+
+  // Primary: read verifier from URL parameter (survives cross-site redirect).
+  // Fallback: read from cookie (works in same-site / local dev).
+  const encodedVerifier = request.nextUrl.searchParams.get('pv');
+  const verifier = encodedVerifier
+    ? Buffer.from(encodedVerifier, 'base64url').toString()
+    : request.cookies.get('openrouter_verifier')?.value ?? null;
 
   if (!code || !verifier) {
     return NextResponse.json(
       {
         error:
-          'Missing authorization code or PKCE verifier cookie. Please try connecting again.',
+          'Missing authorization code or PKCE verifier. Please try connecting again.',
       },
       { status: 400 }
     );
