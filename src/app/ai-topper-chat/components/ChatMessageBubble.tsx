@@ -6,6 +6,7 @@ import type { ChatMessage } from './AITopperChatScreen';
 import { appendToNotebook } from '@/lib/notebook';
 import { toast } from 'sonner';
 import GeneratedImageCard from '@/components/GeneratedImageCard';
+import StudyAnalyzerReport from '@/components/StudyAnalyzerReport';
 
 // ─── Process step definitions ────────────────────────────────────────────────
 const PROCESS_STEPS = [
@@ -30,6 +31,8 @@ interface ChatMessageBubbleProps {
   processStep?: number;
   /** Called when the user clicks a generated-image "Regenerate". (imageId, prompt) */
   onRegenerateImage?: (messageId: string, imageId: string, prompt: string) => void;
+  /** Called when user clicks "Reinforce Weak Concepts" in an analyzer report. */
+  onReinforce?: (weakTopics: string[]) => void;
 }
 
 // ─── Markdown renderer ────────────────────────────────────────────────────────
@@ -450,6 +453,7 @@ export default function ChatMessageBubble({
   onRegenerate,
   processStep = -1,
   onRegenerateImage,
+  onReinforce,
 }: ChatMessageBubbleProps) {
   const [copied, setCopied] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -541,6 +545,11 @@ export default function ChatMessageBubble({
             />
           ))}
         </div>
+      )}
+
+      {/* Study Analyzer Report (in-memory — only present in live state) */}
+      {message.analyzerReport && onReinforce && (
+        <StudyAnalyzerReport report={message.analyzerReport} onReinforce={onReinforce} />
       )}
 
       {/* Actions */}

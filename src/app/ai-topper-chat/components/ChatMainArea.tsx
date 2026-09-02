@@ -46,6 +46,9 @@ import {
   authCreditsExhausted,
 } from '@/lib/credits';
 import { toast } from 'sonner';
+import MCQAssessmentContainer from '@/components/MCQAssessmentContainer';
+import { generateAnalyzerReport } from '@/lib/agents/studyAnalyzer';
+import type { MCQQuiz, MCQSubmission } from '@/lib/agents/types';
 
 // Study quick actions are built dynamically inside the component from selectedContext.
 
@@ -248,6 +251,9 @@ export default function ChatMainArea({
   const [previewUrls, setPreviewUrls] = useState<string[]>([]);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [imageGenMode, setImageGenMode] = useState(false);
+  const [quizQuiz, setQuizQuiz] = useState<MCQQuiz | null>(null);
+  const [showQuizModal, setShowQuizModal] = useState(false);
+  const [quizLoading, setQuizLoading] = useState(false);
   const [isModelMenuOpen, setIsModelMenuOpen] = useState(false);
   const modelMenuRef = useRef<HTMLDivElement>(null);
 
@@ -355,36 +361,38 @@ export default function ChatMainArea({
   ): Promise<{ data: string; mimeType: string; text?: string; fileName?: string }[]> => {
     return Promise.all(
       files.map((file) => {
-        return new Promise<{ data: string; mimeType: string; text?: string; fileName?: string }>((resolve, reject) => {
-          const isTextFile =
-            file.type.startsWith('text/') ||
-            file.name.endsWith('.md') ||
-            file.name.endsWith('.json') ||
-            file.name.endsWith('.csv') ||
-            file.name.endsWith('.xml') ||
-            file.name.endsWith('.yaml') ||
-            file.name.endsWith('.yml') ||
-            file.name.endsWith('.txt');
+        return new Promise<{ data: string; mimeType: string; text?: string; fileName?: string }>(
+          (resolve, reject) => {
+            const isTextFile =
+              file.type.startsWith('text/') ||
+              file.name.endsWith('.md') ||
+              file.name.endsWith('.json') ||
+              file.name.endsWith('.csv') ||
+              file.name.endsWith('.xml') ||
+              file.name.endsWith('.yaml') ||
+              file.name.endsWith('.yml') ||
+              file.name.endsWith('.txt');
 
-          if (isTextFile) {
-            const reader = new FileReader();
-            reader.onload = () => {
-              const textContent = reader.result as string;
-              resolve({ data: '', mimeType: file.type, text: textContent, fileName: file.name });
-            };
-            reader.onerror = reject;
-            reader.readAsText(file);
-          } else {
-            const reader = new FileReader();
-            reader.onload = () => {
-              const result = reader.result as string;
-              const base64Data = result.split(',')[1];
-              resolve({ data: base64Data, mimeType: file.type, fileName: file.name });
-            };
-            reader.onerror = reject;
-            reader.readAsDataURL(file);
+            if (isTextFile) {
+              const reader = new FileReader();
+              reader.onload = () => {
+                const textContent = reader.result as string;
+                resolve({ data: '', mimeType: file.type, text: textContent, fileName: file.name });
+              };
+              reader.onerror = reject;
+              reader.readAsText(file);
+            } else {
+              const reader = new FileReader();
+              reader.onload = () => {
+                const result = reader.result as string;
+                const base64Data = result.split(',')[1];
+                resolve({ data: base64Data, mimeType: file.type, fileName: file.name });
+              };
+              reader.onerror = reject;
+              reader.readAsDataURL(file);
+            }
           }
-        });
+        );
       })
     );
   };
@@ -550,9 +558,92 @@ export default function ChatMainArea({
     }
   };
 
+  // ── Quiz / Study Agent Orchestrator ────────────────────────────────────────
+
+  const QUIZ_INTENTS = /\b(quiz|test|mcq|exam|assess|practice\s*question)/i;
+
+  const handleQuizTrigger = async () => {
+    if (quizLoading || isStreaming) return;
+    setQuizLoading(true);
+    setShowQuizModal(true);
+
+    try {
+      const notebookContext = isStudyMode ? buildNotebookContext(selectedContext.subject) : '';
+
+      const res = await fetch('/api/agents/generate-quiz', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          subject: selectedContext.subject,
+          unit: selectedContext.unit,
+          count: 5,
+          difficulty: 'medium',
+          notebookContext,
+        }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || 'Failed to generate quiz');
+      }
+
+      const quiz: MCQQuiz = await res.json();
+      setQuizQuiz(quiz);
+    } catch (err: any) {
+      toast.error(err.message || 'Could not generate quiz. Please try again.');
+      setShowQuizModal(false);
+    } finally {
+      setQuizLoading(false);
+    }
+  };
+
+  const handleQuizSubmission = (submission: MCQSubmission) => {
+    if (!quizQuiz) return;
+
+    const report = generateAnalyzerReport(submission, quizQuiz);
+
+    const assistantMsg: ChatMessage = {
+      id: `msg-${Date.now()}-quiz-report`,
+      role: 'assistant',
+      content:
+        report.weakAreas.length === 0
+          ? `🎉 **Excellent work!** You scored **${report.overallScore}%** on your ${quizQuiz.subject} quiz. No weak areas identified — you have a strong grasp of all topics!`
+          : `📋 **Quiz Complete!** You scored **${report.overallScore}%** on your ${quizQuiz.subject} quiz.\n\nI've identified **${report.weakAreas.length} weak area${report.weakAreas.length > 1 ? 's' : ''}** that need your attention. Check the analysis below and click "Reinforce" to get targeted explanations.`,
+      mode: 'deep-dive',
+      timestamp: new Date().toISOString(),
+      subject: selectedContext.subject,
+      analyzerReport: report,
+    };
+
+    setMessages((prev) => [...prev, assistantMsg]);
+    setQuizQuiz(null);
+  };
+
+  const handleReinforce = async (weakTopics: string[]) => {
+    const content = `Please explain these concepts in detail with examples: ${weakTopics.join(', ')}`;
+    await handleSend(content);
+  };
+
   const handleSend = async (text?: string, attachmentOverride?: File[]) => {
     const content = (text ?? inputValue).trim();
     if (!content || isStreaming) return;
+
+    // Quiz intent detection — intercepts before the text/credit path
+    if (isStudyMode && QUIZ_INTENTS.test(content) && !imageGenMode) {
+      // Add the user message then trigger quiz generation
+      const userMsg: ChatMessage = {
+        id: `msg-${Date.now()}-user`,
+        role: 'user',
+        content,
+        mode,
+        timestamp: new Date().toISOString(),
+        subject: selectedContext.subject,
+      };
+      setMessages((prev) => [...prev, userMsg]);
+      setInputValue('');
+      await handleQuizTrigger();
+      return;
+    }
 
     // Image Gen Mode intercepts before the text/credit path — authenticated
     // users only (the toggle is hidden for guests). No credit spend: image
@@ -581,7 +672,9 @@ export default function ChatMainArea({
       setGuestCreditsState(remainingAfter);
     } else if (typeof window !== 'undefined' && authCreditsExhausted()) {
       // Daily allowance used up — connected users continue on their own key.
-      toast.info(`You've used your ${DAILY_LIMIT} free daily credits — continuing on your connected OpenRouter key.`);
+      toast.info(
+        `You've used your ${DAILY_LIMIT} free daily credits — continuing on your connected OpenRouter key.`
+      );
     } else {
       spendAuthCredit();
     }
@@ -707,7 +800,9 @@ export default function ChatMainArea({
               if (typeof delta === 'string' && delta.length > 0) {
                 accumulatedText += delta;
                 setMessages((prev) =>
-                  prev.map((m) => (m.id === assistantMsgId ? { ...m, content: accumulatedText } : m))
+                  prev.map((m) =>
+                    m.id === assistantMsgId ? { ...m, content: accumulatedText } : m
+                  )
                 );
               }
             } catch {
@@ -938,15 +1033,30 @@ export default function ChatMainArea({
             <div
               className="h-8 flex items-center gap-1.5 select-none text-[11px] font-medium px-3 rounded-full border"
               style={{
-                background: guestCredits <= 0
-                  ? (theme === 'dark' ? 'rgba(239,68,68,0.12)' : 'rgba(239,68,68,0.08)')
-                  : (theme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)'),
-                borderColor: guestCredits <= 0
-                  ? (theme === 'dark' ? 'rgba(239,68,68,0.25)' : 'rgba(239,68,68,0.2)')
-                  : (theme === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'),
-                color: guestCredits <= 0
-                  ? (theme === 'dark' ? '#fca5a5' : '#dc2626')
-                  : (theme === 'dark' ? '#a1a1aa' : '#52525b'),
+                background:
+                  guestCredits <= 0
+                    ? theme === 'dark'
+                      ? 'rgba(239,68,68,0.12)'
+                      : 'rgba(239,68,68,0.08)'
+                    : theme === 'dark'
+                      ? 'rgba(255,255,255,0.05)'
+                      : 'rgba(0,0,0,0.04)',
+                borderColor:
+                  guestCredits <= 0
+                    ? theme === 'dark'
+                      ? 'rgba(239,68,68,0.25)'
+                      : 'rgba(239,68,68,0.2)'
+                    : theme === 'dark'
+                      ? 'rgba(255,255,255,0.08)'
+                      : 'rgba(0,0,0,0.08)',
+                color:
+                  guestCredits <= 0
+                    ? theme === 'dark'
+                      ? '#fca5a5'
+                      : '#dc2626'
+                    : theme === 'dark'
+                      ? '#a1a1aa'
+                      : '#52525b',
               }}
             >
               <Zap size={11} />
@@ -1377,6 +1487,7 @@ export default function ChatMainArea({
                 message={msg}
                 theme={theme}
                 onRegenerateImage={handleRegenerateImage}
+                onReinforce={handleReinforce}
               />
             ))}
             {isStreaming && <StreamingIndicator />}
@@ -1434,6 +1545,29 @@ export default function ChatMainArea({
           </p>
         </div>
       )}
+
+      {/* Quiz Loading Overlay */}
+      {quizLoading && (
+        <div className="fixed inset-0 z-[140] flex items-center justify-center bg-black/30 backdrop-blur-sm">
+          <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl px-6 py-5 shadow-xl flex items-center gap-3 animate-in fade-in zoom-in-95 duration-150">
+            <div className="w-5 h-5 border-2 border-[#1f51ff] border-t-transparent rounded-full animate-spin" />
+            <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+              Generating your quiz…
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* MCQ Assessment Modal */}
+      <MCQAssessmentContainer
+        open={showQuizModal && !!quizQuiz}
+        onClose={() => {
+          setShowQuizModal(false);
+          setQuizQuiz(null);
+        }}
+        quiz={quizQuiz}
+        onSubmit={handleQuizSubmission}
+      />
     </div>
   );
 }

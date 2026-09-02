@@ -28,6 +28,8 @@ export interface ChatMessage {
   isGeneralChat?: boolean;
   /** Generated images rendered live from React state. Never persisted. */
   images?: GeneratedImage[];
+  /** Quiz analyzer report rendered inline. In-memory only, never persisted. */
+  analyzerReport?: import('@/lib/agents/types').StudyAnalyzerReport;
 }
 
 export interface ChatHistoryItem {
@@ -87,17 +89,18 @@ export function saveChatTranscript(id: string, messages: ChatMessage[]): void {
   try {
     const raw = localStorage.getItem(TRANSCRIPT_KEY);
     const map = raw ? (JSON.parse(raw) as Record<string, ChatMessage[]>) : {};
-    map[id] = messages.slice(-100).map(stripImages); // bound + strip image payloads
+    map[id] = messages.slice(-100).map(stripEphemeral); // bound + strip ephemeral fields
     localStorage.setItem(TRANSCRIPT_KEY, JSON.stringify(map));
   } catch {
     // quota exceeded – silently ignore
   }
 }
 
-/** Drop the `images` field from a message (in-memory-only persistence). */
-function stripImages(m: ChatMessage): ChatMessage {
+/** Drop ephemeral fields (images, analyzerReport) from a message before persisting. */
+function stripEphemeral(m: ChatMessage): ChatMessage {
   const copy = { ...m };
   delete copy.images;
+  delete copy.analyzerReport;
   return copy;
 }
 
