@@ -199,6 +199,15 @@ export default function ChatMainArea({
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
+      // Helper to check for user_openrouter_key cookie or localStorage
+      const checkConnection = () => {
+        const hasKeyCookie = document.cookie
+          .split('; ')
+          .some((item) => item.trim().startsWith('user_openrouter_key='));
+        const hasLocalStorageKey = !!localStorage.getItem('user_openrouter_key');
+        return hasKeyCookie || hasLocalStorageKey;
+      };
+
       // Sync study mode from localStorage after hydration
       const saved = localStorage.getItem('nk-study-mode-active');
       if (saved !== null) setIsStudyMode(saved !== 'false');
@@ -206,22 +215,25 @@ export default function ChatMainArea({
       // Sync guest trial credit count from localStorage
       setGuestCreditsState(getGuestCredits());
 
-      // Check if redirected from OAuth callback with ?connected=true
+      // Check if redirected from OAuth callback with ?connected=true or cookie is present
       const params = new URLSearchParams(window.location.search);
-      if (params.get('connected') === 'true') {
+      const isConnectedLocally = checkConnection();
+
+      if (params.get('connected') === 'true' || isConnectedLocally) {
         setIsOpenRouterConnected(true);
-        // Clean up the URL param without reloading
-        window.history.replaceState({}, '', window.location.pathname);
+        if (params.get('connected') === 'true') {
+          // Clean query parameter from address bar cleanly without page reload
+          router.replace('/ai-topper-chat');
+        }
       } else {
-        // Check server-side cookie via API (HTTP-only cookies aren't readable from JS)
+        // Check server-side cookie via API
         fetch('/api/auth/openrouter/status')
           .then((res) => res.json())
           .then((data) => setIsOpenRouterConnected(!!data.connected))
           .catch(() => setIsOpenRouterConnected(false));
       }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // runs once on mount
+  }, [router]);
 
   // Listen for postMessage from OAuth popup callback
   useEffect(() => {
