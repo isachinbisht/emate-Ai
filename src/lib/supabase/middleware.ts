@@ -66,12 +66,19 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  // Redirect authenticated users away from auth pages to chat
+  // Redirect authenticated users away from auth pages to chat.
+  // This also handles the post-OAuth redirect where the user lands
+  // on /auth/callback (or any /auth/* path) with a valid session.
   if (user && isAuthPage) {
     const url = request.nextUrl.clone();
     url.pathname = '/ai-topper-chat';
     return NextResponse.redirect(url);
   }
 
+  // Safety net: if the user IS authenticated and lands on an unexpected
+  // protected page, let them through — never bounce authenticated users
+  // back to the login screen.  (The earlier guard already handles the
+  // unauthenticated → login redirect, so reaching here means the user
+  // has a valid session.)
   return supabaseResponse;
 }
