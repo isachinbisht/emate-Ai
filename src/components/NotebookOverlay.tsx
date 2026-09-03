@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { ArrowLeft, X, Trash2, Plus, Sparkles, BookOpen, Clock } from 'lucide-react';
+import { toast } from 'sonner';
 import {
   getNotebook,
   saveNotebook,
@@ -43,17 +44,20 @@ export default function NotebookOverlay({ subjectName, onClose, theme }: Noteboo
     appendToNotebook(subjectName, text, 'user');
     setNewNote('');
     refreshNotebook();
+    toast.success('Notebook entry saved successfully!');
   };
 
   const handleDeleteNote = (id: string) => {
     deleteNotebookEntry(subjectName, id);
     refreshNotebook();
+    toast.info('Note removed from workspace.');
   };
 
   const handleClearAll = () => {
     if (confirm('Are you sure you want to clear all notes in this notebook?')) {
       clearNotebook(subjectName);
       refreshNotebook();
+      toast.success('Notebook cleared successfully.');
     }
   };
 

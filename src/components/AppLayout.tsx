@@ -48,8 +48,18 @@ export default function AppLayout({ children }: AppLayoutProps) {
       const saved = localStorage.getItem('nk-sidebar-open');
       if (saved !== null) setSidebarOpen(saved === 'true');
     };
+    const handleOpenNotebookEvent = (e: any) => {
+      if (e.detail?.subject) {
+        setActiveNotebookId(e.detail.subject);
+        setActiveModalView('notebook');
+      }
+    };
     window.addEventListener('nk-sidebar-change', handleSidebarEvent);
-    return () => window.removeEventListener('nk-sidebar-change', handleSidebarEvent);
+    window.addEventListener('nk-open-notebook', handleOpenNotebookEvent);
+    return () => {
+      window.removeEventListener('nk-sidebar-change', handleSidebarEvent);
+      window.removeEventListener('nk-open-notebook', handleOpenNotebookEvent);
+    };
   }, []);
 
   const toggleSidebar = (open: boolean) => {

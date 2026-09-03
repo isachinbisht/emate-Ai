@@ -34,7 +34,7 @@ import { PromptInput } from '@/components/ui/ai-chat-input';
 import type { ChatMessage, SelectedContext, StudyMode } from './AITopperChatScreen';
 import { applyTheme } from '@/lib/theme';
 import { ModelSelector } from '@/components/ModelSelector';
-import { buildNotebookContext, appendToNotebook } from '@/lib/notebook';
+import { buildNotebookContext, appendToNotebook, addSubject, getSubjects } from '@/lib/notebook';
 import { saveChatSession, saveChatTranscript } from '@/lib/chatHistory';
 import { loadDemoNotebook } from '@/lib/demoNotebook';
 import {
@@ -132,7 +132,15 @@ export default function ChatMainArea({
   const [isConnectingOpenRouter, setIsConnectingOpenRouter] = useState(false);
   const [showSuccessToast, setShowSuccessToast] = useState(false);
   const [guestCredits, setGuestCreditsState] = useState(GUEST_LIMIT);
+  const [subjects, setSubjects] = useState(() => getSubjects());
   const popupRef = useRef<Window | null>(null);
+
+  // Keep subjects list in sync so the empty-state card hides/shows reactively.
+  useEffect(() => {
+    const sync = () => setSubjects(getSubjects());
+    window.addEventListener('nk-subjects-changed', sync);
+    return () => window.removeEventListener('nk-subjects-changed', sync);
+  }, []);
 
   // Identity: guests have no connected OpenRouter key; connected users are the
   // "authenticated" (unlocked) tier.
@@ -657,6 +665,16 @@ export default function ChatMainArea({
     const content = (text ?? inputValue).trim();
     if (!content || isStreaming) return;
 
+    // Resolve or generate active target chat ID
+    const targetChatId =
+      sessionIdRef.current && sessionIdRef.current !== 'chat-new'
+        ? sessionIdRef.current
+        : `chat-${Date.now()}`;
+    sessionIdRef.current = targetChatId;
+
+    // Clear main input search bar immediately
+    setInputValue('');
+
     // Quiz intent detection — intercepts before the text/credit path
     if (isStudyMode && QUIZ_INTENTS.test(content) && !imageGenMode) {
       // Add the user message then trigger quiz generation
@@ -669,28 +687,21 @@ export default function ChatMainArea({
         subject: selectedContext.subject,
       };
       setMessages((prev) => [...prev, userMsg]);
-      setInputValue('');
+      router.push(`/ai-topper-chat?chatId=${targetChatId}`, { scroll: false });
       await handleQuizTrigger();
       return;
     }
 
-    // Image Gen Mode intercepts before the text/credit path — authenticated
-    // users only (the toggle is hidden for guests). No credit spend: image
-    // generation is billed to the user's own OpenRouter balance.
+    // Image Gen Mode intercepts before the text/credit path
     if (imageGenMode && !isGuest) {
+      router.push(`/ai-topper-chat?chatId=${targetChatId}`, { scroll: false });
       await handleImageSend(content);
       return;
     }
 
     // ── Credit gating ──────────────────────────────────────────────────────
-    // Guests: a non-refillable trial allowance. When exhausted, open the soft
-    // conversion modal (guarding their chat context) instead of sending.
-    // Authenticated (connected) users: a daily refillable allowance; when
-    // exhausted we still send (they pay with their own key) but nudge them.
     let guestCreditsSent: number | undefined;
     if (isGuest) {
-      // The server guard rejects guests whose remaining allowance is already
-      // 0 at the START of a request — so send the pre-spend remaining here.
       const remainingBefore = getGuestCredits();
       if (remainingBefore <= 0) {
         setShowConnectModal(true);
@@ -700,7 +711,6 @@ export default function ChatMainArea({
       const remainingAfter = spendGuestCredit();
       setGuestCreditsState(remainingAfter);
     } else if (typeof window !== 'undefined' && authCreditsExhausted()) {
-      // Daily allowance used up — connected users continue on their own key.
       toast.info(
         `You've used your ${DAILY_LIMIT} free daily credits — continuing on your connected OpenRouter key.`
       );
@@ -729,24 +739,27 @@ export default function ChatMainArea({
 
     const newMessages = [...messages, userMsg];
     setMessages(newMessages);
-    setInputValue('');
     setIsStreaming(true);
 
-    // Persist to recent chats + transcript only for signed-in users — guest
-    // chats are ephemeral and must not survive into history or search.
+    // Auto-redirect URL route to target prompt/chat session instantly
+    router.push(`/ai-topper-chat?chatId=${targetChatId}`, { scroll: false });
+
+    // Smooth scroll to stream viewport
+    setTimeout(() => {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, 50);
+
+    // Persist to recent chats + transcript only for signed-in users
     if (!isGuest) {
       saveChatSession({
-        id: sessionIdRef.current,
+        id: targetChatId,
         title: content.length > 60 ? content.slice(0, 57) + '…' : content,
         subject: selectedContext.subject,
         unit: selectedContext.unit,
         mode,
         timestamp: Date.now(),
       });
-      // Persist full transcript so Search can match message content and resume.
-      saveChatTranscript(sessionIdRef.current, newMessages);
-      // Automatically update client route to active chat session without page reload
-      router.push(`/ai-topper-chat?chatId=${sessionIdRef.current}`, { scroll: false });
+      saveChatTranscript(targetChatId, newMessages);
     }
 
     try {
@@ -1424,13 +1437,34 @@ export default function ChatMainArea({
               {isStudyMode ? 'Level up your studying' : 'What can I help you with?'}
             </h1>
             <p
-              className="text-sm text-center mb-0 max-w-md leading-relaxed"
+              className="text-sm text-center mb-4 max-w-md leading-relaxed"
               style={{ color: theme === 'dark' ? '#9ca0ab' : '#71717a' }}
             >
               {isStudyMode
                 ? 'Ask anything, paste notes, or trigger a study workflow below.'
                 : 'Ask anything — code, writing, analysis, or just a question.'}
             </p>
+
+            {/* Empty State UI Card — only in study mode with no notebooks */}
+            {isStudyMode && subjects.length === 0 && (
+              <div className="w-full max-w-md p-4 mb-4 rounded-2xl border border-blue-500/20 bg-blue-500/5 dark:bg-blue-500/10 text-center flex flex-col items-center gap-2">
+                <div className="flex items-center gap-2 text-xs font-semibold text-blue-600 dark:text-blue-400">
+                  <BookOpen size={16} />
+                  <span>No active study sets yet</span>
+                </div>
+                <p className="text-xs text-zinc-600 dark:text-zinc-400">
+                  Upload your syllabus, lecture notes, or PDF to generate automated flashcards &amp; revision loops.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => window.dispatchEvent(new Event('nk-create-notebook'))}
+                  className="mt-1 px-4 py-2 text-xs font-medium rounded-full bg-blue-600 hover:bg-blue-700 text-white transition-colors cursor-pointer min-h-[44px] inline-flex items-center gap-2 shadow-sm"
+                >
+                  <Plus size={14} />
+                  Create New Notebook
+                </button>
+              </div>
+            )}
 
             {/* Elevated Command Input — new PromptInput composer */}
             <PromptInput
@@ -1599,6 +1633,7 @@ export default function ChatMainArea({
         quiz={quizQuiz}
         onSubmit={handleQuizSubmission}
       />
+
     </div>
   );
 }

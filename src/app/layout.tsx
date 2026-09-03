@@ -31,9 +31,9 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: 'e-Mate AI — Your Smart Study Copilot & Academic Assistant',
+  title: 'e-Mate AI — Smart Study Copilot & Workflow Assistant',
   description:
-    'AI-powered study partner for interactive flashcards, quizzes, PDF summarization, and hands-free voice studying.',
+    'AI-powered study workspace for interactive flashcards, quizzes, PDF summarization, and hands-free voice studying.',
   keywords: [
     'AI study assistant',
     'e-Mate AI',
@@ -51,13 +51,16 @@ export const metadata: Metadata = {
     telephone: false,
   },
   icons: {
-    icon: '/asset/images/e.svg',
-    apple: '/asset/images/e.svg',
+    icon: [
+      { url: '/favicon.ico' },
+      { url: '/asset/images/e.svg', type: 'image/svg+xml' },
+    ],
+    apple: '/apple-touch-icon.png',
   },
   openGraph: {
-    title: 'e-Mate AI — Your Smart Study Copilot & Academic Assistant',
+    title: 'e-Mate AI — Smart Study Copilot & Workflow Assistant',
     description:
-      'AI-powered study partner for interactive flashcards, quizzes, PDF summarization, and hands-free voice studying.',
+      'AI-powered study workspace for interactive flashcards, quizzes, PDF summarization, and hands-free voice studying.',
     url: 'https://emate-ai.vercel.app',
     siteName: 'e-Mate AI',
     type: 'website',
@@ -65,17 +68,19 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'e-Mate AI — Your Smart Study Copilot & Academic Assistant',
+    title: 'e-Mate AI — Smart Study Copilot & Workflow Assistant',
     description:
-      'AI-powered study partner for interactive flashcards, quizzes, PDF summarization, and hands-free voice studying.',
+      'AI-powered study workspace for interactive flashcards, quizzes, PDF summarization, and hands-free voice studying.',
     creator: '@emate_ai',
   },
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" className="overflow-x-hidden w-full max-w-[100vw]" suppressHydrationWarning>
       <head>
+        <link rel="icon" href="/favicon.ico" sizes="any" />
+        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
         <script
           dangerouslySetInnerHTML={{
             __html: `
@@ -87,7 +92,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
           }}
         />
       </head>
-      <body className={`${geist.className} ${geist.variable} ${geistMono.variable}`}>
+      <body className={`${geist.className} ${geist.variable} ${geistMono.variable} overflow-x-hidden w-full max-w-[100vw] antialiased min-h-screen`}>
         {children}
         <Toaster
           position="bottom-right"

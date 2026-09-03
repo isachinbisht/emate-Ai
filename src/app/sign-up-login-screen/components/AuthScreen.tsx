@@ -666,12 +666,12 @@ export default function AuthScreen() {
 
         {/* Footer disclaimer */}
         <div
-          className="w-full max-w-[500px] text-center text-[10px] sm:text-[11px] leading-normal px-4 z-10 mt-6"
+          className="w-full max-w-md text-center text-[10px] sm:text-[11px] leading-normal px-4 z-10 mt-6"
           style={{ color: mutedFg }}
         >
           By continuing you agree to our{' '}
-          <a href="#" className="underline cursor-pointer hover:text-current">Terms &amp; Privacy Policy</a>. Chats may be
-          reviewed to improve our models. <a href="#" className="underline cursor-pointer hover:text-current">Learn more</a>
+          <a href="/#about" className="underline cursor-pointer hover:text-current">Terms &amp; Privacy Policy</a>. Chats may be
+          reviewed to improve our models. <a href="/#faq" className="underline cursor-pointer hover:text-current">Learn more</a>
         </div>
       </main>
     </div>

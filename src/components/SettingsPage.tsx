@@ -12,7 +12,10 @@ import {
   Trash2,
   LogOut,
   Check,
+  Mail,
+  Phone,
 } from 'lucide-react';
+import { toast } from 'sonner';
 import { applyTheme } from '@/lib/theme';
 import {
   getNotebook,
@@ -564,9 +567,36 @@ export default function SettingsPage({ onBack }: SettingsPageProps) {
                   {isGuest ? 'Guest' : 'Pro'}
                 </span>
               </div>
+              
+              <div
+                className="p-5 rounded-2xl space-y-3"
+                style={{ border: `1px solid ${bdr}`, background: surface }}
+              >
+                <h3 className="text-sm font-semibold" style={{ color: textPrimary }}>
+                  Need Help &amp; Support?
+                </h3>
+                <p className="text-xs leading-relaxed" style={{ color: textMuted }}>
+                  Have questions or issues with your e-Mate study workspace? Contact our support team directly.
+                </p>
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 pt-1 text-xs">
+                  <a
+                    href="mailto:support@emate.ai"
+                    className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-blue-600/10 text-blue-600 dark:text-blue-400 font-medium hover:bg-blue-600/20 transition-colors min-h-[44px]"
+                  >
+                    <Mail size={14} /> support@emate.ai
+                  </a>
+                  <a
+                    href="tel:+1234567890"
+                    className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-zinc-500/10 text-zinc-700 dark:text-zinc-300 font-medium hover:bg-zinc-500/20 transition-colors min-h-[44px]"
+                  >
+                    <Phone size={14} /> +1 (234) 567-890
+                  </a>
+                </div>
+              </div>
+
               <button
                 onClick={handleSignOut}
-                className="flex items-center gap-2.5 px-5 py-3 rounded-2xl border text-sm font-semibold transition-all hover:bg-red-500/8 active:scale-[0.99]"
+                className="flex items-center gap-2.5 px-5 py-3 rounded-2xl border text-sm font-semibold transition-all hover:bg-red-500/8 active:scale-[0.99] min-h-[44px]"
                 style={{ color: '#ef4444', borderColor: 'rgba(239,68,68,0.2)' }}
               >
                 <LogOut size={15} />
