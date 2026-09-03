@@ -54,7 +54,9 @@ import {
   User,
   Sun,
   Moon,
+  Hammer,
 } from 'lucide-react';
+import { toast } from 'sonner';
 
 // Data now fetched dynamically from localStorage
 
@@ -122,6 +124,14 @@ export default function Sidebar({
     };
     window.addEventListener('nk-subjects-changed', handleSubjectsChanged);
     return () => window.removeEventListener('nk-subjects-changed', handleSubjectsChanged);
+  }, []);
+
+  // Allow any component to open the Create Notebook modal via a custom event.
+  useEffect(() => {
+    const handleOpenCreate = () => handleCreateNotebook();
+    window.addEventListener('nk-create-notebook', handleOpenCreate);
+    return () => window.removeEventListener('nk-create-notebook', handleOpenCreate);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // ── Real-time chat history sync ────────────────────────────────────────
@@ -403,6 +413,32 @@ export default function Sidebar({
             >
               <BookOpen size={14} />
               <span>Library</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() =>
+                toast.info('Builder X is coming soon!', {
+                  description: 'We are building an advanced AI agent workspace. Stay tuned!',
+                })
+              }
+              className="flex items-center justify-between w-full rounded-lg px-3 py-2 text-xs font-medium transition-colors hover:bg-black/5 dark:hover:bg-white/5"
+              style={{ color: theme === 'dark' ? '#71717a' : '#52525b' }}
+            >
+              <div className="flex items-center gap-2.5">
+                <Hammer size={14} />
+                <span>Builder X</span>
+              </div>
+              <span
+                className="px-1.5 py-0.5 text-[10px] font-semibold rounded-full"
+                style={{
+                  background: theme === 'dark' ? 'rgba(138,162,255,0.12)' : 'rgba(31,81,255,0.08)',
+                  color: theme === 'dark' ? '#8aa2ff' : '#1f51ff',
+                  border: `1px solid ${theme === 'dark' ? 'rgba(138,162,255,0.2)' : 'rgba(31,81,255,0.15)'}`,
+                }}
+              >
+                Soon
+              </span>
             </button>
           </nav>
 
