@@ -21,6 +21,7 @@ import {
   Phone,
 } from 'lucide-react';
 import { applyTheme } from '@/lib/theme';
+import { useGeoCurrency } from '@/hooks/useGeoCurrency';
 
 const logos = [
   'Physics',
@@ -32,11 +33,12 @@ const logos = [
   'Law',
   'Engineering',
 ];
-const plans = [
+/** Plans without prices — prices are injected dynamically by useGeoCurrency */
+const PLANS = [
   {
     name: 'Free',
+    tier: 'free' as const,
     eyebrow: 'For students getting started',
-    price: '$0',
     action: 'Start Learning for Free',
     href: '/sign-up-login-screen',
     icon: 'sparkles',
@@ -46,8 +48,8 @@ const plans = [
   },
   {
     name: 'Growth',
+    tier: 'growth' as const,
     eyebrow: 'For power learners',
-    price: '$8',
     action: 'Start Learning for Free',
     href: '/sign-up-login-screen',
     featured: true,
@@ -63,10 +65,10 @@ const plans = [
   },
   {
     name: 'Scale',
+    tier: 'scale' as const,
     eyebrow: 'For teams & enterprises',
-    price: '$25',
     action: 'Contact sales',
-    href: 'mailto:support@emate.ai',
+    href: '/sign-up-login-screen',
     icon: 'building',
     tagline: 'Dedicated infrastructure for org-wide studying.',
     note: 'Annual billing · SSO & support',
@@ -88,6 +90,30 @@ export default function LandingPage() {
   const [dark, setDark] = useState(false);
   const [openFaq, setOpenFaq] = useState<number | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { currency, toggleCurrency, formatTierPrice } = useGeoCurrency();
+
+  const handleCheckout = async (tier: 'growth' | 'scale') => {
+    try {
+      const res = await fetch('/api/stripe/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tier,
+          userEmail: null, // Will be collected by Stripe Checkout
+          country: currency.country,
+        }),
+      });
+      const data = await res.json();
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        // Fallback: redirect to signup if Stripe isn't configured yet
+        window.location.href = '/sign-up-login-screen';
+      }
+    } catch {
+      window.location.href = '/sign-up-login-screen';
+    }
+  };
 
   useEffect(() => {
     const updateTheme = () => {
@@ -326,9 +352,35 @@ export default function LandingPage() {
       </section>
       <section id="pricing" className="section-frame">
         <div className="w-full max-w-6xl mx-auto px-4 py-12 flex flex-col items-center justify-center">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8 items-stretch w-full mt-8">
-            {plans.map((plan) => {
+          {/* Currency toggle */}
+          <div className="flex items-center gap-2 mb-6">
+            <span className="text-xs text-zinc-500 dark:text-zinc-400">Pricing in</span>
+            <button
+              onClick={toggleCurrency}
+              className="relative inline-flex h-7 items-center rounded-full border transition-colors"
+              style={{
+                borderColor: dark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.1)',
+                background: dark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
+              }}
+              aria-label="Toggle currency"
+            >
+              <span
+                className="absolute left-0.5 h-5 w-10 rounded-full bg-blue-600 transition-transform"
+                style={{ transform: currency.currency === 'INR' ? 'translateX(36px)' : 'translateX(0)' }}
+              />
+              <span className="relative z-10 w-[44px] text-center text-[10px] font-bold text-white">
+                USD
+              </span>
+              <span className="relative z-10 w-[44px] text-center text-[10px] font-bold text-white">
+                INR
+              </span>
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8 items-stretch w-full mt-4">
+            {PLANS.map((plan) => {
               const featured = !!plan.featured;
+              const price = formatTierPrice(plan.tier);
               const cardClass = featured
                 ? 'relative bg-white dark:bg-zinc-900 border-2 border-blue-500/80 rounded-3xl p-8 shadow-xl flex flex-col justify-between transform md:-translate-y-2'
                 : 'bg-white dark:bg-zinc-900 border border-zinc-200/90 dark:border-zinc-800 rounded-3xl p-8 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between';
@@ -385,23 +437,34 @@ export default function LandingPage() {
 
                     <div className="mt-4 flex items-baseline gap-1">
                       <span className="text-4xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100">
-                        {plan.price}
+                        {price}
                       </span>
-                      <span className="text-sm text-zinc-500">/ seat / mo</span>
+                      {plan.tier !== 'free' && (
+                        <span className="text-sm text-zinc-500">/ seat / mo</span>
+                      )}
                     </div>
                   </div>
 
                   <div className="relative mt-6">
-                    <a
-                      href={plan.href}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (plan.tier === 'free') {
+                          window.location.href = plan.href;
+                        } else if (plan.tier === 'growth') {
+                          handleCheckout('growth');
+                        } else {
+                          window.location.href = plan.href;
+                        }
+                      }}
                       className={
                         featured
-                          ? 'w-full py-3 rounded-full bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold shadow-md transition-all block text-center'
-                          : 'w-full py-3 rounded-full border border-zinc-200 dark:border-zinc-800 text-zinc-800 dark:text-zinc-200 text-sm font-medium hover:bg-zinc-50 dark:hover:bg-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700 transition-colors block text-center'
+                          ? 'w-full py-3 rounded-full bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold shadow-md transition-all block text-center cursor-pointer'
+                          : 'w-full py-3 rounded-full border border-zinc-200 dark:border-zinc-800 text-zinc-800 dark:text-zinc-200 text-sm font-medium hover:bg-zinc-50 dark:hover:bg-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700 transition-colors block text-center cursor-pointer'
                       }
                     >
                       {plan.action}
-                    </a>
+                    </button>
                   </div>
 
                   <div className="relative my-6 h-px bg-gradient-to-r from-transparent via-zinc-200 dark:via-zinc-800 to-transparent" aria-hidden="true" />
