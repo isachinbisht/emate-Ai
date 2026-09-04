@@ -157,7 +157,7 @@ export default function LandingPage() {
       <header className="nav-shell">
         <a className="brand" href="/sign-up-login-screen" aria-label="e-Mate AI home">
           <span className="brand-mark" aria-hidden="true">
-            <Image src="/asset/images/e.svg" alt="e-Mate logo" width={26} height={26} loading="lazy" />
+            <Image src="/android-chrome-512x512.png" alt="e-Mate AI Logo" width={32} height={32} className="object-contain bg-transparent" loading="lazy" />
           </span>
           <span>e-Mate AI</span>
         </a>
@@ -190,7 +190,7 @@ export default function LandingPage() {
           <div className="flex items-center justify-between">
             <a className="brand" href="/sign-up-login-screen" aria-label="e-Mate AI home">
               <span className="brand-mark" aria-hidden="true">
-                <Image src="/asset/images/e.svg" alt="e-Mate logo" width={26} height={26} loading="lazy" />
+                <Image src="/android-chrome-512x512.png" alt="e-Mate AI Logo" width={32} height={32} className="object-contain bg-transparent" loading="lazy" />
               </span>
               <span className="font-semibold text-lg">e-Mate AI</span>
             </a>
