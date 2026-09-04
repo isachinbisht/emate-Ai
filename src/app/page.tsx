@@ -93,29 +93,6 @@ export default function LandingPage() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { currency, toggleCurrency, formatTierPrice } = useGeoCurrency();
 
-  const handleCheckout = async (tier: 'growth' | 'scale') => {
-    try {
-      const res = await fetch('/api/stripe/checkout', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          tier,
-          userEmail: null, // Will be collected by Stripe Checkout
-          country: currency.country,
-        }),
-      });
-      const data = await res.json();
-      if (data.url) {
-        window.location.href = data.url;
-      } else {
-        // Fallback: redirect to signup if Stripe isn't configured yet
-        window.location.href = '/sign-up-login-screen';
-      }
-    } catch {
-      window.location.href = '/sign-up-login-screen';
-    }
-  };
-
   useEffect(() => {
     const updateTheme = () => {
       const savedTheme = localStorage.getItem('nk-theme') as 'light' | 'dark' | null;
@@ -479,17 +456,16 @@ export default function LandingPage() {
                         {plan.action} · ₹2,099/mo
                       </RazorpayCheckout>
                     ) : (
-                      <button
-                        type="button"
-                        onClick={() => handleCheckout(plan.tier as 'growth' | 'scale')}
+                      <a
+                        href="/sign-up-login-screen"
                         className={
                           featured
-                            ? 'w-full py-3 rounded-full bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold shadow-md transition-all block text-center cursor-pointer'
-                            : 'w-full py-3 rounded-full border border-zinc-200 dark:border-zinc-800 text-zinc-800 dark:text-zinc-200 text-sm font-medium hover:bg-zinc-50 dark:hover:bg-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700 transition-colors block text-center cursor-pointer'
+                            ? 'w-full py-3 rounded-full bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold shadow-md transition-all block text-center'
+                            : 'w-full py-3 rounded-full border border-zinc-200 dark:border-zinc-800 text-zinc-800 dark:text-zinc-200 text-sm font-medium hover:bg-zinc-50 dark:hover:bg-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700 transition-colors block text-center'
                         }
                       >
                         {plan.action}
-                      </button>
+                      </a>
                     )}
                   </div>
 
