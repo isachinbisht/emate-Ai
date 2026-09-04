@@ -33,7 +33,6 @@ export async function GET(request: NextRequest) {
 
     const apiKey = tokenData.key;
 
-    // Send an HTML script that saves key to localStorage, posts message, and redirects/closes
     const htmlResponse = `
       <!DOCTYPE html>
       <html>
@@ -43,15 +42,15 @@ export async function GET(request: NextRequest) {
             try {
               localStorage.setItem("user_openrouter_key", "${apiKey}");
               document.cookie = "user_openrouter_key=${apiKey}; path=/; max-age=2592000; SameSite=Lax; Secure";
-              
+
               if (window.opener) {
                 window.opener.postMessage({ type: "OPENROUTER_AUTH_SUCCESS", key: "${apiKey}" }, "*");
                 window.close();
               } else {
-                window.location.href = "/ai-topper-chat?connected=true";
+                window.location.href = "/upgrade";
               }
             } catch (e) {
-              window.location.href = "/ai-topper-chat?connected=true";
+              window.location.href = "/upgrade";
             }
           </script>
         </body>

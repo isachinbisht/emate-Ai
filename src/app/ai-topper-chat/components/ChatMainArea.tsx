@@ -131,7 +131,7 @@ export default function ChatMainArea({
   const [isOpenRouterConnected, setIsOpenRouterConnected] = useState(true); // default to true, check in client mount
   const [showConnectModal, setShowConnectModal] = useState(false);
   const [isConnectingOpenRouter, setIsConnectingOpenRouter] = useState(false);
-  const [showSuccessToast, setShowSuccessToast] = useState(false);
+  const [showToast, setShowToast] = useState(false);
   const [guestCredits, setGuestCreditsState] = useState(GUEST_LIMIT);
   const [subjects, setSubjects] = useState(() => getSubjects());
   const popupRef = useRef<Window | null>(null);
@@ -263,9 +263,7 @@ export default function ChatMainArea({
         setIsConnectingOpenRouter(false);
         setIsOpenRouterConnected(true);
         popupRef.current = null;
-        // Show success toast
-        setShowSuccessToast(true);
-        setTimeout(() => setShowSuccessToast(false), 4000);
+        setShowToast(true);
       }
     };
     window.addEventListener('message', handleMessage);
@@ -1380,37 +1378,13 @@ export default function ChatMainArea({
         </div>
       )}
 
-      {/* Success Toast */}
-      {showSuccessToast && (
-        <div
-          className="fixed top-6 left-1/2 -translate-x-1/2 z-[200] flex items-center gap-2.5 px-5 py-3 rounded-2xl shadow-2xl"
-          style={{
-            background: theme === 'dark' ? '#0f1d15' : '#ecfdf5',
-            border:
-              theme === 'dark'
-                ? '1px solid rgba(16, 185, 129, 0.2)'
-                : '1px solid rgba(16, 185, 129, 0.3)',
-            animation: 'guide-scale-up 0.3s ease-out',
-          }}
-        >
-          <div
-            className="w-6 h-6 rounded-full flex items-center justify-center"
-            style={{ background: 'rgba(16, 185, 129, 0.15)' }}
-          >
-            <Check size={13} style={{ color: '#10b981' }} />
-          </div>
-          <span
-            className="text-sm font-semibold"
-            style={{ color: theme === 'dark' ? '#34d399' : '#059669' }}
-          >
-            OpenRouter connected successfully!
-          </span>
-          <button
-            onClick={() => setShowSuccessToast(false)}
-            className="ml-1 p-0.5 rounded transition-colors hover:bg-black/10"
-            style={{ color: theme === 'dark' ? '#34d399' : '#059669' }}
-          >
-            <X size={12} />
+      {/* Connection Toast — bottom-right removable */}
+      {showToast && (
+        <div className="fixed bottom-5 right-5 z-50 flex items-center gap-3 px-4 py-2.5 bg-zinc-900 text-white rounded-2xl shadow-xl border border-zinc-800 animate-in fade-in slide-in-from-bottom-3 text-xs font-medium">
+          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+          <span>Connected with OpenRouter</span>
+          <button onClick={() => setShowToast(false)} className="ml-2 text-zinc-400 hover:text-white">
+            ✕
           </button>
         </div>
       )}
