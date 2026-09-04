@@ -64,10 +64,16 @@ export async function signOut() {
 export async function signInWithGoogle() {
   const supabase = await createClient();
 
+  const origin =
+    process.env.NEXT_PUBLIC_SITE_URL ||
+    process.env.VERCEL_URL
+      ? `https://${process.env.VERCEL_URL}`
+      : 'http://localhost:4028';
+
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
     options: {
-      redirectTo: `/auth/callback?next=/ai-topper-chat`,
+      redirectTo: `${origin}/auth/callback?next=/ai-topper-chat`,
     },
   });
 
