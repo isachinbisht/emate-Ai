@@ -79,8 +79,20 @@ export default function AuthScreen() {
   };
 
   /* ── Guest ── */
-  const handleGuestContinue = () => {
+  const handleGuestContinue = async () => {
     setGuestModeEnabled(true);
+
+    // Set guest cookie so middleware allows access to /ai-topper-chat
+    document.cookie = 'is_guest_user=true; path=/; max-age=86400; SameSite=Lax';
+    localStorage.setItem('guest_session', 'true');
+
+    // Server-side cookie for production
+    try {
+      await fetch('/api/auth/guest', { method: 'POST' });
+    } catch {
+      // Client-side cookie is sufficient
+    }
+
     toast.success('Continuing as guest');
     router.push('/ai-topper-chat');
   };

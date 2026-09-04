@@ -41,7 +41,9 @@ export async function updateSession(request: NextRequest) {
   const isAuthPage =
     request.nextUrl.pathname.startsWith('/sign-up-login-screen') ||
     request.nextUrl.pathname.startsWith('/auth');
-  const isGuestMode = request.cookies.get('guest_mode')?.value === 'true';
+  const isGuestMode =
+    request.cookies.get('guest_mode')?.value === 'true' ||
+    request.cookies.get('is_guest_user')?.value === 'true';
   const isGuestAccessibleRoute = request.nextUrl.pathname.startsWith('/ai-topper-chat');
   const isSandboxRoute = request.nextUrl.pathname.startsWith('/sandbox');
 
@@ -60,8 +62,9 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  // Unauthenticated user on /ai-topper-chat → back to landing
-  if (!user && request.nextUrl.pathname === '/ai-topper-chat') {
+  // Unauthenticated, non-guest user on /ai-topper-chat → back to landing
+  // Guest users (is_guest_user cookie) are allowed through.
+  if (!user && !isGuestMode && request.nextUrl.pathname === '/ai-topper-chat') {
     const url = request.nextUrl.clone();
     url.pathname = '/';
     return NextResponse.redirect(url);
