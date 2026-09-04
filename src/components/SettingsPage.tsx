@@ -51,6 +51,8 @@ export default function SettingsPage({ onBack }: SettingsPageProps) {
   const [profileName, setProfileName] = useState('Guest');
   const [profileSubtitle, setProfileSubtitle] = useState('Guest mode');
   const [avatarLabel, setAvatarLabel] = useState('G');
+  const [avatarUrl, setAvatarUrl] = useState('');
+  const [profileLoading, setProfileLoading] = useState(true);
 
   useEffect(() => {
     const saved = localStorage.getItem('nk-theme') as 'light' | 'dark' | null;
@@ -93,10 +95,13 @@ export default function SettingsPage({ onBack }: SettingsPageProps) {
           user.email?.split('@')[0] ||
           'User';
         const displayName = String(fullName).trim() || 'User';
+        const avatar = user.user_metadata?.avatar_url || user.user_metadata?.picture || '';
         setIsGuest(false);
         setProfileName(displayName);
         setProfileSubtitle(user.email || 'Signed in');
         setAvatarLabel(displayName.charAt(0).toUpperCase());
+        setAvatarUrl(avatar);
+        setProfileLoading(false);
         return;
       }
       const guest = isGuestModeEnabled();
@@ -104,6 +109,7 @@ export default function SettingsPage({ onBack }: SettingsPageProps) {
       setProfileName(guest ? 'Guest' : 'Sign in');
       setProfileSubtitle(guest ? 'Guest mode' : 'Access your account');
       setAvatarLabel(guest ? 'G' : 'S');
+      setProfileLoading(false);
     };
     sync();
   }, []);
@@ -536,37 +542,67 @@ export default function SettingsPage({ onBack }: SettingsPageProps) {
                   Manage your profile and session.
                 </p>
               </div>
-              <div
-                className="flex items-center gap-4 p-5 rounded-2xl"
-                style={{ border: `1px solid ${bdr}`, background: surface }}
-              >
+              {profileLoading ? (
                 <div
-                  className="w-12 h-12 rounded-2xl flex items-center justify-center text-base font-bold shrink-0"
-                  style={{
-                    background: theme === 'dark' ? '#27272a' : '#f4f4f5',
-                    color: textPrimary,
-                  }}
+                  className="flex items-center gap-4 p-5 rounded-2xl animate-pulse"
+                  style={{ border: `1px solid ${bdr}`, background: surface }}
                 >
-                  {avatarLabel}
+                  <div
+                    className="w-12 h-12 rounded-2xl shrink-0"
+                    style={{ background: theme === 'dark' ? '#27272a' : '#e4e4e7' }}
+                  />
+                  <div className="flex-1 space-y-2">
+                    <div
+                      className="h-3.5 rounded w-28"
+                      style={{ background: theme === 'dark' ? '#27272a' : '#e4e4e7' }}
+                    />
+                    <div
+                      className="h-3 rounded w-40"
+                      style={{ background: theme === 'dark' ? '#27272a' : '#e4e4e7' }}
+                    />
+                  </div>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold truncate" style={{ color: textPrimary }}>
-                    {profileName}
-                  </p>
-                  <p className="text-xs mt-0.5 truncate" style={{ color: textMuted }}>
-                    {profileSubtitle}
-                  </p>
-                </div>
-                <span
-                  className="text-[10px] uppercase font-bold tracking-wider px-2.5 py-1 rounded-full shrink-0"
-                  style={{
-                    background: theme === 'dark' ? 'rgba(255,255,255,0.09)' : 'rgba(0,0,0,0.06)',
-                    color: textMuted,
-                  }}
+              ) : (
+                <div
+                  className="flex items-center gap-4 p-5 rounded-2xl"
+                  style={{ border: `1px solid ${bdr}`, background: surface }}
                 >
-                  {isGuest ? 'Guest' : 'Pro'}
-                </span>
-              </div>
+                  <div
+                    className="w-12 h-12 rounded-2xl flex items-center justify-center text-base font-bold shrink-0 overflow-hidden"
+                    style={{
+                      background: theme === 'dark' ? '#27272a' : '#f4f4f5',
+                      color: textPrimary,
+                    }}
+                  >
+                    {avatarUrl ? (
+                      <img
+                        src={avatarUrl}
+                        alt={profileName}
+                        className="w-full h-full object-cover"
+                        onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                      />
+                    ) : null}
+                    {avatarUrl ? null : avatarLabel}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold truncate" style={{ color: textPrimary }}>
+                      {profileName}
+                    </p>
+                    <p className="text-xs mt-0.5 truncate" style={{ color: textMuted }}>
+                      {profileSubtitle}
+                    </p>
+                  </div>
+                  <span
+                    className="text-[10px] uppercase font-bold tracking-wider px-2.5 py-1 rounded-full shrink-0"
+                    style={{
+                      background: theme === 'dark' ? 'rgba(255,255,255,0.09)' : 'rgba(0,0,0,0.06)',
+                      color: textMuted,
+                    }}
+                  >
+                    {isGuest ? 'Guest' : 'Pro'}
+                  </span>
+                </div>
+              )}
               
               <div
                 className="p-5 rounded-2xl space-y-3"
