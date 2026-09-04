@@ -3,11 +3,10 @@
 import React, { useEffect, useState } from 'react';
 
 const LOADING_STEPS = [
-  'Initializing AI Topper...',
-  'Loading IPU BCA syllabus...',
-  'Fetching PYQ patterns...',
-  'Calibrating study context...',
-  'Ready to study!',
+  'Initializing e-Mate AI...',
+  'Preparing your workspace...',
+  'Loading study tools...',
+  'Ready to go!',
 ];
 
 export default function LoadingScreen() {

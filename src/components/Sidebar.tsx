@@ -82,8 +82,8 @@ export default function Sidebar({
   const [avatarUrl, setAvatarUrl] = useState('');
   const [profileLoading, setProfileLoading] = useState(true);
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
-  const [selectedSubject, setSelectedSubject] = useState('DBMS');
-  const [selectedUnit, setSelectedUnit] = useState('Normalization (3NF/BCNF)');
+  const [selectedSubject, setSelectedSubject] = useState('');
+  const [selectedUnit, setSelectedUnit] = useState('');
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newSubjectName, setNewSubjectName] = useState('');

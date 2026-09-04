@@ -1,12 +1,13 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Copy, Check, RotateCcw, BookMarked, Sparkles, Loader2 } from 'lucide-react';
+import { Copy, Check, RotateCcw, BookMarked, Sparkles, Loader2, ChevronRight } from 'lucide-react';
 import type { ChatMessage } from './AITopperChatScreen';
 import { appendToNotebook } from '@/lib/notebook';
 import { toast } from 'sonner';
 import GeneratedImageCard from '@/components/GeneratedImageCard';
 import StudyAnalyzerReport from '@/components/StudyAnalyzerReport';
+import type { MCQSubmission } from '@/lib/agents/types';
 
 // ─── Process step definitions ────────────────────────────────────────────────
 const PROCESS_STEPS = [
@@ -32,7 +33,67 @@ interface ChatMessageBubbleProps {
   /** Called when the user clicks a generated-image "Regenerate". (imageId, prompt) */
   onRegenerateImage?: (messageId: string, imageId: string, prompt: string) => void;
   /** Called when user clicks "Reinforce Weak Concepts" in an analyzer report. */
-  onReinforce?: (weakTopics: string[]) => void;
+  onReinforce?: (weakTopics: string[], submissionData?: MCQSubmission) => void;
+}
+
+// ─── Collapsible details/summary component ───────────────────────────────────
+
+function FlashcardDetails({
+  summaryText,
+  children,
+  theme = 'dark',
+}: {
+  summaryText: string;
+  children: React.ReactNode;
+  theme?: 'light' | 'dark';
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const isDark = theme === 'dark';
+
+  return (
+    <div
+      className="my-3 rounded-xl overflow-hidden transition-all"
+      style={{
+        border: isDark ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(0,0,0,0.08)',
+        background: isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)',
+      }}
+    >
+      <div
+        onClick={() => setIsOpen(!isOpen)}
+        className="flex items-center gap-2.5 p-3.5 cursor-pointer select-none transition-colors"
+        style={{
+          background: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
+        }}
+      >
+        <ChevronRight
+          size={14}
+          className="shrink-0 transition-transform duration-200"
+          style={{
+            color: isDark ? '#71717a' : '#a1a1aa',
+            transform: isOpen ? 'rotate(90deg)' : 'rotate(0deg)',
+          }}
+        />
+        <span
+          className="text-xs font-semibold"
+          style={{ color: isDark ? '#d4d4d8' : '#3f3f46' }}
+        >
+          {summaryText || (isOpen ? 'Hide Answer' : 'Click to reveal answer')}
+        </span>
+      </div>
+
+      {isOpen && (
+        <div
+          className="px-4 py-3.5 text-sm leading-relaxed animate-in fade-in duration-200"
+          style={{
+            borderTop: isDark ? '1px solid rgba(255,255,255,0.06)' : '1px solid rgba(0,0,0,0.06)',
+            color: isDark ? '#d4d4d8' : '#27272a',
+          }}
+        >
+          {children}
+        </div>
+      )}
+    </div>
+  );
 }
 
 // ─── Markdown renderer ────────────────────────────────────────────────────────
@@ -45,6 +106,42 @@ function renderMarkdown(text: string, theme: 'light' | 'dark' = 'dark'): React.R
 
   while (i < lines.length) {
     const line = lines[i];
+
+    // ── <details> / <summary> collapsible block ─────────────────────────────
+    if (line.trim().startsWith('<details')) {
+      const detailLines: string[] = [];
+      let depth = 1;
+      detailLines.push(line);
+      i++;
+      while (i < lines.length && depth > 0) {
+        if (lines[i].includes('<details')) depth++;
+        if (lines[i].includes('</details>')) depth--;
+        detailLines.push(lines[i]);
+        i++;
+      }
+      const block = detailLines.join('\n');
+      const summaryMatch = block.match(/<summary[^>]*>([\s\S]*?)<\/summary>/i);
+      const summaryText = summaryMatch
+        ? summaryMatch[1].replace(/<[^>]+>/g, '').trim()
+        : '';
+      const contentMatch = block.match(/<\/summary>([\s\S]*?)<\/details>/i);
+      const innerContent = contentMatch ? contentMatch[1].trim() : '';
+      result.push(
+        <FlashcardDetails
+          key={`details-${i}`}
+          summaryText={summaryText}
+          theme={theme}
+        >
+          {innerContent.split('\n').filter(l => l.trim()).map((l, li) => (
+            <p
+              key={`details-p-${i}-${li}`}
+              dangerouslySetInnerHTML={{ __html: formatInline(l.trim(), theme) }}
+            />
+          ))}
+        </FlashcardDetails>
+      );
+      continue;
+    }
 
     if (line.startsWith('```')) {
       const lang = line.slice(3).trim();
@@ -468,7 +565,7 @@ export default function ChatMessageBubble({
 
   const handleSaveToNotebook = () => {
     const activeSubj = typeof window !== 'undefined' ? localStorage.getItem('nk-subject') : null;
-    const subj = message.subject || activeSubj || 'DBMS';
+    const subj = message.subject || activeSubj || '';
     appendToNotebook(
       subj,
       `Key concept: ${message.content.slice(0, 300)}${message.content.length > 300 ? '...' : ''}`,

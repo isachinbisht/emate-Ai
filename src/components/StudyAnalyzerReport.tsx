@@ -2,12 +2,12 @@
 
 import React from 'react';
 import { Trophy, Target, BookOpen, ArrowRight, TrendingDown } from 'lucide-react';
-import type { StudyAnalyzerReport as ReportType } from '@/lib/agents/types';
+import type { StudyAnalyzerReport as ReportType, MCQSubmission } from '@/lib/agents/types';
 import { cn } from '@/lib/utils';
 
 interface StudyAnalyzerReportProps {
   report: ReportType;
-  onReinforce: (weakTopics: string[]) => void;
+  onReinforce: (weakTopics: string[], submissionData?: MCQSubmission) => void;
 }
 
 export default function StudyAnalyzerReport({ report, onReinforce }: StudyAnalyzerReportProps) {
@@ -117,7 +117,7 @@ export default function StudyAnalyzerReport({ report, onReinforce }: StudyAnalyz
       {weakTopics.length > 0 && (
         <button
           type="button"
-          onClick={() => onReinforce(weakTopics)}
+          onClick={() => onReinforce(weakTopics, report.submissionData)}
           className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold bg-[#1f51ff] text-white hover:bg-[#1a45e0] transition-colors cursor-pointer outline-none"
         >
           <TrendingDown size={14} />

@@ -31,8 +31,8 @@ export default function AITopperChatScreen() {
   const [mode, setMode] = useState<StudyMode>('sprint');
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [selectedContext, setSelectedContext] = useState<SelectedContext>({
-    subject: 'DBMS',
-    unit: 'Normalization (3NF/BCNF)',
+    subject: '',
+    unit: '',
   });
   const [selectedModel, setSelectedModel] = useState('openrouter/auto');
   // Active chat session id (drives transcript persistence/loading). Defaults to
@@ -83,14 +83,9 @@ export default function AITopperChatScreen() {
 
   useEffect(() => {
     const syncContext = () => {
-      const savedSubject = localStorage.getItem('nk-subject');
-      const savedUnit = localStorage.getItem('nk-unit');
-      if (savedSubject && savedUnit) {
-        setSelectedContext({ subject: savedSubject, unit: savedUnit });
-      } else {
-        localStorage.setItem('nk-subject', 'DBMS');
-        localStorage.setItem('nk-unit', 'Normalization (3NF/BCNF)');
-      }
+      const savedSubject = localStorage.getItem('nk-subject') || '';
+      const savedUnit = localStorage.getItem('nk-unit') || '';
+      setSelectedContext({ subject: savedSubject, unit: savedUnit });
     };
     syncContext();
     window.addEventListener('nk-context-change', syncContext);

@@ -56,6 +56,8 @@ export interface StudyAnalyzerReport {
   weakAreas: WeaknessArea[];
   recommendations: string[];
   generatedAt: string;
+  /** Original quiz submission preserved for detailed mistake analysis in reinforce flow. */
+  submissionData?: MCQSubmission;
 }
 
 // ─── Agent Input Types ───────────────────────────────────────────────────────

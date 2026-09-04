@@ -66,13 +66,19 @@ export async function POST(req: Request) {
 
     // ── System prompt ────────────────────────────────────────────────────────
     let systemPrompt = '';
-    if (isGeneralChat) {
+    if (isGeneralChat || (!subject && !unit && !notebookContext)) {
+      // No active study context → general-purpose assistant
       systemPrompt =
-        `You are a helpful, direct, and general-purpose AI assistant.\n` +
+        `You are e-Mate AI, a smart study copilot and versatile AI assistant.\n` +
         `Guidelines:\n` +
-        `- Answer the user's questions directly, conversationally, and accurately.\n` +
+        `- Answer the user's questions clearly, accurately, and conversationally.\n` +
         `- Use standard Markdown for formatting.\n` +
-        `- Avoid references to syllabus scope, exams, study notebooks, or academic copilot instructions.`;
+        `- You can help with any subject, topic, or general question.\n` +
+        `- When generating flashcards, hidden answers, or Q&A pairs, wrap answers in HTML details tags:\n` +
+        `  <details>\n` +
+        `  <summary>Click to reveal answer</summary>\n` +
+        `  **Answer:** your answer here\n` +
+        `  </details>`;
     } else {
       // Smart Payload & Context Trimming:
       // Bypass heavy notebook context if the user's input is very short (e.g., "hi", "hello")
@@ -100,7 +106,12 @@ export async function POST(req: Request) {
         `- Answer naturally, conversationally, and directly to what the user asks.\n` +
         `- Use Markdown formatting (headers, bullet points, code blocks) for clarity.\n` +
         `- If the student's notebook contains relevant notes, reference them and build upon them.\n` +
-        `- Always highlight exam-important points with a ⭐ or 📌 marker.` +
+        `- Always highlight exam-important points with a ⭐ or 📌 marker.\n` +
+        `- When generating flashcards, hidden answers, or Q&A pairs, always wrap the answer in HTML details tags:\n` +
+        `  <details>\n` +
+        `  <summary>Click to reveal answer</summary>\n` +
+        `  **Answer:** your answer here\n` +
+        `  </details>` +
         contextSection +
         modeInstruction +
         notebookSection;

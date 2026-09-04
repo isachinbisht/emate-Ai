@@ -285,6 +285,16 @@ export default function ChatMainArea({
   const [quizQuiz, setQuizQuiz] = useState<MCQQuiz | null>(null);
   const [showQuizModal, setShowQuizModal] = useState(false);
   const [quizLoading, setQuizLoading] = useState(false);
+  // Preserved quiz data for the reinforce flow — survives after quizQuiz is cleared.
+  const lastQuizRef = useRef<MCQQuiz | null>(null);
+
+  // Clear stale quiz state when switching notebooks or study context so old
+  // results don't carry over into a new subject/unit.
+  useEffect(() => {
+    setQuizQuiz(null);
+    setShowQuizModal(false);
+    setQuizLoading(false);
+  }, [selectedContext.subject, selectedContext.unit]);
   const [isModelMenuOpen, setIsModelMenuOpen] = useState(false);
   const modelMenuRef = useRef<HTMLDivElement>(null);
 
@@ -601,7 +611,6 @@ export default function ChatMainArea({
   const handleQuizTrigger = async () => {
     if (quizLoading || isStreaming) return;
     setQuizLoading(true);
-    setShowQuizModal(true);
 
     try {
       const notebookContext = isStudyMode ? buildNotebookContext(selectedContext.subject) : '';
@@ -625,9 +634,9 @@ export default function ChatMainArea({
 
       const quiz: MCQQuiz = await res.json();
       setQuizQuiz(quiz);
+      setShowQuizModal(true);
     } catch (err: any) {
       toast.error(err.message || 'Could not generate quiz. Please try again.');
-      setShowQuizModal(false);
     } finally {
       setQuizLoading(false);
     }
@@ -635,6 +644,9 @@ export default function ChatMainArea({
 
   const handleQuizSubmission = (submission: MCQSubmission) => {
     if (!quizQuiz) return;
+
+    // Preserve quiz data for the reinforce flow (survives after quizQuiz is cleared).
+    lastQuizRef.current = quizQuiz;
 
     const report = generateAnalyzerReport(submission, quizQuiz);
 
@@ -655,9 +667,59 @@ export default function ChatMainArea({
     setQuizQuiz(null);
   };
 
-  const handleReinforce = async (weakTopics: string[]) => {
-    const content = `Please explain these concepts in detail with examples: ${weakTopics.join(', ')}`;
-    await handleSend(content);
+  const handleReinforce = async (weakTopics: string[], submissionData?: MCQSubmission) => {
+    const lastQuiz = lastQuizRef.current;
+
+    if (!lastQuiz || !submissionData) {
+      // Fallback when submission context is missing
+      const prompt = `Please explain these concepts in detail with examples: ${weakTopics.join(', ')}`;
+      await handleSend(prompt);
+      return;
+    }
+
+    // Build a per-question mistake breakdown from the user's actual wrong answers
+    const incorrectQuestions = submissionData.answers
+      ? Object.entries(submissionData.answers)
+          .map(([questionId, selectedOption]) => {
+            const q = lastQuiz.questions.find((item) => item.id === questionId);
+            if (!q || selectedOption === q.correctAnswer) return null;
+            return {
+              question: q.question,
+              userAnswer: q.options[selectedOption] || 'No answer',
+              correctAnswer: q.options[q.correctAnswer],
+              explanation: q.explanation,
+              topicTag: q.topicTag,
+            };
+          })
+          .filter(Boolean)
+      : [];
+
+    if (incorrectQuestions.length === 0) {
+      // All correct — just reinforce the weak topic areas
+      const prompt = `I did well on the quiz but want to strengthen my understanding of: ${weakTopics.join(', ')}. Please explain each concept in depth with examples and exam tips.`;
+      await handleSend(prompt);
+      return;
+    }
+
+    const mistakeBreakdown = incorrectQuestions
+      .map(
+        (q, idx) =>
+          `${idx + 1}. **Question:** ${q?.question}\n` +
+          `   - **My Answer:** ${q?.userAnswer} (Incorrect)\n` +
+          `   - **Correct Answer:** ${q?.correctAnswer}\n` +
+          `   - **Why:** ${q?.explanation}`
+      )
+      .join('\n\n');
+
+    const prompt =
+      `I took a quiz on **${lastQuiz.subject || 'this topic'}** and scored poorly on the following questions:\n\n` +
+      `${mistakeBreakdown}\n\n` +
+      `Please do the following:\n` +
+      `1. Explain **WHY** my selected answer was incorrect for each question.\n` +
+      `2. Break down the core concept behind the correct answer in simple terms.\n` +
+      `3. Provide a quick tip or mnemonic so I don't make this mistake again.`;
+
+    await handleSend(prompt);
   };
 
   const handleSend = async (text?: string, attachmentOverride?: File[]) => {
@@ -1476,7 +1538,7 @@ export default function ChatMainArea({
                   type="button"
                   onClick={() => {
                     loadDemoNotebook(selectedContext.subject);
-                    toast.success('Demo Operating Systems notebook loaded');
+                    toast.success('Demo notebook loaded');
                   }}
                   className="px-3 py-1.5 rounded-full border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 text-xs font-medium text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer flex items-center gap-1.5"
                 >

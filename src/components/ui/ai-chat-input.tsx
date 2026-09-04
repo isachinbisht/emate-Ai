@@ -11,7 +11,30 @@ import {
   TerminalSquare,
   LayoutGrid,
   ChevronRight,
+  HelpCircle,
+  Layers,
+  BookOpen,
+  Sparkles,
+  Zap,
 } from 'lucide-react';
+
+// ----------------------------------------------------------------------
+// Slash Commands
+// ----------------------------------------------------------------------
+
+interface SlashCommand {
+  label: string;
+  command: string;
+  description: string;
+  icon: React.ElementType;
+}
+
+const SLASH_COMMANDS: SlashCommand[] = [
+  { label: 'MCQ Practice', command: '/mcq', description: 'Generate interactive multiple-choice questions', icon: HelpCircle },
+  { label: 'Flashcards', command: '/flashcard', description: 'Create concept revision flip cards', icon: Layers },
+  { label: 'Summary', command: '/summary', description: 'Summarize active study notes', icon: BookOpen },
+  { label: 'Sprint Mode', command: '/sprint', description: 'Fast-paced exam cram module', icon: Sparkles },
+];
 
 // ----------------------------------------------------------------------
 // Types
@@ -465,6 +488,11 @@ export const PromptInput = React.forwardRef<HTMLDivElement, PromptInputProps>(
     // Attachment drop-up menu state
     const [isAttachMenuOpen, setIsAttachMenuOpen] = useState(false);
     const attachMenuRef = useRef<HTMLDivElement>(null);
+
+    // Slash command menu state
+    const [showSlashMenu, setShowSlashMenu] = useState(false);
+    const [selectedCommandIndex, setSelectedCommandIndex] = useState(0);
+    const [showPluginsFlyout, setShowPluginsFlyout] = useState(false);
     // What the file input should accept (swapped before opening the chooser).
     const uploadKindRef = useRef<'image' | 'doc'>('image');
 
@@ -500,6 +528,9 @@ export const PromptInput = React.forwardRef<HTMLDivElement, PromptInputProps>(
       (val: string) => {
         if (!isControlled) setLocalValue(val);
         onChange?.(val);
+        // Detect slash command trigger
+        setShowSlashMenu(val.startsWith('/'));
+        setSelectedCommandIndex(0);
       },
       [isControlled, onChange]
     );
@@ -593,7 +624,7 @@ export const PromptInput = React.forwardRef<HTMLDivElement, PromptInputProps>(
       setIsRecording(true);
 
       function simulateText() {
-        const fakeText = 'Explain 3NF and BCNF normalization with examples';
+        const fakeText = 'Explain this topic clearly with examples';
         const words = fakeText.split(' ');
         let i = 0;
         let currentBase = valueRef.current;
@@ -717,7 +748,19 @@ export const PromptInput = React.forwardRef<HTMLDivElement, PromptInputProps>(
       setAttachments([]);
       setIsModelSelectOpen(false);
       setIsAttachMenuOpen(false);
+      setShowSlashMenu(false);
     };
+
+    const handleSelectCommand = (cmd: string) => {
+      handleValueChange(`${cmd} `);
+      setShowSlashMenu(false);
+      textareaRef.current?.focus();
+    };
+
+    // Filtered slash commands based on current input
+    const filteredCommands = SLASH_COMMANDS.filter((cmd) =>
+      cmd.command.toLowerCase().includes(value.toLowerCase())
+    );
 
     const cycleEffort = (e: React.MouseEvent) => {
       e.stopPropagation();
@@ -841,6 +884,45 @@ export const PromptInput = React.forwardRef<HTMLDivElement, PromptInputProps>(
               </div>
             )}
 
+            {/* ── Slash Command Popover ──────────────────────────────── */}
+            {showSlashMenu && filteredCommands.length > 0 && (
+              <div
+                className="absolute bottom-full mb-2 left-4 right-4 max-w-xs bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-xl overflow-hidden z-50 animate-in fade-in zoom-in-95 duration-100"
+                role="listbox"
+                aria-label="Slash commands"
+              >
+                <div className="px-3 py-2 text-[10px] font-mono uppercase tracking-wider text-zinc-400 border-b border-zinc-100 dark:border-zinc-800">
+                  Commands
+                </div>
+                <div className="p-1.5 space-y-0.5">
+                  {filteredCommands.map((cmd, idx) => {
+                    const Icon = cmd.icon;
+                    return (
+                      <button
+                        key={cmd.command}
+                        type="button"
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => handleSelectCommand(cmd.command)}
+                        role="option"
+                        aria-selected={idx === selectedCommandIndex}
+                        className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-left transition-colors cursor-pointer ${
+                          idx === selectedCommandIndex
+                            ? 'bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400'
+                            : 'text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800'
+                        }`}
+                      >
+                        <Icon className="w-4 h-4 shrink-0 text-blue-500" />
+                        <div className="flex flex-col min-w-0">
+                          <span className="text-xs font-semibold">{cmd.command}</span>
+                          <span className="text-[10px] text-zinc-400 truncate">{cmd.description}</span>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             <textarea
               ref={textareaRef}
               value={value}
@@ -849,6 +931,25 @@ export const PromptInput = React.forwardRef<HTMLDivElement, PromptInputProps>(
                 handleValueChange(e.target.value);
               }}
               onKeyDown={(e) => {
+                // Slash menu keyboard navigation
+                if (showSlashMenu && filteredCommands.length > 0) {
+                  if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    setSelectedCommandIndex((prev) => (prev + 1) % filteredCommands.length);
+                    return;
+                  } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    setSelectedCommandIndex((prev) => (prev - 1 + filteredCommands.length) % filteredCommands.length);
+                    return;
+                  } else if (e.key === 'Enter' || e.key === 'Tab') {
+                    e.preventDefault();
+                    handleSelectCommand(filteredCommands[selectedCommandIndex].command);
+                    return;
+                  } else if (e.key === 'Escape') {
+                    setShowSlashMenu(false);
+                    return;
+                  }
+                }
                 if (e.key === 'Enter' && !e.shiftKey) {
                   e.preventDefault();
                   handleSubmit();
@@ -938,9 +1039,12 @@ export const PromptInput = React.forwardRef<HTMLDivElement, PromptInputProps>(
                       <button
                         type="button"
                         onMouseDown={(e) => e.preventDefault()}
-                        onClick={() => setIsAttachMenuOpen(false)}
+                        onClick={() => {
+                          setIsAttachMenuOpen(false);
+                          handleValueChange('/');
+                          textareaRef.current?.focus();
+                        }}
                         role="menuitem"
-                        aria-disabled="true"
                         className="flex items-center gap-3 w-full px-3 py-2 rounded-xl text-sm font-medium text-zinc-800 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
                       >
                         <TerminalSquare className="w-4 h-4 shrink-0 text-zinc-700 dark:text-zinc-300" />
@@ -961,19 +1065,57 @@ export const PromptInput = React.forwardRef<HTMLDivElement, PromptInputProps>(
                         <ChevronRight className="w-3.5 h-3.5 text-zinc-400 ml-auto" />
                       </button>
 
-                      {/* Plugins */}
-                      <button
-                        type="button"
-                        onMouseDown={(e) => e.preventDefault()}
-                        onClick={() => setIsAttachMenuOpen(false)}
-                        role="menuitem"
-                        aria-disabled="true"
-                        className="flex items-center gap-3 w-full px-3 py-2 rounded-xl text-sm font-medium text-zinc-800 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
+                      {/* Plugins — flyout submenu */}
+                      <div
+                        className="relative"
+                        onMouseEnter={() => setShowPluginsFlyout(true)}
+                        onMouseLeave={() => setShowPluginsFlyout(false)}
                       >
-                        <LayoutGrid className="w-4 h-4 shrink-0 text-zinc-700 dark:text-zinc-300" />
-                        <span className="flex-1 text-left">Plugins</span>
-                        <ChevronRight className="w-3.5 h-3.5 text-zinc-400 ml-auto" />
-                      </button>
+                        <button
+                          type="button"
+                          onMouseDown={(e) => e.preventDefault()}
+                          role="menuitem"
+                          aria-haspopup="true"
+                          aria-expanded={showPluginsFlyout}
+                          className="flex items-center gap-3 w-full px-3 py-2 rounded-xl text-sm font-medium text-zinc-800 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
+                        >
+                          <LayoutGrid className="w-4 h-4 shrink-0 text-zinc-700 dark:text-zinc-300" />
+                          <span className="flex-1 text-left">Plugins</span>
+                          <ChevronRight className="w-3.5 h-3.5 text-zinc-400 ml-auto" />
+                        </button>
+
+                        {showPluginsFlyout && (
+                          <div
+                            className="absolute left-full top-0 ml-1 w-60 p-1.5 rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-xl space-y-0.5 animate-in fade-in zoom-in-95 duration-100 z-50"
+                            role="menu"
+                            aria-label="Plugin commands"
+                          >
+                            {SLASH_COMMANDS.map((cmd) => {
+                              const Icon = cmd.icon;
+                              return (
+                                <button
+                                  key={cmd.command}
+                                  type="button"
+                                  onMouseDown={(e) => e.preventDefault()}
+                                  onClick={() => {
+                                    setIsAttachMenuOpen(false);
+                                    setShowPluginsFlyout(false);
+                                    handleSelectCommand(cmd.command);
+                                  }}
+                                  role="menuitem"
+                                  className="flex items-center gap-2.5 w-full px-3 py-2 rounded-xl text-left transition-colors cursor-pointer text-zinc-800 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                                >
+                                  <Icon className="w-4 h-4 shrink-0 text-blue-500" />
+                                  <div className="flex flex-col min-w-0">
+                                    <span className="text-xs font-semibold leading-tight">{cmd.label}</span>
+                                    <span className="text-[10px] text-zinc-400 truncate">{cmd.description}</span>
+                                  </div>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
                     </div>
                   )}
                 </div>

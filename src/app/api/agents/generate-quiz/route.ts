@@ -12,13 +12,6 @@ export async function POST(req: Request) {
   try {
     const { subject, unit, count, difficulty, notebookContext } = await req.json();
 
-    if (!subject) {
-      return new Response(JSON.stringify({ error: 'Subject is required.' }), {
-        status: 400,
-        headers: { 'Content-Type': 'application/json' },
-      });
-    }
-
     const cookieHeader = req.headers.get('cookie');
     const userKey = getCookie(cookieHeader, 'user_openrouter_key');
     const apiKey =
@@ -34,7 +27,7 @@ export async function POST(req: Request) {
     }
 
     const quiz = await generateQuiz(apiKey, {
-      subject,
+      subject: subject || '',
       unit: unit || '',
       count: Math.min(Math.max(count || 5, 1), 20),
       difficulty: difficulty || 'medium',
@@ -46,6 +39,7 @@ export async function POST(req: Request) {
       headers: { 'Content-Type': 'application/json' },
     });
   } catch (err: any) {
+    console.error('[generate-quiz] Error:', err.message, err.raw ? `(raw: ${err.raw})` : '');
     return new Response(JSON.stringify({ error: err.message || 'Failed to generate quiz.' }), {
       status: 500,
       headers: { 'Content-Type': 'application/json' },

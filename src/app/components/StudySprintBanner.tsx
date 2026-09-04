@@ -32,7 +32,7 @@ export default function StudySprintBanner() {
         <div>
           <p className="text-sm font-semibold text-text-primary">Study Sprint Mode Available</p>
           <p className="text-xs text-text-secondary mt-0.5">
-            DBMS exam tomorrow · 12 high-probability questions ready · avg 4 min per Q
+            Quick-fire study sessions with instant feedback and progress tracking
           </p>
         </div>
       </div>

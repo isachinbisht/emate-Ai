@@ -122,6 +122,32 @@ export function generateRecommendations(weakAreas: WeaknessArea[]): string[] {
   return recommendations;
 }
 
+/**
+ * Dynamic fallback report when no quiz data is available.
+ * Uses the active topic/subject instead of hardcoded DBMS defaults.
+ */
+export function getFallbackReport(topicName?: string): StudyAnalyzerReport {
+  const currentSubject = topicName || 'General Knowledge';
+  return {
+    id: `report-fallback-${Date.now()}`,
+    quizId: '',
+    overallScore: 0,
+    weakAreas: [
+      {
+        topicTag: `${currentSubject} Fundamentals`,
+        accuracy: 0,
+        questionsAttempted: 0,
+        missedQuestions: [],
+      },
+    ],
+    recommendations: [
+      `Review foundational concepts in ${currentSubject}.`,
+      'Take a quiz to identify your weak areas.',
+    ],
+    generatedAt: new Date().toISOString(),
+  };
+}
+
 export function generateAnalyzerReport(
   submission: MCQSubmission,
   quiz: MCQQuiz
@@ -137,5 +163,6 @@ export function generateAnalyzerReport(
     weakAreas,
     recommendations,
     generatedAt: new Date().toISOString(),
+    submissionData: submission,
   };
 }

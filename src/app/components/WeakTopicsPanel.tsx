@@ -1,43 +1,15 @@
 import React from 'react';
 import { AlertTriangle, ArrowRight } from 'lucide-react';
 
-const WEAK_TOPICS = [
-  {
-    id: 'weak-001',
-    subject: 'DBMS',
-    unit: 'Normalization (3NF/BCNF)',
-    accuracy: 28,
-    attempts: 7,
-  },
-  {
-    id: 'weak-002',
-    subject: 'OS',
-    unit: 'Deadlock Detection',
-    accuracy: 33,
-    attempts: 6,
-  },
-  {
-    id: 'weak-003',
-    subject: 'Data Structures',
-    unit: 'Graph Traversal (DFS/BFS)',
-    accuracy: 41,
-    attempts: 9,
-  },
-  {
-    id: 'weak-004',
-    subject: 'OS',
-    unit: 'Page Replacement Algorithms',
-    accuracy: 38,
-    attempts: 5,
-  },
-  {
-    id: 'weak-005',
-    subject: 'Web Dev',
-    unit: 'REST API Design Patterns',
-    accuracy: 44,
-    attempts: 4,
-  },
-];
+interface WeakTopic {
+  id: string;
+  subject: string;
+  unit: string;
+  accuracy: number;
+  attempts: number;
+}
+
+const WEAK_TOPICS: WeakTopic[] = [];
 
 function AccuracyBar({ value }: { value: number }) {
   const color = value < 35 ? 'bg-danger' : value < 50 ? 'bg-warning' : 'bg-success';
@@ -70,14 +42,21 @@ export default function WeakTopicsPanel() {
             <p className="text-xs text-text-muted">Below 50% accuracy</p>
           </div>
         </div>
-        <button className="flex items-center gap-1 text-xs text-primary hover:text-primary-hover transition-colors">
-          Practice all
-          <ArrowRight size={12} />
-        </button>
+        {WEAK_TOPICS.length > 0 && (
+          <button className="flex items-center gap-1 text-xs text-primary hover:text-primary-hover transition-colors">
+            Practice all
+            <ArrowRight size={12} />
+          </button>
+        )}
       </div>
 
       <div className="flex-1 space-y-3 overflow-y-auto">
-        {WEAK_TOPICS.map((topic) => (
+        {WEAK_TOPICS.length === 0 ? (
+          <div className="flex-1 flex flex-col items-center justify-center py-8 text-center">
+            <AlertTriangle size={20} className="text-text-muted mb-2 opacity-40" />
+            <p className="text-xs text-text-muted">No weak topics identified yet. Complete a quiz to see your results here.</p>
+          </div>
+        ) : WEAK_TOPICS.map((topic) => (
           <div
             key={topic.id}
             className="p-3 rounded-lg glass-card-hover cursor-pointer transition-all duration-150"
