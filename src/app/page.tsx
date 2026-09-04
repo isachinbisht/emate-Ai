@@ -331,26 +331,25 @@ export default function LandingPage() {
       <section id="pricing" className="section-frame">
         <div className="w-full max-w-6xl mx-auto px-4 py-12 flex flex-col items-center justify-center">
           {/* Currency toggle */}
-          <div className="flex items-center gap-2 mb-6">
-            <span className="text-xs text-zinc-500 dark:text-zinc-400">Pricing in</span>
+          <div className="flex items-center justify-center gap-3 my-8">
+            <span className="text-sm font-medium text-zinc-500">Pricing in</span>
             <button
+              type="button"
+              role="switch"
+              aria-checked={currency.currency === 'INR'}
               onClick={toggleCurrency}
-              className="relative inline-flex h-7 items-center rounded-full border transition-colors"
-              style={{
-                borderColor: dark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.1)',
-                background: dark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
-              }}
-              aria-label="Toggle currency"
+              className="relative inline-flex h-9 w-28 shrink-0 cursor-pointer items-center rounded-full bg-zinc-200/80 p-1 transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 dark:bg-zinc-800"
             >
               <span
-                className="absolute left-0.5 h-5 w-10 rounded-full bg-blue-600 transition-transform"
-                style={{ transform: currency.currency === 'INR' ? 'translateX(36px)' : 'translateX(0)' }}
-              />
-              <span className="relative z-10 w-[44px] text-center text-[10px] font-bold text-white">
-                USD
+                className={`absolute left-1 top-1 flex h-7 w-12 items-center justify-center rounded-full bg-blue-600 text-[11px] font-bold text-white shadow-sm transition-transform duration-200 ease-in-out ${
+                  currency.currency === 'INR' ? 'translate-x-[52px]' : 'translate-x-0'
+                }`}
+              >
+                {currency.currency}
               </span>
-              <span className="relative z-10 w-[44px] text-center text-[10px] font-bold text-white">
-                INR
+              <span className="flex w-full items-center justify-between px-3 text-[11px] font-bold text-zinc-500 dark:text-zinc-400">
+                <span className={currency.currency === 'USD' ? 'opacity-0' : 'opacity-100'}>USD</span>
+                <span className={currency.currency === 'INR' ? 'opacity-0' : 'opacity-100'}>INR</span>
               </span>
             </button>
           </div>
