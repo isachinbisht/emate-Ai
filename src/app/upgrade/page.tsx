@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Check, Sparkles, Zap, Shield, Users } from 'lucide-react';
+import { ArrowLeft, Sparkles, Zap, Shield, Users, GraduationCap } from 'lucide-react';
 import { useGeoCurrency } from '@/hooks/useGeoCurrency';
 import RazorpayCheckout from '@/components/RazorpayCheckout';
+import { createClient } from '@/lib/supabase/client';
 
 /* ── Tier definitions ──────────────────────────────────────────── */
 
@@ -27,54 +28,66 @@ interface Tier {
 const TIERS: Tier[] = [
   {
     id: 'plus',
-    name: 'e-Mate Plus',
+    name: 'e-Mate AI Plus',
     badge: 'RECOMMENDED',
-    tagline: 'Google AI · Basic Pro Tier',
+    tagline: 'Basic Tier',
     inr: { monthly: 100, annual: 999 },
     usd: { monthly: 1.99, annual: 19.99 },
     features: [
-      { text: 'Higher usage limits across Gemini Flash & GPT-4o-mini', icon: <Zap size={15} /> },
-      { text: 'Access to Flash Thinking models', icon: <Sparkles size={15} /> },
-      { text: '10GB notebook storage', icon: <Sparkles size={15} /> },
-      { text: 'Fast RAG context search', icon: <Zap size={15} /> },
+      { text: 'Higher usage limits across Flash models', icon: <Zap size={15} /> },
+      { text: 'Access to Flash Thinking model', icon: <Sparkles size={15} /> },
+      { text: '100GB notebook storage', icon: <Zap size={15} /> },
     ],
-    cta: 'Get e-Mate Plus',
+    cta: 'Get e-Mate AI Plus',
   },
   {
     id: 'pro',
-    name: 'e-Mate Pro',
-    tagline: 'Google AI Pro · Power Learner Tier',
+    name: 'e-Mate AI Pro',
+    tagline: 'Power Learner Tier',
     inr: { monthly: 489, annual: 4699 },
     usd: { monthly: 8, annual: 79 },
     features: [
       { text: 'Full access to Claude 3.5 Sonnet, DeepSeek R1 & GPT-4o', icon: <Sparkles size={15} /> },
-      { text: 'Unlimited active study agents', icon: <Zap size={15} /> },
-      { text: '100GB notebook and PDF storage', icon: <Sparkles size={15} /> },
-      { text: 'Nitro routing & priority model queuing', icon: <Zap size={15} /> },
+      { text: 'Higher usage limits than Plus plan', icon: <Zap size={15} /> },
+      { text: 'Access to Canvas & notebook study tools', icon: <Sparkles size={15} /> },
     ],
-    cta: 'Get e-Mate Pro',
+    cta: 'Get e-Mate AI Pro',
   },
   {
     id: 'ultra',
-    name: 'e-Mate Ultra',
-    tagline: 'Google AI Ultra · Enterprise Tier',
-    inr: { monthly: 2099, annual: 19999 },
-    usd: { monthly: 25, annual: 249 },
+    name: 'e-Mate AI Ultra',
+    tagline: 'Enterprise Tier',
+    inr: { monthly: 6500, annual: 64999 },
+    usd: { monthly: 79, annual: 789 },
     features: [
-      { text: 'Dedicated compute infrastructure', icon: <Shield size={15} /> },
-      { text: 'Enterprise security & workspace controls', icon: <Shield size={15} /> },
-      { text: 'Multi-seat team collaboration & shared notebooks', icon: <Users size={15} /> },
+      { text: 'Higher limits than Pro plan', icon: <Zap size={15} /> },
+      { text: 'Priority execution & dedicated compute infrastructure', icon: <Shield size={15} /> },
+      { text: 'Shared team workspaces', icon: <Users size={15} /> },
     ],
-    cta: 'Get e-Mate Ultra',
+    cta: 'Get e-Mate AI Ultra',
   },
 ];
 
 /* ── Page component ────────────────────────────────────────────── */
 
 export default function UpgradePage() {
-  const { currency, toggleCurrency, formatTierPrice } = useGeoCurrency();
+  const { currency, toggleCurrency } = useGeoCurrency();
   const [annual, setAnnual] = useState(false);
+  const [user, setUser] = useState<{ name: string; email: string; avatar: string } | null>(null);
   const isINR = currency.currency === 'INR';
+
+  useEffect(() => {
+    const supabase = createClient();
+    supabase.auth.getUser().then(({ data }) => {
+      if (data.user) {
+        setUser({
+          name: data.user.user_metadata?.full_name || data.user.email?.split('@')[0] || 'User',
+          email: data.user.email || '',
+          avatar: data.user.user_metadata?.avatar_url || '',
+        });
+      }
+    });
+  }, []);
 
   function priceFor(tier: Tier): string {
     const prices = isINR ? tier.inr : tier.usd;
@@ -97,34 +110,61 @@ export default function UpgradePage() {
         <div className="max-w-6xl mx-auto flex items-center justify-between px-6 h-14">
           <Link
             href="/ai-topper-chat"
-            className="flex items-center gap-2 text-sm text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
+            className="inline-flex items-center gap-2 px-4 py-2 text-xs font-medium text-zinc-700 dark:text-zinc-300 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-full transition-colors"
           >
-            <ArrowLeft size={16} />
-            Back to chat
+            ← Back to chat
           </Link>
 
-          {/* Currency toggle */}
-          <div className="flex items-center justify-center gap-3">
-            <span className="text-sm font-medium text-zinc-500">Pricing in</span>
-            <button
-              type="button"
-              role="switch"
-              aria-checked={isINR}
-              onClick={toggleCurrency}
-              className="relative inline-flex h-9 w-28 shrink-0 cursor-pointer items-center rounded-full bg-zinc-200/80 p-1 transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 dark:bg-zinc-800"
-            >
-              <span
-                className={`absolute left-1 top-1 flex h-7 w-12 items-center justify-center rounded-full bg-blue-600 text-[11px] font-bold text-white shadow-sm transition-transform duration-200 ease-in-out ${
-                  isINR ? 'translate-x-[52px]' : 'translate-x-0'
-                }`}
+          {/* Right: user profile + currency toggle */}
+          <div className="flex items-center gap-4">
+            {/* Currency toggle */}
+            <div className="flex items-center justify-center gap-3">
+              <span className="text-sm font-medium text-zinc-500">Pricing in</span>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={isINR}
+                onClick={toggleCurrency}
+                className="relative inline-flex h-9 w-28 shrink-0 cursor-pointer items-center rounded-full bg-zinc-200/80 p-1 transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 dark:bg-zinc-800"
               >
-                {isINR ? 'INR' : 'USD'}
-              </span>
-              <span className="flex w-full items-center justify-between px-3 text-[11px] font-bold text-zinc-500 dark:text-zinc-400">
-                <span className={isINR ? 'opacity-0' : 'opacity-100'}>USD</span>
-                <span className={isINR ? 'opacity-100' : 'opacity-0'}>INR</span>
-              </span>
-            </button>
+                <span
+                  className={`absolute left-1 top-1 flex h-7 w-12 items-center justify-center rounded-full bg-blue-600 text-[11px] font-bold text-white shadow-sm transition-transform duration-200 ease-in-out ${
+                    isINR ? 'translate-x-[52px]' : 'translate-x-0'
+                  }`}
+                >
+                  {isINR ? 'INR' : 'USD'}
+                </span>
+                <span className="flex w-full items-center justify-between px-3 text-[11px] font-bold text-zinc-500 dark:text-zinc-400">
+                  <span className={isINR ? 'opacity-0' : 'opacity-100'}>USD</span>
+                  <span className={isINR ? 'opacity-100' : 'opacity-0'}>INR</span>
+                </span>
+              </button>
+            </div>
+
+            {/* User profile */}
+            {user && (
+              <div className="flex items-center gap-2.5 pl-4 border-l border-zinc-200 dark:border-zinc-800">
+                {user.avatar ? (
+                  <img
+                    src={user.avatar}
+                    alt={user.name}
+                    className="w-8 h-8 rounded-full object-cover ring-2 ring-zinc-200 dark:ring-zinc-800"
+                  />
+                ) : (
+                  <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-950 flex items-center justify-center text-xs font-bold text-blue-600 dark:text-blue-400">
+                    {user.name.charAt(0).toUpperCase()}
+                  </div>
+                )}
+                <div className="hidden sm:block">
+                  <p className="text-xs font-semibold leading-tight text-zinc-900 dark:text-zinc-100">
+                    {user.name}
+                  </p>
+                  <p className="text-[10px] text-zinc-500 dark:text-zinc-400 leading-tight">
+                    {user.email}
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </header>
@@ -132,11 +172,11 @@ export default function UpgradePage() {
       {/* ── Hero ──────────────────────────────────────────────── */}
       <section className="max-w-6xl mx-auto px-6 pt-16 pb-6 text-center">
         <h1 className="text-4xl md:text-5xl font-semibold tracking-tight leading-tight mb-4">
-          Get more power for your{' '}
-          <span className="text-blue-600 dark:text-blue-400">e-Mate AI</span> study workflows
+          Get more space for your{' '}
+          <span className="text-blue-600 dark:text-blue-400">e-Mate AI</span> memories
         </h1>
         <p className="text-lg text-zinc-500 dark:text-zinc-400 max-w-2xl mx-auto leading-relaxed">
-          Choose a plan to unlock advanced reasoning models, unlimited RAG search, and priority agent execution.
+          Upgrade to access advanced reasoning models, unlimited search, and priority agent speeds.
         </p>
 
         {/* Annual / Monthly toggle */}
@@ -265,24 +305,24 @@ export default function UpgradePage() {
       <section className="max-w-6xl mx-auto px-6 pb-16">
         <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30 p-8 flex flex-col sm:flex-row items-center justify-between gap-6">
           <div className="flex items-center gap-4">
-            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900 text-2xl">
-              🎓
+            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900">
+              <GraduationCap size={24} className="text-blue-600 dark:text-blue-400" />
             </span>
             <div>
               <p className="font-semibold text-zinc-900 dark:text-zinc-100">
-                Students get more with e-Mate AI
+                🎓 Students get more with e-Mate AI
               </p>
               <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-0.5">
-                Get 50% off e-Mate Pro with your verified student email.
+                Get a plan of e-Mate AI Pro with verified student status.
               </p>
             </div>
           </div>
-          <a
-            href="/sign-up-login-screen"
-            className="shrink-0 px-5 py-2.5 rounded-full border border-blue-200 dark:border-blue-800 text-blue-600 dark:text-blue-400 text-sm font-semibold hover:bg-blue-50 dark:hover:bg-blue-950 transition-colors"
+          <button
+            type="button"
+            className="shrink-0 px-5 py-2.5 rounded-full border border-blue-600 text-blue-600 dark:text-blue-400 dark:border-blue-500 text-sm font-semibold hover:bg-blue-50 dark:hover:bg-blue-950 transition-colors cursor-pointer"
           >
             See student offers
-          </a>
+          </button>
         </div>
       </section>
     </div>
