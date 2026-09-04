@@ -673,7 +673,7 @@ export default function ChatMainArea({
     if (!lastQuiz || !submissionData) {
       // Fallback when submission context is missing
       const prompt = `Please explain these concepts in detail with examples: ${weakTopics.join(', ')}`;
-      await handleSend(prompt);
+      await handleSend(prompt, undefined, true);
       return;
     }
 
@@ -697,7 +697,7 @@ export default function ChatMainArea({
     if (incorrectQuestions.length === 0) {
       // All correct — just reinforce the weak topic areas
       const prompt = `I did well on the quiz but want to strengthen my understanding of: ${weakTopics.join(', ')}. Please explain each concept in depth with examples and exam tips.`;
-      await handleSend(prompt);
+      await handleSend(prompt, undefined, true);
       return;
     }
 
@@ -719,10 +719,13 @@ export default function ChatMainArea({
       `2. Break down the core concept behind the correct answer in simple terms.\n` +
       `3. Provide a quick tip or mnemonic so I don't make this mistake again.`;
 
-    await handleSend(prompt);
+    await handleSend(prompt, undefined, true);
   };
 
-  const handleSend = async (text?: string, attachmentOverride?: File[]) => {
+  const handleSend = async (text?: string, attachmentOverride?: File[] | boolean, _systemAction?: boolean) => {
+    // Support legacy call-site: handleSend(prompt, true) where second arg is the flag
+    const isSystemAction = _systemAction === true || attachmentOverride === true;
+    const actualAttachments = Array.isArray(attachmentOverride) ? attachmentOverride : undefined;
     const content = (text ?? inputValue).trim();
     if (!content || isStreaming) return;
 
@@ -736,8 +739,9 @@ export default function ChatMainArea({
     // Clear main input search bar immediately
     setInputValue('');
 
-    // Quiz intent detection — intercepts before the text/credit path
-    if (isStudyMode && QUIZ_INTENTS.test(content) && !imageGenMode) {
+    // Quiz intent detection — intercepts before the text/credit path.
+    // Bypass for system actions (reinforce, slash commands) to prevent re-triggering.
+    if (!isSystemAction && isStudyMode && QUIZ_INTENTS.test(content) && !imageGenMode) {
       // Add the user message then trigger quiz generation
       const userMsg: ChatMessage = {
         id: `msg-${Date.now()}-user`,
@@ -825,9 +829,9 @@ export default function ChatMainArea({
 
     try {
       const notebookContext = isStudyMode ? buildNotebookContext(selectedContext.subject) : '';
-      // attachmentOverride lets the PromptInput pass fresh attachments that haven't
+      // actualAttachments lets the PromptInput pass fresh attachments that haven't
       // flushed to React state yet when handleSend is called synchronously.
-      const sendAttachments = attachmentOverride ?? attachedFiles;
+      const sendAttachments = actualAttachments ?? attachedFiles;
       const base64Attachments =
         sendAttachments.length > 0 ? await convertFilesToBase64(sendAttachments) : [];
       const finalPayloadMessages = [...newMessages];
