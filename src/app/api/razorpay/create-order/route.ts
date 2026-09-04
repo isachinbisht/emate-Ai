@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Razorpay from 'razorpay';
 
+export const dynamic = 'force-dynamic';
+
 const razorpay = new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID!,
-  key_secret: process.env.RAZORPAY_KEY_SECRET!,
+  key_id: process.env.RAZORPAY_KEY_ID || 'rzp_placeholder',
+  key_secret: process.env.RAZORPAY_KEY_SECRET || 'placeholder',
 });
 
 export async function POST(req: NextRequest) {
