@@ -2,6 +2,7 @@
 
 import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import {
   Zap,
   BookOpen,
@@ -1108,13 +1109,15 @@ export default function ChatMainArea({
             </div>
           )}
           {isOpenRouterConnected ? (
-            <div className="h-8 flex items-center gap-1.5 select-none text-[11px] text-gray-500 dark:text-zinc-400 px-2">
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+            <Link
+              href="/upgrade"
+              className="h-8 flex items-center gap-1.5 px-3 rounded-full bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-semibold shadow-xs transition-all"
+            >
+              <span>Upgrade</span>
+              <span className="text-[10px] bg-white/20 px-1.5 py-0.5 rounded-full font-normal">
+                Pro
               </span>
-              Connected
-            </div>
+            </Link>
           ) : (
             <button
               onClick={handleOpenRouterConnect}
