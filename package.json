@@ -61,6 +61,7 @@
         "lucide-react": "^1.28.0",
         "motion": "^12.43.0",
         "next": "15.5.18",
+        "razorpay": "^2.9.8",
         "react": "19.0.3",
         "react-dom": "19.0.3",
         "react-hook-form": "^7.83.0",
