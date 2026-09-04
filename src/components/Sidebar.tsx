@@ -79,6 +79,8 @@ export default function Sidebar({
   const [profileName, setProfileName] = useState('Guest');
   const [profileSubtitle, setProfileSubtitle] = useState('Guest mode');
   const [avatarLabel, setAvatarLabel] = useState('G');
+  const [avatarUrl, setAvatarUrl] = useState('');
+  const [profileLoading, setProfileLoading] = useState(true);
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
   const [selectedSubject, setSelectedSubject] = useState('DBMS');
   const [selectedUnit, setSelectedUnit] = useState('Normalization (3NF/BCNF)');
@@ -209,6 +211,7 @@ export default function Sidebar({
 
   useEffect(() => {
     const syncProfileState = async () => {
+      setProfileLoading(true);
       const supabase = createClient();
       const {
         data: { user },
@@ -221,16 +224,20 @@ export default function Sidebar({
           user.email?.split('@')[0] ||
           'User';
         const displayName = String(fullName).trim() || 'User';
+        const avatar = user.user_metadata?.avatar_url || user.user_metadata?.picture || '';
 
         setIsGuest(false);
         setProfileName(displayName);
         setProfileSubtitle(user.email || 'Signed in');
         setAvatarLabel(displayName.charAt(0).toUpperCase());
+        setAvatarUrl(avatar);
+        setProfileLoading(false);
         return;
       }
 
       const guestEnabled = isGuestModeEnabled();
       setIsGuest(guestEnabled);
+      setAvatarUrl('');
 
       if (guestEnabled) {
         setProfileName('Guest');
@@ -241,6 +248,7 @@ export default function Sidebar({
         setProfileSubtitle('Access your account');
         setAvatarLabel('S');
       }
+      setProfileLoading(false);
     };
 
     syncProfileState();
@@ -622,44 +630,69 @@ export default function Sidebar({
             <span>Settings</span>
           </button>
 
-          <div
-            className="flex items-center justify-between rounded-2xl px-2.5 py-2 transition"
-            style={{
-              background: theme === 'dark' ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)',
-              border:
-                theme === 'dark'
-                  ? '1px solid rgba(255,255,255,0.06)'
-                  : '1px solid rgba(0,0,0,0.06)',
-            }}
-          >
-            <div className="flex items-center gap-3 min-w-0">
-              <div
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-sm font-semibold"
-                style={{
-                  background: theme === 'dark' ? '#52525b' : '#d4d4d8',
-                  color: theme === 'dark' ? '#ffffff' : '#000000',
-                }}
-              >
-                {avatarLabel}
-              </div>
-              <div className="flex flex-col min-w-0">
-                <p
-                  className="truncate text-sm font-semibold"
-                  style={{ color: theme === 'dark' ? '#ffffff' : '#000000' }}
-                >
-                  {profileName}
-                </p>
-                <p className="truncate text-xs text-zinc-500">{profileSubtitle}</p>
+          {/* Profile card */}
+          {profileLoading ? (
+            <div className="flex items-center gap-3 px-2.5 py-2.5 animate-pulse">
+              <div className="w-9 h-9 rounded-full bg-zinc-300 dark:bg-zinc-700 shrink-0" />
+              <div className="flex-1 space-y-1.5">
+                <div className="h-3 bg-zinc-300 dark:bg-zinc-700 rounded w-24" />
+                <div className="h-2.5 bg-zinc-200 dark:bg-zinc-800 rounded w-32" />
               </div>
             </div>
-            <button
-              onClick={handleSignOut}
-              className="p-1.5 rounded-lg hover:bg-red-500/10 text-zinc-500 hover:text-red-500 transition shrink-0 ml-1"
-              title="Sign Out"
+          ) : (
+            <div
+              className="flex items-center justify-between rounded-2xl px-2.5 py-2 transition group"
+              style={{
+                background: theme === 'dark' ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)',
+                border:
+                  theme === 'dark'
+                    ? '1px solid rgba(255,255,255,0.06)'
+                    : '1px solid rgba(0,0,0,0.06)',
+              }}
             >
-              <LogOut size={14} />
-            </button>
-          </div>
+              <div className="flex items-center gap-3 min-w-0">
+                {/* Avatar: image or letter fallback */}
+                <div className="relative w-9 h-9 shrink-0 rounded-full overflow-hidden flex items-center justify-center font-semibold text-sm border border-zinc-300 dark:border-zinc-600"
+                  style={{
+                    background: theme === 'dark' ? '#52525b' : '#d4d4d8',
+                    color: theme === 'dark' ? '#ffffff' : '#000000',
+                  }}
+                >
+                  {avatarUrl ? (
+                    <img
+                      src={avatarUrl}
+                      alt={profileName}
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).style.display = 'none';
+                      }}
+                    />
+                  ) : null}
+                  {avatarUrl ? null : (
+                    <span className="relative z-10">{avatarLabel}</span>
+                  )}
+                </div>
+                <div className="flex flex-col min-w-0 leading-tight">
+                  <span
+                    className="truncate text-xs font-semibold"
+                    style={{ color: theme === 'dark' ? '#ffffff' : '#09090b' }}
+                  >
+                    {profileName}
+                  </span>
+                  <span className="truncate text-[11px] text-zinc-500 dark:text-zinc-400">
+                    {profileSubtitle}
+                  </span>
+                </div>
+              </div>
+              <button
+                onClick={handleSignOut}
+                className="p-1.5 rounded-lg hover:bg-red-500/10 text-zinc-400 hover:text-red-500 transition shrink-0 ml-1"
+                title="Sign out"
+              >
+                <LogOut size={14} />
+              </button>
+            </div>
+          )}
         </div>
       </aside>
 
