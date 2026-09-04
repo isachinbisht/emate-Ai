@@ -9,6 +9,7 @@ import {
 const PRIMARY_MODEL = 'google/gemini-2.0-flash';
 
 export const runtime = 'edge'; // Edge runtime for lowest cold-start latency
+export const dynamic = 'force-dynamic';
 
 /** Parse a specific cookie value from a raw Cookie header string */
 function getCookie(cookieHeader: string | null, name: string): string | undefined {

@@ -71,6 +71,9 @@ module.exports = {
                 'stream-pulse': 'streamPulse 1.2s ease-in-out infinite',
                 'shimmer': 'shimmer 1.5s infinite',
             },
+            transitionTimingFunction: {
+                'spring-bounce': 'cubic-bezier(0.175, 0.885, 0.32, 1.275)',
+            },
         },
     },
     plugins: [require('@tailwindcss/typography'), require('tailwindcss-animate')],

@@ -64,7 +64,7 @@ function MorphingText({ text }: { text: string }) {
 
   return (
     <span
-      className="relative inline-flex items-center justify-center overflow-hidden transition-all duration-300 ease-[cubic-bezier(0.175,0.885,0.32,1.275)]"
+      className="relative inline-flex items-center justify-center overflow-hidden transition-all duration-300 ease-spring-bounce"
       style={{ width }}
     >
       <span ref={spanRef} className="invisible whitespace-nowrap px-1">

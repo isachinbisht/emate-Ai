@@ -1,6 +1,7 @@
 import { generateQuiz } from '@/lib/agents/mcqAgent';
 
 export const runtime = 'edge';
+export const dynamic = 'force-dynamic';
 
 function getCookie(cookieHeader: string | null, name: string): string | undefined {
   if (!cookieHeader) return undefined;
