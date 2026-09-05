@@ -53,15 +53,13 @@ export async function POST(req: Request) {
     // Style hint appended to the prompt (educational/default).
     const styleHint =
       style === 'educational'
-        ? ' Create a clean, labelled educational diagram.'
+        ? ' High quality educational visual, clean background, sharp text.'
         : style === 'realistic'
           ? ' Photorealistic, high detail.'
           : style === 'vector'
             ? ' Flat vector illustration style.'
             : '';
 
-    // aspectRatio currently has no effect on flux-1-schnell via OpenRouter's
-    // chat endpoint; pass it through for forward compatibility.
     const fullPrompt = `${prompt.trim()}${styleHint}`;
 
     const { imageUrl } = await openRouterImageCompletion(apiKey, {

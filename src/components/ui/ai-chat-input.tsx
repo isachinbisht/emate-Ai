@@ -30,10 +30,11 @@ interface SlashCommand {
 }
 
 const SLASH_COMMANDS: SlashCommand[] = [
+  { label: 'Generate Image', command: '/image', description: 'Create diagrams, mind maps, or visual notes', icon: Sparkles },
   { label: 'MCQ Practice', command: '/mcq', description: 'Generate interactive multiple-choice questions', icon: HelpCircle },
   { label: 'Flashcards', command: '/flashcard', description: 'Create concept revision flip cards', icon: Layers },
   { label: 'Summary', command: '/summary', description: 'Summarize active study notes', icon: BookOpen },
-  { label: 'Sprint Mode', command: '/sprint', description: 'Fast-paced exam cram module', icon: Sparkles },
+  { label: 'Sprint Mode', command: '/sprint', description: 'Fast-paced exam cram module', icon: Zap },
 ];
 
 // ----------------------------------------------------------------------

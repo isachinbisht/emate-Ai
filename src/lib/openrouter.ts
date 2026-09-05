@@ -208,8 +208,8 @@ export async function openRouterCompletion(
   return (await response.json()) as Record<string, unknown>;
 }
 
-/** The OpenRouter model id used for image generation (fast + cheap). */
-export const IMAGE_GENERATION_MODEL = 'black-forest-labs/flux-1-schnell';
+/** The OpenRouter model id used for image generation — FLUX.2 Flex for crisp educational visuals. */
+export const IMAGE_GENERATION_MODEL = 'black-forest-labs/flux-2-flex';
 
 /**
  * Extract a `data:image/...` (or http) URL from an OpenRouter image-model

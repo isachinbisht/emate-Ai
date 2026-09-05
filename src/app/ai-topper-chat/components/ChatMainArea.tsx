@@ -757,6 +757,26 @@ export default function ChatMainArea({
       return;
     }
 
+    // /image slash command — extract prompt and route to image generation
+    const imageCmdMatch = content.match(/^\/(image|img)\s+(.+)/i);
+    if (imageCmdMatch && !isGuest) {
+      const imagePrompt = imageCmdMatch[2].trim();
+      if (imagePrompt) {
+        const userMsg: ChatMessage = {
+          id: `msg-${Date.now()}-user`,
+          role: 'user',
+          content,
+          mode,
+          timestamp: new Date().toISOString(),
+          subject: selectedContext.subject,
+        };
+        setMessages((prev) => [...prev, userMsg]);
+        router.push(`/ai-topper-chat?chatId=${targetChatId}`, { scroll: false });
+        await handleImageSend(imagePrompt);
+        return;
+      }
+    }
+
     // Image Gen Mode intercepts before the text/credit path
     if (imageGenMode && !isGuest) {
       router.push(`/ai-topper-chat?chatId=${targetChatId}`, { scroll: false });
